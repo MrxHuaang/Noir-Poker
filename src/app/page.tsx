@@ -33,33 +33,33 @@ export default function Home() {
         className="pointer-events-none fixed inset-0 z-[1] overflow-hidden"
         aria-hidden
       >
-        <div className="absolute inset-0 opacity-[0.42]">
+        <div className="absolute inset-0 opacity-[0.48]">
           <FaultyTerminal
             className="h-full min-h-[100dvh] w-full"
-            scale={1.12}
+            scale={1.35}
             gridMul={HOME_TERMINAL_GRID}
-            digitSize={1.12}
-            timeScale={0.16}
+            digitSize={1.25}
+            timeScale={0.48}
             pause={pauseTerminalBg}
-            scanlineIntensity={0.16}
-            glitchAmount={0.5}
-            flickerAmount={0.22}
-            noiseAmp={0.38}
+            scanlineIntensity={0.42}
+            glitchAmount={1}
+            flickerAmount={0.85}
+            noiseAmp={0.92}
             chromaticAberration={0}
-            dither={0}
-            curvature={0.03}
-            tint="#3f6f5c"
+            dither={0.35}
+            curvature={0.1}
+            tint="#8fb5a3"
             mouseReact={false}
             mouseStrength={0.35}
-            pageLoadAnimation={!pauseTerminalBg}
-            brightness={pauseTerminalBg ? 0.48 : 0.42}
+            pageLoadAnimation={false}
+            brightness={pauseTerminalBg ? 0.52 : 0.58}
           />
         </div>
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 100% 72% at 50% 44%, rgba(6,7,10,0.28) 0%, rgba(6,7,10,0.72) 62%, rgba(6,7,10,0.88) 100%), linear-gradient(180deg, rgba(6,7,10,0.55) 0%, transparent 28%, transparent 72%, rgba(6,7,10,0.65) 100%)",
+              "radial-gradient(ellipse 100% 72% at 50% 44%, rgba(6,7,10,0.18) 0%, rgba(6,7,10,0.58) 58%, rgba(6,7,10,0.82) 100%), linear-gradient(180deg, rgba(6,7,10,0.38) 0%, transparent 26%, transparent 74%, rgba(6,7,10,0.48) 100%)",
           }}
         />
       </div>
@@ -95,8 +95,8 @@ export default function Home() {
           glowColors={["#34d399", "#10b981", "#6ee7b7"]}
         />
         <ModeCard
-          href="#"
-          status="soon"
+          href="/host/normal"
+          status="active"
           icon={<Coins className="w-5 h-5" />}
           accent="amber"
           title="Normal"
@@ -107,12 +107,12 @@ export default function Home() {
             "Time bank por jugador",
             "Side pots automáticos",
           ]}
-          cta="Próximamente"
+          cta="Crear sala"
           glowColors={["#fbbf24", "#f59e0b", "#fde68a"]}
         />
         <ModeCard
-          href="#"
-          status="soon"
+          href="/host/torneo"
+          status="active"
           icon={<Trophy className="w-5 h-5" />}
           accent="rose"
           title="Torneo"
@@ -123,7 +123,7 @@ export default function Home() {
             "Knockouts + ranking final",
             "Panel admin con equity",
           ]}
-          cta="Próximamente"
+          cta="Crear torneo"
           glowColors={["#fb7185", "#f43f5e", "#fda4af"]}
         />
       </section>

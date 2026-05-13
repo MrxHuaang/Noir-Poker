@@ -3,6 +3,15 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Smartphone } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
+import { doc, getDoc } from "firebase/firestore";
+import { getDb } from "@/lib/firebase";
+
+async function resolvePlayRoute(code: string): Promise<string> {
+  const db = getDb();
+  const snap = await getDoc(doc(db, "normalRooms", code));
+  if (snap.exists()) return `/play/normal/${code}`;
+  return `/play/${code}`;
+}
 
 function JoinInner() {
   const router = useRouter();
@@ -11,14 +20,16 @@ function JoinInner() {
 
   useEffect(() => {
     const fromUrl = sp.get("code");
-    if (fromUrl) router.replace(`/play/${fromUrl.toUpperCase()}`);
+    if (!fromUrl) return;
+    const c = fromUrl.toUpperCase();
+    resolvePlayRoute(c).then((route) => router.replace(route)).catch(() => router.replace(`/play/${c}`));
   }, [sp, router]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const c = code.trim().toUpperCase();
     if (c.length < 4 || c.length > 6) return;
-    router.push(`/play/${c}`);
+    resolvePlayRoute(c).then((route) => router.push(route)).catch(() => router.push(`/play/${c}`));
   }
 
   return (

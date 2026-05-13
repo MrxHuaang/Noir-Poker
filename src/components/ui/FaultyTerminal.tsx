@@ -80,7 +80,7 @@ float hash21(vec2 p){
 
 float noise(vec2 p)
 {
-  return sin(p.x * 10.0) * sin(p.y * (3.0 + sin(time * 0.090909))) + 0.2; 
+  return sin(p.x * 10.0 + time * 0.5) * sin(p.y * (3.0 + sin(time * 0.1)) + time * 0.3) + 0.2; 
 }
 
 mat2 rotate(float angle)
@@ -92,6 +92,7 @@ mat2 rotate(float angle)
 
 float fbm(vec2 p)
 {
+  p += time * 0.1;
   p *= 1.1;
   float f = 0.0;
   float amp = 0.5 * uNoiseAmp;
@@ -270,7 +271,7 @@ export function FaultyTerminal({
   dither = 0,
   curvature = 0.2,
   tint = "#ffffff",
-  mouseReact = true,
+  mouseReact = false,
   mouseStrength = 0.2,
   dpr: dprProp,
   pageLoadAnimation = true,
@@ -296,7 +297,40 @@ export function FaultyTerminal({
     [dither],
   );
 
+  /** Props leídos en cada RAF (evita recrear GL al cambiar pause/timeScale/etc.). */
+  const liveRef = useRef({
+    pause,
+    timeScale,
+    brightness,
+    scanlineIntensity,
+    glitchAmount,
+    flickerAmount,
+    noiseAmp,
+    pageLoadAnimation,
+    mouseReact,
+    mouseStrength,
+    curvature,
+    chromaticAberration,
+    dither: ditherValue,
+  });
+  liveRef.current = {
+    pause,
+    timeScale,
+    brightness,
+    scanlineIntensity,
+    glitchAmount,
+    flickerAmount,
+    noiseAmp,
+    pageLoadAnimation,
+    mouseReact,
+    mouseStrength,
+    curvature,
+    chromaticAberration,
+    dither: ditherValue,
+  };
+
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!liveRef.current.mouseReact) return;
     const ctn = containerRef.current;
     if (!ctn) return;
     const rect = ctn.getBoundingClientRect();
@@ -314,7 +348,7 @@ export function FaultyTerminal({
       2,
     );
 
-    const renderer = new Renderer({ dpr });
+    const renderer = new Renderer({ dpr, webgl: 1 });
     rendererRef.current = renderer;
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 1);
@@ -376,26 +410,42 @@ export function FaultyTerminal({
     const update = (t: number) => {
       rafRef.current = requestAnimationFrame(update);
 
-      if (pageLoadAnimation && loadAnimationStartRef.current === 0) {
+      const L = liveRef.current;
+
+      if (L.pageLoadAnimation && loadAnimationStartRef.current === 0) {
         loadAnimationStartRef.current = t;
       }
 
-      if (!pause) {
-        const elapsed = (t * 0.001 + timeOffsetRef.current) * timeScale;
+      if (!L.pause) {
+        const elapsed = (t * 0.001 + timeOffsetRef.current) * L.timeScale;
         program.uniforms.iTime.value = elapsed;
         frozenTimeRef.current = elapsed;
       } else {
         program.uniforms.iTime.value = frozenTimeRef.current;
       }
 
-      if (pageLoadAnimation && loadAnimationStartRef.current > 0) {
+      if (L.pageLoadAnimation && loadAnimationStartRef.current > 0) {
         const animationDuration = 2000;
         const animationElapsed = t - loadAnimationStartRef.current;
         const progress = Math.min(animationElapsed / animationDuration, 1);
         program.uniforms.uPageLoadProgress.value = progress;
+      } else if (!L.pageLoadAnimation) {
+        program.uniforms.uPageLoadProgress.value = 1;
       }
 
-      if (mouseReact) {
+      program.uniforms.uBrightness.value = L.brightness;
+      program.uniforms.uScanlineIntensity.value = L.scanlineIntensity;
+      program.uniforms.uGlitchAmount.value = L.glitchAmount;
+      program.uniforms.uFlickerAmount.value = L.flickerAmount;
+      program.uniforms.uNoiseAmp.value = L.noiseAmp;
+      program.uniforms.uCurvature.value = L.curvature;
+      program.uniforms.uChromaticAberration.value = L.chromaticAberration;
+      program.uniforms.uDither.value = L.dither;
+      program.uniforms.uMouseStrength.value = L.mouseStrength;
+      program.uniforms.uUseMouse.value = L.mouseReact ? 1 : 0;
+      program.uniforms.uUsePageLoadAnimation.value = L.pageLoadAnimation ? 1 : 0;
+
+      if (L.mouseReact) {
         const dampingFactor = 0.08;
         const smoothMouse = smoothMouseRef.current;
         const mouse = mouseRef.current;
@@ -412,12 +462,12 @@ export function FaultyTerminal({
     rafRef.current = requestAnimationFrame(update);
     ctn.appendChild(gl.canvas);
 
-    if (mouseReact) ctn.addEventListener("mousemove", handleMouseMove);
+    ctn.addEventListener("mousemove", handleMouseMove);
 
     return () => {
       cancelAnimationFrame(rafRef.current);
       resizeObserver.disconnect();
-      if (mouseReact) ctn.removeEventListener("mousemove", handleMouseMove);
+      ctn.removeEventListener("mousemove", handleMouseMove);
       if (gl.canvas.parentElement === ctn) ctn.removeChild(gl.canvas);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
       loadAnimationStartRef.current = 0;
@@ -427,24 +477,12 @@ export function FaultyTerminal({
     };
   }, [
     dprProp,
-    pause,
-    timeScale,
     scale,
     gridMul[0],
     gridMul[1],
     digitSize,
-    scanlineIntensity,
-    glitchAmount,
-    flickerAmount,
-    noiseAmp,
-    chromaticAberration,
-    ditherValue,
-    curvature,
     tintVec,
-    mouseReact,
-    mouseStrength,
-    pageLoadAnimation,
-    brightness,
+    ditherValue,
     handleMouseMove,
   ]);
 
