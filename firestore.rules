@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /rooms/{code} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.hostUid == request.auth.uid;
+      // Host can update anything; other signed-in users only seat flags they own
+      allow update: if isSignedIn() && (
+        resource.data.hostUid == request.auth.uid ||
+        // partial seat update by phone for their own seat
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
+      );
+
+      match /lobby/{uid} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && request.auth.uid == uid;
+      }
+
+      match /holes/{seatId} {
+        // host can read all; owner can read theirs
+        allow read: if isSignedIn() && (
+          resource.data.ownerUid == request.auth.uid ||
+          get(/databases/$(database)/documents/rooms/$(code)).data.hostUid == request.auth.uid
+        );
+        allow write: if isSignedIn() && (
+          get(/databases/$(database)/documents/rooms/$(code)).data.hostUid == request.auth.uid
+        );
+      }
+    }
+  }
+}

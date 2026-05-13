@@ -1,8 +1,12 @@
 "use client";
 import {
+  collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
+  orderBy,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -154,6 +158,24 @@ export async function patchRoom(
   await updateDoc(doc(db, "rooms", code), patch);
 }
 
+export async function phoneSetSeatFlag(
+  code: string,
+  seatId: string,
+  key: "folded" | "revealed",
+  value: boolean,
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "rooms", code);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const room = snap.data() as RoomDoc;
+  if (!room.state) return;
+  const seats = room.state.seats.map((s) =>
+    s.id === seatId ? { ...s, [key]: value } : s,
+  );
+  await updateDoc(ref, { "state.seats": seats });
+}
+
 export async function claimSeat(
   code: string,
   seatId: string,
@@ -172,6 +194,49 @@ export async function claimSeat(
   batch.update(ref, { "state.seats": seats });
   batch.update(doc(db, "rooms", code, "holes", seatId), { ownerUid: uid });
   await batch.commit();
+}
+
+export type LobbyPlayer = {
+  uid: string;
+  name: string;
+  seed: string;
+  joinedAt: number;
+};
+
+export async function joinLobby(
+  code: string,
+  uid: string,
+  name: string,
+  seed: string,
+): Promise<void> {
+  const db = getDb();
+  await setDoc(doc(db, "rooms", code, "lobby", uid), {
+    uid,
+    name,
+    seed,
+    joinedAt: Date.now(),
+  });
+}
+
+export async function leaveLobby(code: string, uid: string): Promise<void> {
+  const db = getDb();
+  await deleteDoc(doc(db, "rooms", code, "lobby", uid));
+}
+
+export function subscribeLobby(
+  code: string,
+  cb: (players: LobbyPlayer[]) => void,
+): () => void {
+  const db = getDb();
+  const q = query(
+    collection(db, "rooms", code, "lobby"),
+    orderBy("joinedAt", "asc"),
+  );
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data() as LobbyPlayer)),
+    () => cb([]),
+  );
 }
 
 export type HistoryEntry = {

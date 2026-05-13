@@ -1,8 +1,13 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { SkipForward, Trophy } from "lucide-react";
 import type { Card, GameState, Player } from "@/lib/poker";
+import {
+  gameToPublic,
+  patchRoom,
+  writeDealedRoom,
+} from "@/lib/rooms";
 import { advance, deal } from "@/lib/poker";
 import {
   CATEGORY_LABEL,
@@ -22,13 +27,25 @@ import { AllInModal } from "./AllInModal";
 import { RunResults } from "./RunResults";
 import { StatsPanel } from "@/components/StatsPanel";
 import { EquityPanel } from "@/components/EquityPanel";
+import { Avatar } from "@/components/players/Avatar";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-export function PokerTable() {
-  const { players, hydrated } = usePlayers();
+export function PokerTable({
+  sync,
+  playersOverride,
+}: {
+  sync?: {
+    roomCode: string;
+    ownersMap: Record<string, string | null>;
+  };
+  playersOverride?: Player[];
+} = {}) {
+  const local = usePlayers();
+  const players = playersOverride ?? local.players;
+  const hydrated = playersOverride ? true : local.hydrated;
   const { addWins } = useStats();
   const { record, recordMany } = useHistory();
   const [state, setState] = useState<GameState | null>(null);
@@ -46,6 +63,36 @@ export function PokerTable() {
   const { equity, outs, runMany } = useEquity(
     result || playback ? null : state,
   );
+
+  const lastDealIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!sync || !state) return;
+    const ownersMap = sync.ownersMap;
+    const code = sync.roomCode;
+    (async () => {
+      try {
+        if (state.dealId !== lastDealIdRef.current) {
+          lastDealIdRef.current = state.dealId;
+          await writeDealedRoom(code, state, ownersMap);
+        } else {
+          await patchRoom(code, {
+            state: gameToPublic(state, ownersMap),
+            result,
+            playback: playback
+              ? {
+                  idx: playback.idx,
+                  total: playback.runs.length,
+                  community: state.community,
+                }
+              : null,
+            runHighlight,
+          });
+        }
+      } catch {
+        /* swallow FS errors */
+      }
+    })();
+  }, [state, result, playback, runHighlight, sync]);
 
   function startDeal(selected: Player[]) {
     setResult(null);
@@ -250,7 +297,11 @@ export function PokerTable() {
     return (
       <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
         <div className="flex-1 min-w-0">
-          <PlayerPicker players={players} onDeal={startDeal} />
+          {sync ? (
+            <HostLobby players={players} onDeal={startDeal} />
+          ) : (
+            <PlayerPicker players={players} onDeal={startDeal} />
+          )}
         </div>
         <div className="flex flex-col gap-4 w-full lg:w-auto">
           <StatsPanel players={players} />
@@ -430,6 +481,57 @@ function WinnerBanner({
         </span>
         <span className="text-[11px] text-amber-200/80">{category}</span>
       </div>
+    </div>
+  );
+}
+
+function HostLobby({
+  players,
+  onDeal,
+}: {
+  players: Player[];
+  onDeal: (selected: Player[]) => void;
+}) {
+  return (
+    <div className="w-full max-w-2xl mx-auto flex flex-col gap-6 py-8">
+      <header className="text-center">
+        <h2 className="text-xl tracking-tight text-zinc-100">
+          Jugadores conectados
+        </h2>
+        <p className="text-sm text-zinc-400 mt-1">
+          {players.length} en la sala. Esperando para repartir.
+        </p>
+      </header>
+      {players.length === 0 ? (
+        <p className="text-sm text-zinc-500 text-center py-8">
+          Aún nadie. Comparte el código.
+        </p>
+      ) : (
+        <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {players.map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center gap-2 p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/10"
+            >
+              <Avatar seed={p.seed} size={32} />
+              <span className="text-sm text-zinc-100 truncate">{p.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center justify-center">
+        <button
+          type="button"
+          disabled={players.length < 2 || players.length > 9}
+          onClick={() => onDeal(players)}
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-950 font-medium text-sm transition"
+        >
+          Repartir ({players.length})
+        </button>
+      </div>
+      <p className="text-[11px] text-zinc-500 text-center">
+        Requiere 2 a 9 jugadores.
+      </p>
     </div>
   );
 }
