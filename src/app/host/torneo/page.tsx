@@ -101,8 +101,21 @@ export default function HostTorneoPage() {
   useEffect(() => {
     if (loading || !uid || code || creating) return;
     setCreating(true);
+
+    // Check URL first
+    const searchParams = new URLSearchParams(window.location.search);
+    const existingCode = searchParams.get("code");
+    if (existingCode) {
+      setCode(existingCode.toUpperCase());
+      setCreating(false);
+      return;
+    }
+
     createNormalRoom(uid, { ...DEFAULT_TORNEO_CONFIG, mode: "torneo" })
-      .then(setCode)
+      .then((c) => {
+        setCode(c);
+        window.history.replaceState(null, "", `?code=${c}`);
+      })
       .catch(() => {})
       .finally(() => setCreating(false));
   }, [loading, uid, code, creating]);

@@ -23,8 +23,21 @@ export default function HostPage() {
   useEffect(() => {
     if (loading || !uid || code || creating) return;
     setCreating(true);
+
+    // Check URL first
+    const searchParams = new URLSearchParams(window.location.search);
+    const existingCode = searchParams.get("code");
+    if (existingCode) {
+      setCode(existingCode.toUpperCase());
+      setCreating(false);
+      return;
+    }
+
     createRoom(uid, { mode: "presencial" })
-      .then((c) => setCode(c))
+      .then((c) => {
+        setCode(c);
+        window.history.replaceState(null, "", `?code=${c}`);
+      })
       .catch(() => {})
       .finally(() => setCreating(false));
   }, [loading, uid, code, creating]);

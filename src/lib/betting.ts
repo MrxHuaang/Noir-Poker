@@ -427,8 +427,11 @@ function advanceAction(state: NormalGameState): NormalGameState {
     if (activePlayers(seats).length <= 1) {
       return { ...state, phase: "showdown" };
     }
-    // All players all-in: run out the board
-    return runOutBoard(state);
+    // All players all-in or only one active: close action and let useNormalGame handle runout
+    return {
+      ...state,
+      betting: { ...betting, toActId: null, actedThisRound: active.map((x) => x.id) },
+    };
   }
 
   // Check round completion: all active players have acted and matched bet
@@ -547,18 +550,7 @@ function advanceStreet(state: NormalGameState): NormalGameState {
   };
 }
 
-function runOutBoard(state: NormalGameState): NormalGameState {
-  const { deck, burns, community } = state;
-  let s = { ...state, deck: deck.slice(), burns: burns.slice(), community: community.slice() };
 
-  while (s.street !== "river") {
-    s = {
-      ...advanceStreet(s),
-      betting: { ...s.betting, actedThisRound: actionablePlayers(s.seats).map(x => x.id) }
-    };
-  }
-  return { ...s, phase: "showdown" };
-}
 
 export function computeSidePots(
   seats: NormalSeat[],

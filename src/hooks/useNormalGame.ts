@@ -411,7 +411,6 @@ export function useNormalGame(
     if (gameState.phase === "showdown" || gameState.phase === "between-hands") return;
 
     // Check if everyone is all-in or folded except one
-    const active = gameState.seats.filter(s => s.status === "active");
     const unfolded = gameState.seats.filter(s => s.status !== "folded" && s.status !== "out");
 
     if (unfolded.length <= 1) {
@@ -420,7 +419,9 @@ export function useNormalGame(
       return;
     }
 
-    if (active.length === 0 && unfolded.length >= 2) {
+    const isAllInRunout = gameState.betting.toActId === null && unfolded.length >= 2;
+
+    if (isAllInRunout) {
       // All-in scenario: wait for negotiation or auto-run
       if (gameState.phase !== "all-in-negotiation") {
         const revealedHoles: Record<string, [Card, Card]> = { ...(room?.revealedHoles ?? {}) };

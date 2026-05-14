@@ -198,7 +198,7 @@ export default function PlayNormalPage() {
   const rebuyPending = myRequest?.status === "pending" && myRequest.type === "rebuy";
 
   const isShowdown = gs?.phase === "showdown";
-  const canMuckOrShow = isShowdown && !isOut && mySeat?.status !== "sitting-out" && hole?.cards;
+  const canMuckOrShow = isShowdown && mySeat?.status !== "sitting-out" && hole?.cards;
   const hasRevealedLeft = room?.revealedHoles?.[uid ?? ""]?.[0] != null;
   const hasRevealedRight = room?.revealedHoles?.[uid ?? ""]?.[1] != null;
   const hasRevealedBoth = hasRevealedLeft && hasRevealedRight;
@@ -231,6 +231,7 @@ export default function PlayNormalPage() {
   ) : null;
 
   const playerExtra =
+    isShowdown && showMuckUI ? showMuckUI :
     needsRebuy || rebuyPending ? (
       <div className="mt-3">
         {needsRebuy && (

@@ -72,8 +72,21 @@ export default function HostNormalPage() {
   useEffect(() => {
     if (loading || !uid || code || creatingRef.current) return;
     creatingRef.current = true;
+
+    // Check URL first
+    const searchParams = new URLSearchParams(window.location.search);
+    const existingCode = searchParams.get("code");
+    if (existingCode) {
+      setCode(existingCode.toUpperCase());
+      creatingRef.current = false;
+      return;
+    }
+
     createNormalRoom(uid, { ...DEFAULT_CONFIG, mode: "normal" })
-      .then(setCode)
+      .then((c) => {
+        setCode(c);
+        window.history.replaceState(null, "", `?code=${c}`);
+      })
       .catch(() => {})
       .finally(() => { creatingRef.current = false; });
   }, [loading, uid, code]);
