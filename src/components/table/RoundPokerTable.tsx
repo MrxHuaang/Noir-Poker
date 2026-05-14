@@ -306,16 +306,21 @@ export function RoundPokerTable({
               </div>
             )}
 
+            {/* Action Toast — globally positioned so z-index works over cards */}
+            {toast && (
+              <div
+                className="absolute z-50 pointer-events-none"
+                style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
+              >
+                <ActionToast key={toast.key} action={toast.action} amount={toast.action !== "fold" && toast.action !== "check" ? toast.amount : undefined} />
+              </div>
+            )}
+
             {/* Seat Box */}
             <div
               className={`absolute flex flex-col items-center transition-all duration-300 ${isToAct ? "z-30" : "z-20"}`}
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
             >
-              {/* Action Toast */}
-              {toast && (
-                <ActionToast key={toast.key} action={toast.action} amount={toast.action !== "fold" && toast.action !== "check" ? toast.amount : undefined} />
-              )}
-
               {/* Avatar */}
               <div className={`absolute -top-7 left-1/2 -translate-x-1/2 z-10 rounded-full ring-2 transition-all ${
                 isToAct

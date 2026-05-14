@@ -19,8 +19,8 @@ export function AllInVoteModal({ gameState, selfUid, onVote }: Props) {
   const total = neg.playerIds.length;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
-      <div className="pointer-events-auto w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-3xl ring-2 ring-emerald-400/40 shadow-[0_30px_120px_-20px_rgba(52,211,153,0.4)] p-6 flex flex-col gap-4 animate-in zoom-in fade-in duration-300">
+    <div className="fixed inset-x-0 bottom-6 sm:bottom-12 z-[110] flex flex-col items-center justify-end pointer-events-none">
+      <div className="pointer-events-auto w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-3xl ring-2 ring-emerald-400/40 shadow-[0_30px_120px_-20px_rgba(52,211,153,0.4)] p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 animate-in slide-in-from-bottom-8 fade-in duration-300">
         <div className="flex items-center gap-2 justify-center">
           <Zap className="w-5 h-5 text-emerald-400" />
           <span className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-300">

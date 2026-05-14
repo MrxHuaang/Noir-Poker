@@ -15,7 +15,9 @@ export type BettingAction =
   | "call"
   | "bet"
   | "raise"
-  | "all-in";
+  | "all-in"
+  | "show-card"
+  | "vote-run";
 
 export type SidePot = {
   amount: number;

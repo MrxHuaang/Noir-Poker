@@ -188,11 +188,13 @@ export function useNormalGame(
     setGameState(newState);
 
     const revealedHoles: Record<string, [Card, Card]> = {};
-    for (const id of activeSeatIds) {
-      const seat = gameState.seats.find((s) => s.id === id);
-      if (!seat || seat.status === "folded") continue;
-      const cards = allHoles[id];
-      if (cards) revealedHoles[id] = cards;
+    if (activeSeatIds.length > 1) {
+      for (const id of activeSeatIds) {
+        const seat = gameState.seats.find((s) => s.id === id);
+        if (!seat || seat.status === "folded") continue;
+        const cards = allHoles[id];
+        if (cards) revealedHoles[id] = cards;
+      }
     }
 
     await patchNormalRoom(code, {
@@ -296,7 +298,47 @@ export function useNormalGame(
       return;
     }
 
-    // Authorization: only the player whose turn it is can act
+    if (pa.action === "vote-run") {
+      setTimeout(() => {
+        setGameState((prev) => {
+          if (!prev || prev.phase !== "all-in-negotiation" || !prev.allInNegotiation) return prev;
+          const next = {
+            ...prev,
+            allInNegotiation: {
+              ...prev.allInNegotiation,
+              votes: {
+                ...prev.allInNegotiation.votes,
+                [pa.seatId]: pa.amount ?? 1,
+              }
+            }
+          };
+          patchNormalRoom(code, { state: toPublicState(next), pendingAction: null }).catch(() => {});
+          return next;
+        });
+      }, 0);
+      return;
+    }
+
+    if (pa.action === "show-card") {
+      setTimeout(() => {
+        const pId = pa.seatId;
+        const myHoles = dealtHolesRef.current[pId];
+        if (myHoles) {
+          const newRevealed = { ...(room?.revealedHoles ?? {}) };
+          const existing = newRevealed[pId] ? [...newRevealed[pId]] : [null, null];
+          if (pa.amount === 0) existing[0] = myHoles[0];
+          if (pa.amount === 1) existing[1] = myHoles[1];
+          if (pa.amount === 2) { existing[0] = myHoles[0]; existing[1] = myHoles[1]; }
+          newRevealed[pId] = existing as [Card, Card];
+          patchNormalRoom(code, { revealedHoles: newRevealed, pendingAction: null }).catch(() => {});
+        } else {
+          patchNormalRoom(code, { pendingAction: null }).catch(() => {});
+        }
+      }, 0);
+      return;
+    }
+
+    // Authorization: only the player whose turn it is can act for betting actions
     if (pa.seatId !== gameState.betting.toActId) {
       patchNormalRoom(code, { pendingAction: null }).catch(() => {});
       return;
@@ -338,7 +380,7 @@ export function useNormalGame(
         .catch(() => {})
         .finally(() => setIsProcessing(false));
     }, 0);
-  }, [room?.pendingAction, code, gameState, room?.config]);
+  }, [room?.pendingAction, code, gameState, room?.config, room?.revealedHoles]);
 
   // Admin: auto-resolve when phase reaches showdown
   useEffect(() => {
@@ -381,6 +423,12 @@ export function useNormalGame(
     if (active.length === 0 && unfolded.length >= 2) {
       // All-in scenario: wait for negotiation or auto-run
       if (gameState.phase !== "all-in-negotiation") {
+        const revealedHoles: Record<string, [Card, Card]> = { ...(room?.revealedHoles ?? {}) };
+        for (const u of unfolded) {
+           const cards = dealtHolesRef.current[u.id];
+           if (cards) revealedHoles[u.id] = cards;
+        }
+
         const newState: NormalGameState = {
           ...gameState,
           phase: "all-in-negotiation",
@@ -391,12 +439,12 @@ export function useNormalGame(
         };
         setTimeout(() => {
           setGameState(newState);
-          patchNormalRoom(code, { state: toPublicState(newState) }).catch(() => {});
+          patchNormalRoom(code, { state: toPublicState(newState), revealedHoles }).catch(() => {});
         }, 0);
       }
       return;
     }
-  }, [gameState, code, isProcessing, resolveShowdown]);
+  }, [gameState, code, isProcessing, resolveShowdown, room?.revealedHoles]);
 
   // Admin: sync all-in votes from Firestore
   useEffect(() => {
@@ -465,6 +513,9 @@ export function useNormalGame(
           let s = { ...gameState, seats: revealedSeats } as NormalGameState;
           setGameState(s);
           await patchNormalRoom(code, { state: toPublicState(s) });
+
+          // Wait extra time at the beginning so players can see the percentages
+          await sleep(3500);
           
           // Move through streets automatically
           while (s.street !== "river") {

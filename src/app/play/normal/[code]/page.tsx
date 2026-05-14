@@ -197,6 +197,39 @@ export default function PlayNormalPage() {
   const needsRebuy = isOut && !myRequest;
   const rebuyPending = myRequest?.status === "pending" && myRequest.type === "rebuy";
 
+  const isShowdown = gs?.phase === "showdown";
+  const canMuckOrShow = isShowdown && !isOut && mySeat?.status !== "sitting-out" && hole?.cards;
+  const hasRevealedLeft = room?.revealedHoles?.[uid ?? ""]?.[0] != null;
+  const hasRevealedRight = room?.revealedHoles?.[uid ?? ""]?.[1] != null;
+  const hasRevealedBoth = hasRevealedLeft && hasRevealedRight;
+
+  const showMuckUI = canMuckOrShow ? (
+    <div className="flex gap-2 mt-3 justify-center items-center p-3 rounded-2xl bg-zinc-900/80 backdrop-blur-md ring-1 ring-white/10">
+      <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mr-2">Cartas</span>
+      <button
+        onClick={() => postPlayerAction(code!, uid!, "show-card", 0)}
+        disabled={hasRevealedLeft}
+        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedLeft ? "bg-emerald-500/20 text-emerald-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
+      >
+        Isq
+      </button>
+      <button
+        onClick={() => postPlayerAction(code!, uid!, "show-card", 1)}
+        disabled={hasRevealedRight}
+        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedRight ? "bg-emerald-500/20 text-emerald-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
+      >
+        Der
+      </button>
+      <button
+        onClick={() => postPlayerAction(code!, uid!, "show-card", 2)}
+        disabled={hasRevealedBoth}
+        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedBoth ? "bg-emerald-500/20 text-emerald-500 opacity-50" : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20"}`}
+      >
+        Ambas
+      </button>
+    </div>
+  ) : null;
+
   const playerExtra =
     needsRebuy || rebuyPending ? (
       <div className="mt-3">
@@ -214,7 +247,7 @@ export default function PlayNormalPage() {
           </div>
         )}
       </div>
-    ) : null;
+    ) : showMuckUI;
 
   const centerOverlay = (
     <>
