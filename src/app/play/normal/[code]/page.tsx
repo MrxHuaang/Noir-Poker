@@ -125,6 +125,21 @@ export default function PlayNormalPage() {
     });
   }
 
+  async function handleToggleTimeBank() {
+    if (!uid || !code || !myLobbyEntry) return;
+    const current = myLobbyEntry.useTimeBank !== false;
+    await patchLobbyPlayer(code, uid, { useTimeBank: !current });
+  }
+
+  // Build timeBankByUid map for the table (so SeatTimer knows each player's pref)
+  const timeBankByUid = useMemo(() => {
+    const out: Record<string, boolean> = {};
+    for (const p of lobby) out[p.uid] = p.useTimeBank !== false;
+    return out;
+  }, [lobby]);
+
+  const myUseTimeBank = myLobbyEntry?.useTimeBank !== false;
+
   async function handleRetry() {
     if (!uid || !code) return;
     await dismissStackRequest(code, uid);
@@ -303,7 +318,12 @@ export default function PlayNormalPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={(room?.cardBack as never) ?? "classic-blue"}
+        cardFace={(room?.cardFace as never) ?? "classic"}
         lastAction={gs?.lastAction}
+        timeBankByUid={timeBankByUid}
+        turnTimeMs={config?.turnTime ?? 30_000}
+        onToggleAway={inLobby ? handleToggleSitOut : undefined}
+        amSittingOut={myLobbyEntry?.sittingOut === true}
         topLeft={topLeft}
         bottomLeft={
           <>
@@ -331,6 +351,8 @@ export default function PlayNormalPage() {
             hasResult={!!result}
             onAction={handleAction}
             extra={playerExtra}
+            useTimeBank={myUseTimeBank}
+            onToggleTimeBank={handleToggleTimeBank}
           />
         }
         centerOverlay={centerOverlay}

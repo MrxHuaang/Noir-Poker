@@ -693,7 +693,9 @@ export function useNormalGame(
     }
   }, [gameState, code, isProcessing, resolveShowdown]);
 
-  // Admin: auto-fold on turn timer expiry
+  // Admin: auto-fold on turn timer expiry.
+  // Respects each player's useTimeBank preference (lobby field). If disabled,
+  // auto-fold fires when the normal turnDeadline elapses.
   useEffect(() => {
     if (!isAdminRef.current || !gameState || !code) return;
     const toActId = gameState.betting.toActId;
@@ -701,23 +703,34 @@ export function useNormalGame(
     const seat = gameState.seats.find((s) => s.id === toActId);
     if (!seat?.turnDeadline) return;
 
-    const delay = seat.turnDeadline - Date.now() + seat.timeBank;
-    if (delay <= 0) return;
-
-    const timer = setTimeout(() => {
-      if (!gameState) return;
-      const newState = handleAction(gameState, toActId, "fold");
-      setGameState(newState);
-      if (code) {
+    const playerLobby = lobby.find((p) => p.uid === toActId);
+    const useBank = playerLobby?.useTimeBank !== false; // default true
+    const bankExtra = useBank ? seat.timeBank : 0;
+    const delay = seat.turnDeadline - Date.now() + bankExtra;
+    if (delay <= 0) {
+      // Fire immediately on next tick
+      const timer = setTimeout(() => {
+        const newState = handleAction(gameState, toActId, "fold");
+        setGameState(newState);
         patchNormalRoom(code, {
           state: toPublicState(newState),
           pendingAction: null,
         }).catch(() => {});
-      }
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    const timer = setTimeout(() => {
+      const newState = handleAction(gameState, toActId, "fold");
+      setGameState(newState);
+      patchNormalRoom(code, {
+        state: toPublicState(newState),
+        pendingAction: null,
+      }).catch(() => {});
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [gameState, code]);
+  }, [gameState, code, lobby]);
 
   // Admin: write state to Firestore when it changes
   const lastStateRef = useRef<NormalGameState | null>(null);

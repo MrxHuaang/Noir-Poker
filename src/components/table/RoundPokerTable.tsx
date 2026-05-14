@@ -24,31 +24,62 @@ interface RoundPokerTableProps {
   cardBack?: string;
   cardFace?: string;
   lastAction?: { seatId: string; action: string; amount?: number; ts: number };
+  // New: per-seat timebank preference, keyed by uid. Defaults to true.
+  timeBankByUid?: Record<string, boolean>;
+  turnTimeMs?: number;
+  // Optional callbacks for empty-seat Sit button and own-seat Away toggle.
+  onSit?: () => void;
+  onToggleAway?: () => void;
+  amSittingOut?: boolean;
 }
 
-// A simple countdown progress bar for on-seat timer
-function SeatTimer({ deadline, turnTime }: { deadline: number; turnTime?: number }) {
-  const [pct, setPct] = useState(100);
+const MAX_SEATS = 9;
+
+// Seat timer with 3 color phases + separate timebank phase (fully red).
+function SeatTimer({
+  deadline,
+  turnTime,
+  timeBank,
+  useBank,
+}: {
+  deadline: number;
+  turnTime: number;
+  timeBank: number;
+  useBank: boolean;
+}) {
+  const [now, setNow] = useState(() => Date.now());
   const raf = useRef<number | undefined>(undefined);
-  const total = turnTime ?? 30_000;
 
   useEffect(() => {
     function tick() {
-      const remaining = Math.max(0, deadline - Date.now());
-      setPct((remaining / total) * 100);
-      if (remaining > 0) raf.current = requestAnimationFrame(tick);
+      setNow(Date.now());
+      raf.current = requestAnimationFrame(tick);
     }
     raf.current = requestAnimationFrame(tick);
     return () => { if (raf.current) cancelAnimationFrame(raf.current); };
-  }, [deadline, total]);
+  }, []);
 
-  const urgent = pct < 25;
+  const remainingNormal = Math.max(0, deadline - now);
+  const inBank = remainingNormal === 0 && useBank && timeBank > 0;
+  const bankElapsed = inBank ? now - deadline : 0;
+  const remainingBank = inBank ? Math.max(0, timeBank - bankElapsed) : timeBank;
+
+  // Color phase based on percentage of NORMAL turn time remaining
+  const normalPct = (remainingNormal / turnTime) * 100;
+  let normalColor = "bg-emerald-400";
+  if (normalPct < 25) normalColor = "bg-rose-400";
+  else if (normalPct < 50) normalColor = "bg-amber-400";
+
+  // Bank phase: always fully red bar, drains
+  const bankPct = inBank && timeBank > 0 ? (remainingBank / timeBank) * 100 : 0;
+
   return (
     <div className="w-full h-1 bg-zinc-800 overflow-hidden">
-      <div
-        className={`h-full transition-none ${urgent ? "bg-rose-400" : "bg-emerald-400"}`}
-        style={{ width: `${pct}%` }}
-      />
+      {inBank ? (
+        <div className="h-full bg-rose-500" style={{ width: `${bankPct}%` }} />
+      ) : (
+        <div className={`h-full ${normalColor}`} style={{ width: `${normalPct}%` }} />
+      )}
     </div>
   );
 }
@@ -134,6 +165,11 @@ export function RoundPokerTable({
   cardBack,
   cardFace,
   lastAction,
+  timeBankByUid,
+  turnTimeMs,
+  onSit,
+  onToggleAway,
+  amSittingOut,
 }: RoundPokerTableProps) {
   const [showQR, setShowQR] = useState(false);
   const [rotationOffset, setRotationOffset] = useState(0);
@@ -184,32 +220,50 @@ export function RoundPokerTable({
       ? `${window.location.origin}/play/${isTournament ? "torneo" : "normal"}/${roomCode}`
       : "";
 
-  // 10 positions — adjusted to stay within viewport (y max 88%)
-  const positions = useMemo(() => [
-    { x: 50, y: 88 },  // 0: Bottom center
-    { x: 20, y: 80 },  // 1: Bottom left
-    { x: 7,  y: 60 },  // 2: Middle left bottom
-    { x: 7,  y: 38 },  // 3: Middle left top
-    { x: 20, y: 15 },  // 4: Top left
-    { x: 50, y: 8  },  // 5: Top center
-    { x: 80, y: 15 },  // 6: Top right
-    { x: 93, y: 38 },  // 7: Middle right top
-    { x: 93, y: 60 },  // 8: Middle right bottom
-    { x: 80, y: 80 },  // 9: Bottom right
-  ], []);
+  // 9 positions evenly distributed around an ellipse, starting at bottom-center.
+  // Empty slots render a "Sit" placeholder so the table looks balanced regardless of player count.
+  const positions = useMemo(() => {
+    const rx = 42; // horizontal radius (% of container width)
+    const ry = 35; // vertical radius (% of container height)
+    return Array.from({ length: MAX_SEATS }, (_, i) => {
+      const angle = (i / MAX_SEATS) * Math.PI * 2 + Math.PI / 2; // start bottom
+      return {
+        x: 50 + Math.cos(angle) * rx,
+        y: 50 + Math.sin(angle) * ry,
+      };
+    });
+  }, []);
 
   function rotateSelfToCenter() {
     if (!selfUid) return;
     const idx = seats.findIndex((s) => s.id === selfUid);
     if (idx < 0) return;
-    setRotationOffset((10 - idx) % seats.length);
+    setRotationOffset((MAX_SEATS - idx) % MAX_SEATS);
   }
 
-  const rotatedSeats = useMemo(() => {
-    if (rotationOffset === 0) return seats;
+  // Auto-rotate so self always renders at bottom-center (position 0) on mount/seat change.
+  const didAutoRotateRef = useRef(false);
+  useEffect(() => {
+    if (didAutoRotateRef.current) return;
+    if (!selfUid) return;
+    const idx = seats.findIndex((s) => s.id === selfUid);
+    if (idx < 0) return;
+    setRotationOffset((MAX_SEATS - idx) % MAX_SEATS);
+    didAutoRotateRef.current = true;
+  }, [selfUid, seats]);
+
+  // Build the slot array: actual seats first (rotated), then empty slots for the rest.
+  const slots = useMemo(() => {
+    const out: (NormalSeat | null)[] = Array(MAX_SEATS).fill(null);
     const n = seats.length;
-    return seats.map((_, i) => seats[(i - rotationOffset + n) % n]);
+    for (let i = 0; i < n; i++) {
+      const seatIdx = (i - rotationOffset + n) % n;
+      out[i] = seats[seatIdx] ?? null;
+    }
+    return out;
   }, [seats, rotationOffset]);
+
+  const selfInSeats = !!(selfUid && seats.some((s) => s.id === selfUid));
 
   return (
     <div className="relative w-full max-w-[1400px] aspect-[16/8] mx-auto select-none">
@@ -249,15 +303,45 @@ export function RoundPokerTable({
         </div>
       </div>
 
-      {/* Seats */}
-      {rotatedSeats.map((seat, i) => {
-        const pos = positions[i] || positions[0];
+      {/* Seats — render MAX_SEATS slots; empty ones show a Sit placeholder. */}
+      {slots.map((seat, i) => {
+        const pos = positions[i];
+
+        // Empty slot
+        if (!seat) {
+          const canSit = !!onSit && !selfInSeats;
+          return (
+            <div
+              key={`empty-${i}`}
+              className="absolute z-10 pointer-events-none"
+              style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
+            >
+              {canSit ? (
+                <button
+                  type="button"
+                  onClick={onSit}
+                  className="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer"
+                >
+                  <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-emerald-400/60 group-hover:bg-emerald-500/10 backdrop-blur-sm transition flex items-center justify-center">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-emerald-300">
+                      Sit
+                    </span>
+                  </div>
+                </button>
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-zinc-900/40 ring-1 ring-white/5 backdrop-blur-sm opacity-50" />
+              )}
+            </div>
+          );
+        }
+
         const isToAct = betting.toActId === seat.id;
         const isWinner = winners.includes(seat.id);
-        // Dealer button: map seat index back to original for dealerIdx
-        const originalIdx = rotationOffset === 0 ? i : (i + rotationOffset) % seats.length;
+        // Dealer button: map slot index back to original seat index for dealerIdx
+        const originalIdx = seats.findIndex((s) => s.id === seat.id);
         const isDealer = betting.dealerIdx === originalIdx;
         const isSelf = !!selfUid && seat.id === selfUid;
+        const useBank = timeBankByUid ? timeBankByUid[seat.id] !== false : true;
 
         // Bet chip position — towards center
         const dx_center = 50 - pos.x;
@@ -344,18 +428,34 @@ export function RoundPokerTable({
               className={`absolute flex flex-col items-center transition-all duration-300 ${isToAct ? "z-30" : "z-20"}`}
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
             >
-              {/* Avatar */}
+              {/* Avatar — dimmed but visible when sitting out */}
               <div className={`absolute -top-7 left-1/2 -translate-x-1/2 z-10 rounded-full ring-2 transition-all ${
                 isToAct
                   ? "ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.5)]"
                   : isWinner
                     ? "ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)]"
                     : "ring-zinc-700"
-              } ${seat.status === "folded" ? "opacity-40 grayscale" : ""}`}>
+              } ${seat.status === "folded" ? "opacity-40 grayscale" : ""} ${seat.status === "sitting-out" ? "opacity-50 grayscale" : ""}`}>
                 <div className="rounded-full overflow-hidden bg-zinc-900">
                   <Avatar seed={seat.seed} size={40} />
                 </div>
               </div>
+
+              {/* Away toggle side button — only on self seat */}
+              {isSelf && onToggleAway && (
+                <button
+                  type="button"
+                  onClick={onToggleAway}
+                  className={`absolute -right-7 sm:-right-8 top-1/2 -translate-y-1/2 z-20 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest transition btn-press ${
+                    amSittingOut
+                      ? "bg-rose-500/80 text-white hover:bg-rose-400"
+                      : "bg-white/5 text-zinc-400 hover:bg-white/15 hover:text-zinc-100 ring-1 ring-white/10"
+                  }`}
+                  title={amSittingOut ? "Volver a jugar" : "Ausentarme"}
+                >
+                  {amSittingOut ? "Back" : "Away"}
+                </button>
+              )}
 
               <div className={`relative min-w-[96px] sm:min-w-[112px] rounded-lg overflow-hidden transition-all duration-300 border-2 mt-3 ${
                 isToAct
@@ -380,7 +480,12 @@ export function RoundPokerTable({
                   </div>
                   {/* Timer bar — only when it's this seat's turn AND deadline exists */}
                   {isToAct && seat.turnDeadline ? (
-                    <SeatTimer deadline={seat.turnDeadline} />
+                    <SeatTimer
+                      deadline={seat.turnDeadline}
+                      turnTime={turnTimeMs ?? 30000}
+                      timeBank={seat.timeBank ?? 0}
+                      useBank={useBank}
+                    />
                   ) : isToAct ? (
                     <div className="w-full h-1 bg-zinc-800">
                       <div className="h-full bg-emerald-400 w-full" />

@@ -14,6 +14,7 @@ import {
   postPlayerAction,
   approveJoin,
   patchNormalRoom,
+  patchLobbyPlayer,
   lobbyToSeats,
 } from "@/lib/normalRooms";
 import { DEFAULT_CONFIG } from "@/lib/betting";
@@ -127,6 +128,25 @@ export default function HostNormalPage() {
     if (code) patchNormalRoom(code, { config: newConfig }).catch(() => {});
   }
 
+  async function handleToggleAway() {
+    if (!uid || !code || !myLobbyEntry) return;
+    await patchLobbyPlayer(code, uid, { sittingOut: !myLobbyEntry.sittingOut });
+  }
+
+  async function handleToggleTimeBank() {
+    if (!uid || !code || !myLobbyEntry) return;
+    const current = myLobbyEntry.useTimeBank !== false;
+    await patchLobbyPlayer(code, uid, { useTimeBank: !current });
+  }
+
+  const timeBankByUid = useMemo(() => {
+    const out: Record<string, boolean> = {};
+    for (const p of lobby) out[p.uid] = p.useTimeBank !== false;
+    return out;
+  }, [lobby]);
+
+  const myUseTimeBank = myLobbyEntry?.useTimeBank !== false;
+
   function handleJoinAsHost() {
     if (!uid || !code) return;
     approveJoin(code, uid, "Host", randomSeed(), config.startingStack).catch(() => {});
@@ -229,7 +249,13 @@ export default function HostNormalPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={cardBack}
+        cardFace={(room?.cardFace as never) ?? "classic"}
         lastAction={gameState?.lastAction}
+        timeBankByUid={timeBankByUid}
+        turnTimeMs={config.turnTime}
+        onSit={!myLobbyEntry ? handleJoinAsHost : undefined}
+        onToggleAway={myLobbyEntry ? handleToggleAway : undefined}
+        amSittingOut={myLobbyEntry?.sittingOut === true}
         topLeft={
           <HostDock
             code={code}
@@ -280,6 +306,8 @@ export default function HostNormalPage() {
               hasResult={!!result}
               onAction={handleAction}
               extra={adminExtra}
+              useTimeBank={myUseTimeBank}
+              onToggleTimeBank={handleToggleTimeBank}
             />
           ) : gameState && (isShowdown || result) ? (
             <div className="w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-[28px] ring-1 ring-white/10 p-4 shadow-2xl">

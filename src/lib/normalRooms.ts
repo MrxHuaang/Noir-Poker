@@ -46,6 +46,7 @@ export type NormalLobbyPlayer = {
   joinedAt: number;
   chips: number;
   sittingOut: boolean;
+  useTimeBank?: boolean;
 };
 
 export type NormalRoomDoc = {
@@ -61,6 +62,7 @@ export type NormalRoomDoc = {
   revealedHoles?: Record<string, [Card, Card]> | null;
   theme: string;
   cardBack?: string;
+  cardFace?: string;
   tournament: TournamentState | null;
   locked: boolean;
   pendingRebuys: Record<string, number>;

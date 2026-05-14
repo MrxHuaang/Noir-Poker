@@ -1,5 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
+import { Battery, BatteryLow } from "lucide-react";
 import { Avatar } from "@/components/players/Avatar";
 import { TurnTimer } from "@/components/betting/TurnTimer";
 import { BettingControls } from "@/components/betting/BettingControls";
@@ -20,6 +21,8 @@ type Props = {
   hasResult: boolean;
   onAction: (action: BettingAction, amount?: number) => void;
   extra?: ReactNode;
+  useTimeBank?: boolean;
+  onToggleTimeBank?: () => void;
 };
 
 export function BettingDock({
@@ -34,6 +37,8 @@ export function BettingDock({
   hasResult,
   onAction,
   extra,
+  useTimeBank = true,
+  onToggleTimeBank,
 }: Props) {
   if (!seat && !name) return null;
 
@@ -92,6 +97,7 @@ export function BettingDock({
                 deadline={seat.turnDeadline}
                 turnTime={turnTimeMs}
                 timeBank={seat.timeBank}
+                useBank={useTimeBank}
               />
             </div>
           )}
@@ -100,6 +106,25 @@ export function BettingDock({
             betting={betting}
             onAction={onAction}
           />
+        </div>
+      )}
+
+      {/* Timebank toggle — bottom-right, always visible while seated */}
+      {seat && onToggleTimeBank && (
+        <div className="mt-3 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={onToggleTimeBank}
+            title={useTimeBank ? "Desactivar timebank" : "Activar timebank"}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ring-1 transition btn-press ${
+              useTimeBank
+                ? "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30 hover:bg-emerald-500/25"
+                : "bg-zinc-800 text-zinc-500 ring-white/10 hover:bg-zinc-700"
+            }`}
+          >
+            {useTimeBank ? <Battery className="w-3 h-3" /> : <BatteryLow className="w-3 h-3" />}
+            Timebank {useTimeBank ? "ON" : "OFF"}
+          </button>
         </div>
       )}
 

@@ -21,6 +21,11 @@ type Props = {
   cardBack?: string;
   cardFace?: string;
   lastAction?: { seatId: string; action: string; amount?: number; ts: number };
+  timeBankByUid?: Record<string, boolean>;
+  turnTimeMs?: number;
+  onSit?: () => void;
+  onToggleAway?: () => void;
+  amSittingOut?: boolean;
 
   topLeft?: ReactNode;
   topCenter?: ReactNode;
@@ -45,6 +50,11 @@ export function TableShell({
   cardBack,
   cardFace,
   lastAction,
+  timeBankByUid,
+  turnTimeMs,
+  onSit,
+  onToggleAway,
+  amSittingOut,
   topLeft,
   topCenter,
   topRight,
@@ -72,6 +82,11 @@ export function TableShell({
             cardBack={cardBack}
             cardFace={cardFace}
             lastAction={lastAction}
+            timeBankByUid={timeBankByUid}
+            turnTimeMs={turnTimeMs}
+            onSit={onSit}
+            onToggleAway={onToggleAway}
+            amSittingOut={amSittingOut}
           />
         </div>
 
