@@ -2,8 +2,9 @@
 import { useEffect, useRef } from "react";
 import type { Card } from "@/lib/poker";
 import { PlayingCard } from "@/components/cards/PlayingCard";
+import type { CardFaceId } from "@/lib/themes";
 
-export function CommunityRow({ community }: { community: Card[] }) {
+export function CommunityRow({ community, cardFace }: { community: Card[]; cardFace?: CardFaceId }) {
   const prevLenRef = useRef(0);
   const prevLen = prevLenRef.current;
 
@@ -31,6 +32,7 @@ export function CommunityRow({ community }: { community: Card[] }) {
                 dealIn={isNew}
                 dealDelay={dealDelay}
                 flipDelay={isNew ? dealDelay : 0}
+                cardFace={cardFace}
               />
             ) : (
               <div className="w-20 h-28 rounded-xl border border-dashed border-white/10 bg-white/[0.015]" />

@@ -1,13 +1,18 @@
 "use client";
 import type { Seat } from "@/lib/poker";
 import { PlayingCard } from "@/components/cards/PlayingCard";
+import type { CardBackId, CardFaceId } from "@/lib/themes";
 
 export function HoleCards({
   seat,
   onToggle,
+  cardBack,
+  cardFace,
 }: {
   seat: Seat;
   onToggle: () => void;
+  cardBack?: CardBackId;
+  cardFace?: CardFaceId;
 }) {
   const anyRevealed = seat.revealedCards[0] || seat.revealedCards[1];
   return (
@@ -23,6 +28,8 @@ export function HoleCards({
         size="sm"
         className="transition-transform group-hover:-translate-y-0.5 -rotate-6"
         flipDelay={0}
+        cardBack={cardBack}
+        cardFace={cardFace}
       />
       <PlayingCard
         card={seat.hole[1]}
@@ -30,6 +37,8 @@ export function HoleCards({
         size="sm"
         className="transition-transform group-hover:-translate-y-0.5 rotate-6 -ml-3"
         flipDelay={0.08}
+        cardBack={cardBack}
+        cardFace={cardFace}
       />
     </button>
   );

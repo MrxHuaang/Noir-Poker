@@ -1,16 +1,20 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
-import { Check, Copy, Palette, QrCode, X } from "lucide-react";
+import { Check, Copy, LogOut, Palette, QrCode, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoom, useLobby } from "@/hooks/useRoom";
-import { createRoom, setRoomTheme } from "@/lib/rooms";
+import { createRoom, setRoomTheme, setRoomCardStyle } from "@/lib/rooms";
 import { PokerTable } from "@/components/table/PokerTable";
 import { TableThemePicker } from "@/components/themes/TableThemePicker";
-import type { TableThemeId } from "@/lib/themes";
+import { CardBackPicker } from "@/components/themes/CardBackPicker";
+import { CardFacePicker } from "@/components/themes/CardFacePicker";
+import type { TableThemeId, CardBackId, CardFaceId } from "@/lib/themes";
 import type { Player } from "@/lib/poker";
 
 export default function HostPage() {
+  const router = useRouter();
   const { uid, loading } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -43,7 +47,7 @@ export default function HostPage() {
       .finally(() => setCreating(false));
   }, [loading, uid, code, creating]);
 
-  // Close popover on outside click
+  // Close popovers on outside click
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
       if (showQr && qrRef.current && !qrRef.current.contains(e.target as Node)) {
@@ -78,12 +82,10 @@ export default function HostPage() {
     [lobby],
   );
 
-  // Lock body scroll so the host table fills the viewport without page scroll
+  // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, []);
 
   const joinUrl =
@@ -100,10 +102,22 @@ export default function HostPage() {
   }
 
   const theme = (room?.theme as TableThemeId | undefined) ?? "emerald";
+  const cardBack = (room?.cardBack as CardBackId | undefined) ?? "classic-blue";
+  const cardFace = (room?.cardFace as CardFaceId | undefined) ?? "classic";
 
   function onThemeChange(id: TableThemeId) {
     if (!code) return;
     setRoomTheme(code, id).catch(() => {});
+  }
+
+  function onCardBackChange(id: CardBackId) {
+    if (!code) return;
+    setRoomCardStyle(code, id, cardFace).catch(() => {});
+  }
+
+  function onCardFaceChange(id: CardFaceId) {
+    if (!code) return;
+    setRoomCardStyle(code, cardBack, id).catch(() => {});
   }
 
   if (loading || !code) {
@@ -117,10 +131,12 @@ export default function HostPage() {
   return (
     <div className="fixed inset-0 flex flex-col bg-[#06070a] overflow-hidden">
       {/* Compact header bar */}
-      <header className="relative flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.06] shrink-0">
-        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hidden sm:block">
+      <header className="relative flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06] shrink-0">
+        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hidden sm:block mr-1">
           Sala · Presencial
         </span>
+
+        {/* Room code */}
         <button
           type="button"
           onClick={copy}
@@ -169,22 +185,63 @@ export default function HostPage() {
           ) : null}
         </div>
 
-        {/* Theme button + popover */}
+        {/* Theme + card style button + popover */}
         <div className="relative" ref={themeRef}>
           <button
             type="button"
             onClick={() => { setShowThemePicker((v) => !v); setShowQr(false); }}
             className="p-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-200 transition btn-press"
-            title="Tema de mesa"
-            aria-label="Tema de mesa"
+            title="Personalizar"
+            aria-label="Personalizar mesa y cartas"
           >
             <Palette className="w-4 h-4" />
           </button>
           {showThemePicker ? (
-            <div className="absolute top-full left-0 mt-2 z-50 p-3 rounded-2xl bg-[#0d0f14] ring-1 ring-white/10 shadow-xl min-w-[220px]">
-              <TableThemePicker value={theme} onChange={(id) => { onThemeChange(id); setShowThemePicker(false); }} />
+            <div className="absolute top-full left-0 mt-2 z-50 w-72 p-4 rounded-2xl bg-[#0d0f14] ring-1 ring-white/10 shadow-xl flex flex-col gap-5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-zinc-200">Personalizar</span>
+                <button
+                  type="button"
+                  onClick={() => setShowThemePicker(false)}
+                  className="text-zinc-500 hover:text-zinc-200 transition"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Felt theme */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">Mesa</span>
+                <TableThemePicker value={theme} onChange={onThemeChange} />
+              </div>
+
+              {/* Card face design */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">Diseño de carta</span>
+                <CardFacePicker value={cardFace} onChange={onCardFaceChange} />
+              </div>
+
+              {/* Card back */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">Reverso</span>
+                <CardBackPicker value={cardBack} onChange={onCardBackChange} />
+              </div>
             </div>
           ) : null}
+        </div>
+
+        {/* Exit button — push to right */}
+        <div className="ml-auto">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="p-2 rounded-full bg-white/5 hover:bg-rose-500/20 ring-1 ring-white/10 hover:ring-rose-500/40 text-zinc-500 hover:text-rose-400 transition btn-press"
+            title="Salir de la sala"
+            aria-label="Salir de la sala"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
@@ -195,6 +252,8 @@ export default function HostPage() {
             sync={{ roomCode: code, ownersMap }}
             playersOverride={lobbyAsPlayers}
             theme={theme}
+            cardBack={cardBack}
+            cardFace={cardFace}
           />
         </div>
       </div>

@@ -29,7 +29,7 @@ import { RunResults } from "./RunResults";
 import { StatsPanel } from "@/components/StatsPanel";
 import { EquityPanel } from "@/components/EquityPanel";
 import { Avatar } from "@/components/players/Avatar";
-import { getTableTheme, type TableThemeId } from "@/lib/themes";
+import { getTableTheme, type TableThemeId, type CardBackId, type CardFaceId } from "@/lib/themes";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -39,6 +39,8 @@ export function PokerTable({
   sync,
   playersOverride,
   theme,
+  cardBack,
+  cardFace,
 }: {
   sync?: {
     roomCode: string;
@@ -46,6 +48,8 @@ export function PokerTable({
   };
   playersOverride?: Player[];
   theme?: TableThemeId;
+  cardBack?: string;
+  cardFace?: string;
 } = {}) {
   const local = usePlayers();
   const players = playersOverride ?? local.players;
@@ -380,6 +384,8 @@ export function PokerTable({
       onFoldToggle={toggleFold}
       theme={theme}
       presencial={!!sync}
+      cardBack={cardBack as CardBackId | undefined}
+      cardFace={cardFace as CardFaceId | undefined}
     />
   );
 
@@ -641,6 +647,8 @@ function Felt({
   onFoldToggle,
   theme,
   presencial,
+  cardBack,
+  cardFace,
 }: {
   state: GameState;
   winners: string[];
@@ -649,6 +657,8 @@ function Felt({
   onFoldToggle: (id: string) => void;
   theme?: TableThemeId;
   presencial?: boolean;
+  cardBack?: CardBackId;
+  cardFace?: CardFaceId;
 }) {
   const n = state.seats.length;
   const t = getTableTheme(theme);
@@ -669,7 +679,7 @@ function Felt({
         }}
       />
       <div className="absolute inset-0 flex items-center justify-center">
-        <CommunityRow community={state.community} />
+        <CommunityRow community={state.community} cardFace={cardFace} />
       </div>
       {state.seats.map((seat, i) => {
         const angle = (i / n) * Math.PI * 2 + Math.PI / 2;
@@ -685,6 +695,8 @@ function Felt({
             showdownDone={showdownDone}
             onToggle={() => onToggle(seat.player.id)}
             onFoldToggle={() => onFoldToggle(seat.player.id)}
+            cardBack={cardBack}
+            cardFace={cardFace}
             style={{
               left: `${x}%`,
               top: `${y}%`,
