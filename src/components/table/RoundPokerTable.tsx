@@ -234,34 +234,39 @@ export function RoundPokerTable({
     });
   }, []);
 
-  function rotateSelfToCenter() {
-    if (!selfUid) return;
-    const idx = seats.findIndex((s) => s.id === selfUid);
-    if (idx < 0) return;
-    setRotationOffset((MAX_SEATS - idx) % MAX_SEATS);
-  }
-
-  // Auto-rotate so self always renders at bottom-center (position 0) on mount/seat change.
-  const didAutoRotateRef = useRef(false);
-  useEffect(() => {
-    if (didAutoRotateRef.current) return;
-    if (!selfUid) return;
-    const idx = seats.findIndex((s) => s.id === selfUid);
-    if (idx < 0) return;
-    setRotationOffset((MAX_SEATS - idx) % MAX_SEATS);
-    didAutoRotateRef.current = true;
-  }, [selfUid, seats]);
-
-  // Build the slot array: actual seats first (rotated), then empty slots for the rest.
+  // Distribute N players evenly around the 9 slots, then rotate so self lands at slot 0.
+  // This is the key fix: previously with N=2 the seats clustered at slots 0+1 (both at bottom).
   const slots = useMemo(() => {
     const out: (NormalSeat | null)[] = Array(MAX_SEATS).fill(null);
     const n = seats.length;
+    if (n === 0) return out;
+
+    // Base slot for seats[i]: spread evenly across MAX_SEATS positions.
+    const baseSlots = seats.map((_, i) => Math.round((i * MAX_SEATS) / n) % MAX_SEATS);
+
+    // Find self's base slot so we can shift everyone so self lands at slot 0.
+    const myIdx = selfUid ? seats.findIndex((s) => s.id === selfUid) : -1;
+    const baseShift = (myIdx >= 0 ? baseSlots[myIdx] : -rotationOffset) % MAX_SEATS;
+
     for (let i = 0; i < n; i++) {
-      const seatIdx = (i - rotationOffset + n) % n;
-      out[i] = seats[seatIdx] ?? null;
+      const slotIdx = (((baseSlots[i] - baseShift) % MAX_SEATS) + MAX_SEATS) % MAX_SEATS;
+      // Guard against rare collisions when round() lands two on the same slot.
+      if (out[slotIdx] === null) out[slotIdx] = seats[i];
+      else {
+        // Fallback: next available slot
+        for (let off = 1; off < MAX_SEATS; off++) {
+          const alt = (slotIdx + off) % MAX_SEATS;
+          if (out[alt] === null) { out[alt] = seats[i]; break; }
+        }
+      }
     }
     return out;
-  }, [seats, rotationOffset]);
+  }, [seats, selfUid, rotationOffset]);
+
+  function rotateSelfToCenter() {
+    // Manual rotation cycles through the seat array (useful when no selfUid yet).
+    setRotationOffset((v) => (v + 1) % MAX_SEATS);
+  }
 
   const selfInSeats = !!(selfUid && seats.some((s) => s.id === selfUid));
 

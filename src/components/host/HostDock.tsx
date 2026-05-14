@@ -24,9 +24,10 @@ import { NormalConfigPanel } from "@/components/betting/NormalConfigPanel";
 import { TournamentConfigPanel } from "@/components/betting/TournamentConfigPanel";
 import { TableThemePicker } from "@/components/themes/TableThemePicker";
 import { CardBackPicker } from "@/components/themes/CardBackPicker";
+import { CardFacePicker } from "@/components/themes/CardFacePicker";
 import type { NormalLobbyPlayer } from "@/lib/normalRooms";
-import { setNormalRoomTheme, setNormalRoomCardBack } from "@/lib/normalRooms";
-import type { CardBackId } from "@/lib/themes";
+import { setNormalRoomTheme, setNormalRoomCardBack, setNormalRoomCardFace } from "@/lib/normalRooms";
+import type { CardBackId, CardFaceId } from "@/lib/themes";
 import type { StackRequest } from "@/lib/stackRequests";
 import type { NormalSeat, RoomConfig } from "@/lib/betting";
 import type { TableThemeId } from "@/lib/themes";
@@ -46,6 +47,7 @@ type Props = {
 
   theme: TableThemeId;
   cardBack: CardBackId;
+  cardFace?: CardFaceId;
 
   lobby: NormalLobbyPlayer[];
   requests: StackRequest[];
@@ -70,6 +72,7 @@ export function HostDock({
   onConfigChange,
   theme,
   cardBack,
+  cardFace = "classic",
   lobby,
   requests,
   gameSeats,
@@ -235,6 +238,17 @@ export function HostDock({
                 value={theme}
                 onChange={(id) => {
                   if (code) setNormalRoomTheme(code, id).catch(() => {});
+                }}
+              />
+            </div>
+            <div className="p-4 rounded-2xl bg-black/40 ring-1 ring-white/5 flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">
+                Diseño de carta
+              </span>
+              <CardFacePicker
+                value={cardFace}
+                onChange={(id) => {
+                  if (code) setNormalRoomCardFace(code, id).catch(() => {});
                 }}
               />
             </div>

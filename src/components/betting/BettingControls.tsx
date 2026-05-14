@@ -53,28 +53,28 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
     : [];
 
   return (
-    <div className="flex flex-col gap-4 w-full">
+    <div className="flex flex-col gap-2 w-full">
       {sliderOpt && (
-        <div className="flex flex-col gap-3">
-          {/* Preset Buttons */}
+        <div className="flex flex-col gap-2">
+          {/* Preset Buttons — compact */}
           <div className="flex gap-1">
             {presets.map((p) => (
               <button
                 key={p.label}
                 type="button"
                 onClick={() => setRaiseAmount(Math.min(p.value, sliderOpt.max ?? p.value))}
-                className="flex-1 px-2 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-300 transition border border-white/5"
+                className="flex-1 px-1 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-[9px] font-bold text-zinc-300 transition border border-white/5"
               >
                 {p.label}
               </button>
             ))}
           </div>
 
-          {/* Slider & Value Display */}
-          <div className="flex flex-col gap-2 p-4 rounded-2xl bg-black/40 border border-white/5">
+          {/* Slider & Value Display — compact */}
+          <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-black/40 border border-white/5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Amount</span>
-              <span className="text-lg font-black text-emerald-400 tabular-nums">
+              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Amount</span>
+              <span className="text-base font-black text-emerald-400 tabular-nums leading-none">
                 {formatChips(raiseAmount)}
               </span>
             </div>
@@ -91,14 +91,14 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
         </div>
       )}
 
-      {/* Main Action Buttons */}
-      <div className="flex gap-2 h-14">
+      {/* Main Action Buttons — slightly smaller */}
+      <div className="flex gap-1.5 h-11">
         {canFold && (
           <button
             type="button"
             disabled={disabled}
             onClick={() => onAction("fold")}
-            className="flex-1 rounded-2xl bg-zinc-800 hover:bg-rose-900/40 text-rose-200 text-xs font-black uppercase tracking-widest border border-white/5 transition-all"
+            className="flex-1 rounded-xl bg-zinc-800 hover:bg-rose-900/40 text-rose-200 text-xs font-black uppercase tracking-widest border border-white/5 transition-all"
           >
             Fold
           </button>
@@ -109,7 +109,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => onAction(canCheck ? "check" : "call")}
-            className="flex-[2] rounded-2xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-black uppercase tracking-widest transition-all shadow-lg"
+            className="flex-[2] rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-black uppercase tracking-widest transition-all shadow-lg"
           >
             {canCheck ? "Check" : `Call ${formatChips(toCall)}`}
           </button>
@@ -120,7 +120,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={handleBetRaise}
-            className="flex-[2] rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/20"
+            className="flex-[2] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/20"
           >
             {raiseOpt ? "Raise" : "Bet"}
           </button>
@@ -131,7 +131,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => onAction("all-in")}
-            className="flex-[2] rounded-2xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-black uppercase tracking-widest transition-all"
+            className="flex-[2] rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-black uppercase tracking-widest transition-all"
           >
             All-in
           </button>

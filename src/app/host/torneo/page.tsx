@@ -135,6 +135,7 @@ export default function HostTorneoPage() {
   const config: RoomConfig = room?.config ?? DEFAULT_TORNEO_CONFIG;
   const theme: TableThemeId = (room?.theme as TableThemeId) ?? "sapphire";
   const cardBack: CardBackId = (room?.cardBack as CardBackId) ?? "classic-blue";
+  const cardFace = (room?.cardFace as never) ?? "classic";
   const result = room?.result ?? null;
   const isShowdown = gameState?.phase === "showdown";
   const canDeal = !gameState && lobby.length >= 2 && lobby.length <= 9;
@@ -291,6 +292,7 @@ export default function HostTorneoPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={cardBack}
+        cardFace={cardFace}
         topLeft={
           <HostDock
             code={code}
@@ -302,6 +304,7 @@ export default function HostTorneoPage() {
             onConfigChange={updateConfig}
             theme={theme}
             cardBack={cardBack}
+            cardFace={cardFace}
             lobby={lobby}
             requests={requests}
             gameSeats={gameState?.seats ?? null}

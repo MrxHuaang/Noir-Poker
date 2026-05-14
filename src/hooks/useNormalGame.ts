@@ -60,6 +60,11 @@ export function useNormalGame(
   const dealerIdxRef = useRef(-1);
   const isAdminRef = useRef(false);
   const dealtHolesRef = useRef<Record<string, [Card, Card]>>({});
+  // Tracks which hand had all-in negotiation triggered, so the auto-advance
+  // effect doesn't re-fire after the run starts and clears allInNegotiation.
+  const allInTriggeredHandRef = useRef<number>(-1);
+  // Tracks which hand's all-in run was already started, prevents finalize re-entry.
+  const allInRanHandRef = useRef<number>(-1);
 
   const dismissRuns = useCallback(() => setRuns(null), []);
 
@@ -450,7 +455,11 @@ export function useNormalGame(
     const isAllInRunout = gameState.betting.toActId === null && unfolded.length >= 2;
 
     if (isAllInRunout) {
-      // All-in scenario: wait for negotiation or auto-run
+      const thisHand = gameState.betting.handNum;
+      // Guard: don't re-trigger all-in negotiation for the same hand after run started.
+      if (allInRanHandRef.current === thisHand) return;
+      if (allInTriggeredHandRef.current === thisHand) return;
+
       if (gameState.phase !== "all-in-negotiation") {
         const revealedHoles: Record<string, [Card, Card]> = { ...(room?.revealedHoles ?? {}) };
         for (const u of unfolded) {
@@ -466,6 +475,7 @@ export function useNormalGame(
             votes: {},
           }
         };
+        allInTriggeredHandRef.current = thisHand;
         setTimeout(() => {
           setGameState(newState);
           patchNormalRoom(code, { state: toPublicState(newState), revealedHoles }).catch(() => {});
@@ -504,11 +514,15 @@ export function useNormalGame(
   useEffect(() => {
     if (!isAdminRef.current || !gameState || !code || isProcessing) return;
     if (gameState.phase !== "all-in-negotiation" || !gameState.allInNegotiation) return;
+    // Guard: only run once per hand
+    if (allInRanHandRef.current === gameState.betting.handNum) return;
 
     const { playerIds, votes } = gameState.allInNegotiation;
     const votedIds = Object.keys(votes);
 
     if (votedIds.length >= playerIds.length && playerIds.length >= 2) {
+      // Mark this hand as "all-in started" immediately to prevent re-entry.
+      allInRanHandRef.current = gameState.betting.handNum;
       // All votes are in
       // For now, let's take the most common vote or minimum to be safe
       const voteCounts: Record<number, number> = {};

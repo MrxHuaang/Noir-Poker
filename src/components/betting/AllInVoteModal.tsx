@@ -1,14 +1,17 @@
 "use client";
-import { Zap } from "lucide-react";
+import { Zap, X } from "lucide-react";
 import type { NormalGameState } from "@/lib/betting";
 
 type Props = {
   gameState: NormalGameState | null;
   selfUid: string | null;
   onVote: (n: number) => void;
+  open?: boolean;
+  onClose?: () => void;
 };
 
-export function AllInVoteModal({ gameState, selfUid, onVote }: Props) {
+export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClose }: Props) {
+  if (!open) return null;
   if (!gameState || gameState.phase !== "all-in-negotiation") return null;
   const neg = gameState.allInNegotiation;
   if (!neg) return null;
@@ -20,7 +23,17 @@ export function AllInVoteModal({ gameState, selfUid, onVote }: Props) {
 
   return (
     <div className="fixed inset-x-0 bottom-6 sm:bottom-12 z-[110] flex flex-col items-center justify-end pointer-events-none">
-      <div className="pointer-events-auto w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-3xl ring-2 ring-emerald-400/40 shadow-[0_30px_120px_-20px_rgba(52,211,153,0.4)] p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 animate-in slide-in-from-bottom-8 fade-in duration-300">
+      <div className="pointer-events-auto w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-3xl ring-2 ring-emerald-400/40 shadow-[0_30px_120px_-20px_rgba(52,211,153,0.4)] p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 animate-in slide-in-from-bottom-8 fade-in duration-300 relative">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 rounded-full text-zinc-500 hover:text-zinc-100 hover:bg-white/10 transition"
+            aria-label="Cerrar"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
         <div className="flex items-center gap-2 justify-center">
           <Zap className="w-5 h-5 text-emerald-400" />
           <span className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-300">

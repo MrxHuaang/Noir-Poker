@@ -32,6 +32,7 @@ import { TableShell } from "@/components/table/TableShell";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
 import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
+import { AllInVoteChip } from "@/components/betting/AllInVoteChip";
 
 const EMPTY_BETTING: BettingRound = {
   pot: 0,
@@ -55,6 +56,8 @@ export default function PlayNormalPage() {
   const mySeedRef = useRef(mySeed);
 
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [voteModalOpen, setVoteModalOpen] = useState(false);
+  const lastVoteHandRef = useRef<number>(-1);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
     undefined,
   );
@@ -139,6 +142,26 @@ export default function PlayNormalPage() {
   }, [lobby]);
 
   const myUseTimeBank = myLobbyEntry?.useTimeBank !== false;
+
+  // Auto-open vote modal exactly once per all-in hand, only for involved players
+  // who haven't voted yet. Subsequent renders use the side chip.
+  useEffect(() => {
+    if (!gs || gs.phase !== "all-in-negotiation" || !gs.allInNegotiation) {
+      if (voteModalOpen) setVoteModalOpen(false);
+      return;
+    }
+    const handNum = gs.betting.handNum;
+    if (lastVoteHandRef.current === handNum) return;
+    const involved = uid ? gs.allInNegotiation.playerIds.includes(uid) : false;
+    const alreadyVoted = uid ? gs.allInNegotiation.votes[uid] != null : false;
+    if (involved && !alreadyVoted) {
+      lastVoteHandRef.current = handNum;
+      setVoteModalOpen(true);
+    } else {
+      lastVoteHandRef.current = handNum;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gs?.phase, gs?.betting.handNum]);
 
   async function handleRetry() {
     if (!uid || !code) return;
@@ -358,9 +381,16 @@ export default function PlayNormalPage() {
         centerOverlay={centerOverlay}
       />
 
+      <AllInVoteChip
+        gameState={gs as never}
+        selfUid={uid}
+        onClick={() => setVoteModalOpen(true)}
+      />
       <AllInVoteModal
         gameState={gs as never}
         selfUid={uid}
+        open={voteModalOpen}
+        onClose={() => setVoteModalOpen(false)}
         onVote={(n) => {
           if (code && uid) postPlayerVote(code, uid, n).catch(() => {});
         }}

@@ -28,6 +28,7 @@ import { HostNotifications } from "@/components/host/HostNotifications";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
 import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
+import { AllInVoteChip } from "@/components/betting/AllInVoteChip";
 import { postPlayerVote } from "@/lib/normalRooms";
 
 const EMPTY_BETTING: BettingRound = {
@@ -49,6 +50,8 @@ export default function HostNormalPage() {
   const [code, setCode] = useState<string | null>(null);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
   const [dockOpen, setDockOpen] = useState(true);
+  const [voteModalOpen, setVoteModalOpen] = useState(false);
+  const lastVoteHandRef = useRef<number>(-1);
 
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
@@ -98,6 +101,7 @@ export default function HostNormalPage() {
   const config: RoomConfig = room?.config ?? DEFAULT_CONFIG;
   const theme: TableThemeId = (room?.theme as TableThemeId) ?? "emerald";
   const cardBack: CardBackId = (room?.cardBack as CardBackId) ?? "classic-blue";
+  const cardFace = (room?.cardFace as never) ?? "classic";
   const result = room?.result ?? null;
   const isShowdown = gameState?.phase === "showdown";
   const canDeal = !gameState && lobby.length >= 2 && lobby.length <= 9;
@@ -146,6 +150,26 @@ export default function HostNormalPage() {
   }, [lobby]);
 
   const myUseTimeBank = myLobbyEntry?.useTimeBank !== false;
+
+  // Auto-open vote modal once per all-in hand, only for involved unvoted host player.
+  useEffect(() => {
+    const gs = gameState;
+    if (!gs || gs.phase !== "all-in-negotiation" || !gs.allInNegotiation) {
+      if (voteModalOpen) setVoteModalOpen(false);
+      return;
+    }
+    const handNum = gs.betting.handNum;
+    if (lastVoteHandRef.current === handNum) return;
+    const involved = uid ? gs.allInNegotiation.playerIds.includes(uid) : false;
+    const alreadyVoted = uid ? gs.allInNegotiation.votes[uid] != null : false;
+    if (involved && !alreadyVoted) {
+      lastVoteHandRef.current = handNum;
+      setVoteModalOpen(true);
+    } else {
+      lastVoteHandRef.current = handNum;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameState?.phase, gameState?.betting.handNum]);
 
   function handleJoinAsHost() {
     if (!uid || !code) return;
@@ -249,7 +273,7 @@ export default function HostNormalPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={cardBack}
-        cardFace={(room?.cardFace as never) ?? "classic"}
+        cardFace={cardFace}
         lastAction={gameState?.lastAction}
         timeBankByUid={timeBankByUid}
         turnTimeMs={config.turnTime}
@@ -267,6 +291,7 @@ export default function HostNormalPage() {
             onConfigChange={updateConfig}
             theme={theme}
             cardBack={cardBack}
+            cardFace={cardFace}
             lobby={lobby}
             requests={requests}
             gameSeats={gameState?.seats ?? null}
@@ -323,9 +348,16 @@ export default function HostNormalPage() {
         result={result}
         onClickRequest={() => setDockOpen(true)}
       />
+      <AllInVoteChip
+        gameState={gameState}
+        selfUid={uid}
+        onClick={() => setVoteModalOpen(true)}
+      />
       <AllInVoteModal
         gameState={gameState}
         selfUid={uid}
+        open={voteModalOpen}
+        onClose={() => setVoteModalOpen(false)}
         onVote={(n) => {
           if (code && uid) postPlayerVote(code, uid, n).catch(() => {});
         }}

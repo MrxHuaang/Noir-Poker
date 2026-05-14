@@ -76,6 +76,14 @@ export async function setNormalRoomCardBack(
   await updateDoc(doc(db, "normalRooms", code), { cardBack });
 }
 
+export async function setNormalRoomCardFace(
+  code: string,
+  cardFace: string,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code), { cardFace });
+}
+
 export async function createNormalRoom(
   hostUid: string,
   config: RoomConfig,
