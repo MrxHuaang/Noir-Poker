@@ -28,7 +28,6 @@ import type {
   NormalSeat,
 } from "@/lib/betting";
 import type { TableThemeId } from "@/lib/themes";
-import { CATEGORY_LABEL } from "@/lib/handEval";
 import { TableShell } from "@/components/table/TableShell";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
@@ -274,9 +273,7 @@ export default function PlayNormalPage() {
                     .map((id) => gs.seats.find((s) => s.id === id)?.name ?? id)
                     .join(" & ")}
             </h4>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">
-              {CATEGORY_LABEL[result.category]}
-            </p>
+            {/* Hand category hidden for privacy — cards already reveal hand strength */}
           </div>
         </div>
       )}

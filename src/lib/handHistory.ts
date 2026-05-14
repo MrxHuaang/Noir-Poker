@@ -19,6 +19,8 @@ export type HandRecord = {
   pot: number;
   community: string[];
   ts: number;
+  runIndex?: number;
+  runTotal?: number;
 };
 
 export async function writeHandRecord(

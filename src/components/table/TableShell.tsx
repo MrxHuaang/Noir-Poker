@@ -19,6 +19,7 @@ type Props = {
   ownHole?: [Card, Card] | null;
   revealedHoles?: Record<string, [Card, Card]>;
   cardBack?: string;
+  cardFace?: string;
   lastAction?: { seatId: string; action: string; amount?: number; ts: number };
 
   topLeft?: ReactNode;
@@ -42,6 +43,7 @@ export function TableShell({
   ownHole,
   revealedHoles,
   cardBack,
+  cardFace,
   lastAction,
   topLeft,
   topCenter,
@@ -68,6 +70,7 @@ export function TableShell({
             ownHole={ownHole}
             revealedHoles={revealedHoles}
             cardBack={cardBack}
+            cardFace={cardFace}
             lastAction={lastAction}
           />
         </div>
