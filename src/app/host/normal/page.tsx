@@ -20,7 +20,6 @@ import { DEFAULT_CONFIG } from "@/lib/betting";
 import type { BettingAction, BettingRound, NormalSeat, RoomConfig } from "@/lib/betting";
 import type { TableThemeId, CardBackId } from "@/lib/themes";
 import type { Card } from "@/lib/poker";
-import { CATEGORY_LABEL } from "@/lib/handEval";
 import { randomSeed } from "@/lib/dicebear";
 import { TableShell } from "@/components/table/TableShell";
 import { HostDock } from "@/components/host/HostDock";
@@ -186,9 +185,7 @@ export default function HostNormalPage() {
                 .map((id) => gameState.seats.find((s) => s.id === id)?.name ?? id)
                 .join(" & ")}
             </h4>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">
-              {CATEGORY_LABEL[result.category]}
-            </p>
+            {/* Hand category hidden for privacy — cards already reveal hand strength */}
           </div>
         </div>
       )}

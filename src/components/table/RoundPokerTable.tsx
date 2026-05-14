@@ -22,6 +22,7 @@ interface RoundPokerTableProps {
   ownHole?: [Card, Card] | null;
   revealedHoles?: Record<string, [Card, Card]>;
   cardBack?: string;
+  cardFace?: string;
   lastAction?: { seatId: string; action: string; amount?: number; ts: number };
 }
 
@@ -62,6 +63,41 @@ const ACTION_LABELS: Record<string, string> = {
   "all-in": "All-in",
 };
 
+// Community cards with proper deal-in animation (tracks new cards via prevLen)
+function CommunityCards({ community, cardFace }: { community: Card[]; cardFace?: string }) {
+  const prevLenRef = useRef(0);
+  const prevLen = prevLenRef.current;
+  useEffect(() => {
+    prevLenRef.current = community.length;
+  }, [community.length]);
+  return (
+    <div className="flex items-center gap-2">
+      {community.map((c, i) => {
+        const isNew = i >= prevLen;
+        const dealDelay = isNew ? (i - prevLen) * 0.12 : 0;
+        return (
+          <div key={c.id + i}>
+            <PlayingCard
+              card={c}
+              faceUp
+              size="md"
+              dealIn={isNew}
+              dealDelay={dealDelay}
+              flipDelay={isNew ? dealDelay : 0}
+              cardFace={cardFace as never}
+            />
+          </div>
+        );
+      })}
+      {Array.from({ length: 5 - community.length }).map((_, i) => (
+        <div key={`empty-${i}`} className="opacity-10">
+          <div className="w-12 h-[68px] sm:w-16 sm:h-[90px] rounded-lg border-2 border-dashed border-white/40" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Floating action toast on seat
 function ActionToast({ action, amount }: { action: string; amount?: number }) {
   const [visible, setVisible] = useState(true);
@@ -96,6 +132,7 @@ export function RoundPokerTable({
   ownHole,
   revealedHoles,
   cardBack,
+  cardFace,
   lastAction,
 }: RoundPokerTableProps) {
   const [showQR, setShowQR] = useState(false);
@@ -207,22 +244,8 @@ export function RoundPokerTable({
           </div>
 
           {/* Community Cards */}
-          <div className="flex items-center gap-2">
-            {community.map((c, i) => {
-              // Flop cards (0,1,2) get staggered delay (0, 500, 1000) for suspense.
-              // Turn/River (3,4) appear immediately since the game engine already adds a 2-second sleep between streets.
-              const delay = i < 3 ? i * 600 : 0;
-              return (
-              <div key={c.id + i} className="animate-in slide-in-from-bottom-2 fade-in duration-300 fill-mode-both" style={{ animationDelay: `${delay}ms` }}>
-                <PlayingCard card={c} faceUp size="md" dealIn={false} />
-              </div>
-            )})}
-            {Array.from({ length: 5 - community.length }).map((_, i) => (
-              <div key={`empty-${i}`} className="opacity-10">
-                <div className="w-12 h-[68px] sm:w-16 sm:h-[90px] rounded-lg border-2 border-dashed border-white/40" />
-              </div>
-            ))}
-          </div>
+          <CommunityCards community={community} cardFace={cardFace} />
+          {/* dealer button etc rendered below */}
         </div>
       </div>
 
@@ -288,7 +311,7 @@ export function RoundPokerTable({
                 {faceUpCards ? (
                   faceUpCards.map((c, ci) => (
                     <div key={c.id + ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
-                      <PlayingCard card={c} faceUp size="sm" cardBack={cardBack as never} />
+                      <PlayingCard card={c} faceUp size="sm" cardBack={cardBack as never} cardFace={cardFace as never} />
                     </div>
                   ))
                 ) : (
@@ -298,7 +321,7 @@ export function RoundPokerTable({
                         card={{ id: `back-${seat.id}-${ci}`, rank: "A", suit: "S" } as Card}
                         faceUp={false}
                         size="sm"
-                        cardBack={cardBack as never}
+                        cardBack={cardBack as never} cardFace={cardFace as never}
                       />
                     </div>
                   ))

@@ -37,14 +37,19 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
     onAction(action, raiseAmount);
   }
 
-  // Quick bet presets as fraction of pot
+  // Quick bet presets — percentage of pot + Max (all-in)
   const pot = betting.pot;
+  const minVal = sliderOpt?.min ?? 0;
+  const maxVal = sliderOpt?.max ?? Infinity;
+  const clamp = (v: number) => Math.max(minVal, Math.min(maxVal, Math.round(v)));
   const presets = sliderOpt
     ? [
-        { label: "½ Bote", value: Math.max(sliderOpt.min ?? 0, Math.round(pot * 0.5)) },
-        { label: "Bote", value: Math.max(sliderOpt.min ?? 0, pot) },
-        { label: "2×", value: Math.max(sliderOpt.min ?? 0, betting.currentBet * 2 + betting.minRaise) },
-      ].filter((p) => p.value <= (sliderOpt.max ?? Infinity) && p.value > 0)
+        { label: "33%", value: clamp(pot * 0.33) },
+        { label: "½", value: clamp(pot * 0.5) },
+        { label: "75%", value: clamp(pot * 0.75) },
+        { label: "Bote", value: clamp(pot) },
+        { label: "Max", value: clamp(maxVal === Infinity ? seat.chips : maxVal) },
+      ].filter((p, i, arr) => p.value > 0 && arr.findIndex((q) => q.value === p.value) === i)
     : [];
 
   return (
