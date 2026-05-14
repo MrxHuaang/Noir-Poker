@@ -3,13 +3,10 @@ import type { ReactNode } from "react";
 import { Avatar } from "@/components/players/Avatar";
 import { TurnTimer } from "@/components/betting/TurnTimer";
 import { BettingControls } from "@/components/betting/BettingControls";
-import type {
-  BettingAction,
-  BettingRound,
-  NormalSeat,
-} from "@/lib/betting";
+import type { BettingAction, BettingRound, NormalSeat } from "@/lib/betting";
 import { formatChips } from "@/lib/betting";
 import type { Card } from "@/lib/poker";
+import { describeHand } from "@/lib/handLabel";
 
 type Props = {
   seat: NormalSeat | null;
@@ -17,6 +14,7 @@ type Props = {
   seed: string;
   betting: BettingRound | null;
   holeCards: [Card, Card] | null;
+  community?: Card[];
   isMyTurn: boolean;
   turnTimeMs: number;
   hasResult: boolean;
@@ -30,6 +28,7 @@ export function BettingDock({
   seed,
   betting,
   holeCards,
+  community = [],
   isMyTurn,
   turnTimeMs,
   hasResult,
@@ -38,15 +37,21 @@ export function BettingDock({
 }: Props) {
   if (!seat && !name) return null;
 
+  // Hand strength label — shows hole-only label preflop, full best hand when community ≥ 3
+  const handLabel = holeCards
+    ? describeHand([...holeCards, ...community])
+    : null;
+
   return (
-    <div className="w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-[28px] ring-1 ring-white/10 p-5 shadow-2xl overflow-hidden relative">
+    <div className="w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-[28px] ring-1 ring-white/10 p-4 shadow-2xl overflow-hidden relative">
       {isMyTurn && (
         <div className="absolute inset-0 bg-emerald-500/5 animate-pulse pointer-events-none" />
       )}
 
-      <div className="flex items-center justify-between mb-3">
+      {/* Player header */}
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3 min-w-0">
-          <Avatar seed={seed} size={36} />
+          <Avatar seed={seed} size={34} />
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-black text-white uppercase tracking-tight truncate">
               {name}
@@ -70,10 +75,19 @@ export function BettingDock({
         )}
       </div>
 
+      {/* Hand strength label — PokerStars-style */}
+      {handLabel && holeCards && (
+        <div className="mb-2 px-3 py-1.5 rounded-xl bg-white/5 ring-1 ring-white/8 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Mano</span>
+          <span className="text-[12px] font-black text-amber-300 tracking-tight">{handLabel}</span>
+        </div>
+      )}
+
+      {/* Betting controls — only visible on my turn */}
       {seat && betting && isMyTurn && seat.status === "active" && !hasResult && (
         <div className="animate-in fade-in zoom-in duration-300">
           {seat.turnDeadline && (
-            <div className="mb-3">
+            <div className="mb-2">
               <TurnTimer
                 deadline={seat.turnDeadline}
                 turnTime={turnTimeMs}

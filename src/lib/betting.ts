@@ -72,6 +72,12 @@ export type NormalGameState = {
     votes: Record<string, number>; // uid -> number of runs requested
     agreedN?: number;
   };
+  lastAction?: {
+    seatId: string;
+    action: string;
+    amount?: number;
+    ts: number;
+  };
 };
 
 export type PotResult = {
@@ -216,9 +222,13 @@ export function startHand(
   let utg: number;
 
   if (isHeadsUp) {
-    sbIdx = activeSeatIndices[0]; // dealer is SB heads-up
-    bbIdx = activeSeatIndices[1];
-    utg = activeSeatIndices[0]; // dealer/SB acts first preflop HU
+    // Heads-up: DEALER = SB. dealerIdx is the dealer seat.
+    // activeSeatIndices[0] = seat just after dealer = BB (non-dealer).
+    // activeSeatIndices[1] = dealer = SB.
+    // Preflop HU: SB/dealer acts FIRST.
+    sbIdx = dealerIdx; // dealer posts SB
+    bbIdx = activeSeatIndices[0]; // non-dealer posts BB
+    utg = dealerIdx; // dealer/SB acts first preflop HU
   } else {
     sbIdx = activeSeatIndices[0];
     bbIdx = activeSeatIndices[1];
@@ -277,8 +287,16 @@ export function startHand(
     resolvedToActId = nextIdx >= 0 ? newSeats[nextIdx].id : null;
   }
 
+  // Set turnDeadline on the first player to act
+  const now = Date.now();
+  const seatsWithDeadline = dealtSeats.map((s) =>
+    s.id === resolvedToActId
+      ? { ...s, turnDeadline: now + config.turnTime }
+      : s,
+  );
+
   return {
-    seats: dealtSeats,
+    seats: seatsWithDeadline,
     community: [],
     deck,
     burns: [],
@@ -391,7 +409,7 @@ export function handleAction(
   }
   seat.turnDeadline = null;
 
-  const nextState: NormalGameState = { ...state, seats, betting: bet };
+  const nextState: NormalGameState = { ...state, seats, betting: bet, lastAction: { seatId, action, amount, ts: Date.now() } };
   return advanceAction(nextState);
 }
 

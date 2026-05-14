@@ -52,7 +52,8 @@ export default function PlayNormalPage() {
   const params = useParams<{ code: string }>();
   const code = params.code?.toUpperCase() ?? null;
   const { uid, loading } = useAuth();
-  const mySeedRef = useRef(Math.random().toString(36).slice(2));
+  const [mySeed] = useState(() => Math.random().toString(36).slice(2));
+  const mySeedRef = useRef(mySeed);
 
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
@@ -271,6 +272,7 @@ export default function PlayNormalPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={(room?.cardBack as never) ?? "classic-blue"}
+        lastAction={gs?.lastAction}
         topLeft={topLeft}
         bottomLeft={
           <>
@@ -292,6 +294,7 @@ export default function PlayNormalPage() {
             seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
             betting={gs?.betting ?? null}
             holeCards={hole?.cards ?? null}
+            community={gs?.community ?? []}
             isMyTurn={isMyTurn}
             turnTimeMs={config?.turnTime ?? 30_000}
             hasResult={!!result}

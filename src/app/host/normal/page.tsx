@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, SkipForward, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNormalLobby, useNormalRoom, useStackRequests } from "@/hooks/useNormalRoom";
@@ -16,7 +16,7 @@ import {
   patchNormalRoom,
   lobbyToSeats,
 } from "@/lib/normalRooms";
-import { DEFAULT_CONFIG, formatChips } from "@/lib/betting";
+import { DEFAULT_CONFIG } from "@/lib/betting";
 import type { BettingAction, BettingRound, NormalSeat, RoomConfig } from "@/lib/betting";
 import type { TableThemeId, CardBackId } from "@/lib/themes";
 import type { Card } from "@/lib/poker";
@@ -47,7 +47,6 @@ const EMPTY_BETTING: BettingRound = {
 export default function HostNormalPage() {
   const { uid, loading } = useAuth();
   const [code, setCode] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
   const [dockOpen, setDockOpen] = useState(true);
 
@@ -69,14 +68,15 @@ export default function HostNormalPage() {
     isProcessing,
   } = useNormalGame(code, room ?? null, lobby, uid, holeCards);
 
+  const creatingRef = useRef(false);
   useEffect(() => {
-    if (loading || !uid || code || creating) return;
-    setCreating(true);
+    if (loading || !uid || code || creatingRef.current) return;
+    creatingRef.current = true;
     createNormalRoom(uid, { ...DEFAULT_CONFIG, mode: "normal" })
       .then(setCode)
       .catch(() => {})
-      .finally(() => setCreating(false));
-  }, [loading, uid, code, creating]);
+      .finally(() => { creatingRef.current = false; });
+  }, [loading, uid, code]);
 
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(() => gameState?.seats.find((s) => s.id === uid) ?? null, [gameState, uid]);
@@ -197,7 +197,6 @@ export default function HostNormalPage() {
         <button
           type="button"
           onClick={startNewHand}
-          disabled={isProcessing}
           className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs uppercase tracking-widest transition shadow-xl"
         >
           <SkipForward className="w-4 h-4" /> Siguiente
@@ -220,6 +219,7 @@ export default function HostNormalPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={cardBack}
+        lastAction={gameState?.lastAction}
         topLeft={
           <HostDock
             code={code}
@@ -264,6 +264,7 @@ export default function HostNormalPage() {
               seed={mySeat.seed}
               betting={gameState?.betting ?? null}
               holeCards={hole?.cards ?? null}
+              community={community}
               isMyTurn={isMyTurn}
               turnTimeMs={config.turnTime}
               hasResult={!!result}

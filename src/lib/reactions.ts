@@ -6,7 +6,6 @@ import {
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
 } from "firebase/firestore";
 import { getDb } from "./firebase";
 
@@ -29,7 +28,8 @@ export async function sendReaction(
   await addDoc(collection(db, "normalRooms", code, "reactions"), {
     uid,
     emoji,
-    ts: serverTimestamp(),
+    // Use client timestamp so it's immediately available (serverTimestamp is null until write completes)
+    ts: Date.now(),
   });
 }
 

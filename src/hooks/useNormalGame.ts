@@ -15,7 +15,7 @@ import {
 } from "@/lib/normalRooms";
 import { showdown } from "@/lib/handEval";
 import { writeHandRecord } from "@/lib/handHistory";
-import type { Card } from "@/lib/poker";
+import type { Card, GameState } from "@/lib/poker";
 import { advance } from "@/lib/poker";
 
 function sleep(ms: number): Promise<void> {
@@ -116,7 +116,7 @@ export function useNormalGame(
     dealtHolesRef.current = newHoleCards;
     setGameState(finalState);
     await writeNormalDealt(code, finalState, newHoleCards, ownersMap);
-  }, [code, gameState, lobby, room?.config]);
+  }, [code, gameState, lobby, room?.config, room?.pendingRebuys]);
 
   const resolveShowdown = useCallback(async () => {
     if (!gameState || !code) return;
@@ -307,21 +307,38 @@ export function useNormalGame(
       return;
     }
 
-    setIsProcessing(true);
-    const newState = handleAction(
-      gameState,
-      pa.seatId,
-      pa.action,
-      pa.amount ?? 0,
-    );
-    setGameState(newState);
-    patchNormalRoom(code, {
-      state: toPublicState(newState),
-      pendingAction: null,
-    })
-      .catch(() => {})
-      .finally(() => setIsProcessing(false));
-  }, [room?.pendingAction, code, gameState]);
+    setTimeout(() => {
+      setIsProcessing(true);
+      let newState = handleAction(
+        gameState,
+        pa.seatId,
+        pa.action,
+        pa.amount ?? 0,
+      );
+
+      // Set turnDeadline on the next actor
+      const nextActorId = newState.betting.toActId;
+      const cfg = room?.config;
+      if (nextActorId && cfg) {
+        newState = {
+          ...newState,
+          seats: newState.seats.map((s) =>
+            s.id === nextActorId
+              ? { ...s, turnDeadline: Date.now() + cfg.turnTime }
+              : s,
+          ),
+        };
+      }
+
+      setGameState(newState);
+      patchNormalRoom(code, {
+        state: toPublicState(newState),
+        pendingAction: null,
+      })
+        .catch(() => {})
+        .finally(() => setIsProcessing(false));
+    }, 0);
+  }, [room?.pendingAction, code, gameState, room?.config]);
 
   // Admin: auto-resolve when phase reaches showdown
   useEffect(() => {
@@ -334,19 +351,17 @@ export function useNormalGame(
     return () => clearTimeout(t);
   }, [gameState, code, isProcessing, room?.result, resolveShowdown]);
 
-  // Admin: auto next hand 6s after result
-  useEffect(() => {
-    if (!isAdminRef.current || !code) return;
-    if (!room?.result) return;
-    const remainingPlayers = (room.state?.seats ?? []).filter(
-      (s) => s.status !== "out" && s.chips > 0,
-    ).length;
-    if (remainingPlayers < 2) return;
-    const t = setTimeout(() => {
-      void startNewHand();
-    }, 6000);
-    return () => clearTimeout(t);
-  }, [room?.result, room?.state?.seats, code, startNewHand]);
+  // Admin: auto next hand — DISABLED: host manually clicks "Siguiente"
+  // useEffect(() => {
+  //   if (!isAdminRef.current || !code) return;
+  //   if (!room?.result) return;
+  //   const remainingPlayers = (room.state?.seats ?? []).filter(
+  //     (s) => s.status !== "out" && s.chips > 0,
+  //   ).length;
+  //   if (remainingPlayers < 2) return;
+  //   const t = setTimeout(() => { void startNewHand(); }, 6000);
+  //   return () => clearTimeout(t);
+  // }, [room?.result, room?.state?.seats, code, startNewHand]);
 
   // Admin: Auto-advance street if round is complete or all-in
   useEffect(() => {
@@ -374,12 +389,39 @@ export function useNormalGame(
             votes: {},
           }
         };
-        setGameState(newState);
-        patchNormalRoom(code, { state: toPublicState(newState) }).catch(() => {});
+        setTimeout(() => {
+          setGameState(newState);
+          patchNormalRoom(code, { state: toPublicState(newState) }).catch(() => {});
+        }, 0);
       }
       return;
     }
   }, [gameState, code, isProcessing, resolveShowdown]);
+
+  // Admin: sync all-in votes from Firestore
+  useEffect(() => {
+    if (!isAdminRef.current || !gameState || !room?.state) return;
+    if (gameState.phase !== "all-in-negotiation") return;
+    
+    const firestoreVotes = room.state.allInNegotiation?.votes;
+    if (!firestoreVotes) return;
+
+    const localVotes = gameState.allInNegotiation?.votes ?? {};
+    if (Object.keys(firestoreVotes).length > Object.keys(localVotes).length) {
+      setTimeout(() => {
+        setGameState((prev) => {
+          if (prev?.phase !== "all-in-negotiation" || !prev.allInNegotiation) return prev;
+          return {
+            ...prev,
+            allInNegotiation: {
+              ...prev.allInNegotiation,
+              votes: firestoreVotes,
+            },
+          };
+        });
+      }, 0);
+    }
+  }, [room?.state, gameState]);
 
   // Admin: Finalize all-in negotiation and run board
   useEffect(() => {
@@ -407,9 +449,11 @@ export function useNormalGame(
           bestN = n;
         }
       });
+      void bestN; // TODO: implement multiple runs
 
       // Execute run out
-      setIsProcessing(true);
+      setTimeout(() => {
+        setIsProcessing(true);
       (async () => {
         try {
           // Reveal all hole cards first
@@ -418,14 +462,14 @@ export function useNormalGame(
             revealed: s.status !== 'folded' && s.status !== 'out'
           }));
           
-          let s = { ...gameState, seats: revealedSeats } as any;
+          let s = { ...gameState, seats: revealedSeats } as NormalGameState;
           setGameState(s);
           await patchNormalRoom(code, { state: toPublicState(s) });
           
           // Move through streets automatically
           while (s.street !== "river") {
             await sleep(2000); // Wait between streets for drama
-            s = advance(s) as any;
+            s = advance(s as unknown as GameState) as unknown as NormalGameState;
             setGameState(s);
             await patchNormalRoom(code, { state: toPublicState(s) });
           }
@@ -437,6 +481,7 @@ export function useNormalGame(
           setIsProcessing(false);
         }
       })();
+      }, 0);
     }
   }, [gameState, code, isProcessing, resolveShowdown]);
 
