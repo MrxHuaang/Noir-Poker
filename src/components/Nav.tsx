@@ -109,8 +109,7 @@ export function Nav() {
   const [showModal, setShowModal] = useState(false);
 
   if (
-    path?.startsWith("/host/normal") ||
-    path?.startsWith("/host/torneo") ||
+    path?.startsWith("/host") ||
     path?.startsWith("/play/normal") ||
     path?.startsWith("/play/torneo")
   ) {

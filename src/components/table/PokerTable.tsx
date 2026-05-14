@@ -370,6 +370,109 @@ export function PokerTable({
 
   const highlightForFelt = playback ? runHighlight : winnerIds;
 
+  const feltNode = (
+    <Felt
+      key={state.dealId}
+      state={state}
+      winners={highlightForFelt}
+      showdownDone={!!result || !!runs}
+      onToggle={toggleSeat}
+      onFoldToggle={toggleFold}
+      theme={theme}
+      presencial={!!sync}
+    />
+  );
+
+  const controlsNode = (
+    <>
+      {result ? (
+        <WinnerBanner
+          names={winnerNames}
+          category={CATEGORY_LABEL[result.category]}
+        />
+      ) : null}
+      {running ? (
+        <div className="text-sm text-zinc-400 animate-pulse">
+          Corriendo runs…
+        </div>
+      ) : null}
+      {!playback ? (
+        <DealControls
+          street={state.street}
+          canAdvance={canAdvance}
+          canShowdown={canShowdown}
+          canAllIn={canAllIn}
+          onAdvance={nextStreet}
+          onShowdown={doShowdown}
+          onAllIn={() => setAllInOpen(true)}
+          onReshuffle={reshuffle}
+          onReset={reset}
+        />
+      ) : null}
+      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+        Calle: {state.street} · Activos: {activeCount} · Mazo: {unseenCount}
+      </div>
+    </>
+  );
+
+  const modals = (
+    <>
+      {allInOpen ? (
+        <AllInModal
+          onCancel={() => setAllInOpen(false)}
+          onConfirm={doAllIn}
+        />
+      ) : null}
+      {runs ? (
+        <RunResults
+          runs={runs}
+          players={state.seats.map((s) => s.player)}
+          onClose={() => setRuns(null)}
+        />
+      ) : null}
+    </>
+  );
+
+  if (sync) {
+    return (
+      <div className="w-full h-full flex flex-col lg:flex-row gap-3 overflow-hidden">
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col gap-1.5 overflow-hidden">
+          {playback ? (
+            <PlaybackBanner
+              current={playback.idx + 1}
+              total={playback.runs.length}
+              winners={
+                runHighlight.length > 0
+                  ? state.seats
+                      .filter((s) => runHighlight.includes(s.player.id))
+                      .map((s) => s.player.name)
+                  : null
+              }
+              category={
+                runHighlight.length > 0
+                  ? CATEGORY_LABEL[
+                      playback.runs[playback.idx].category as Category
+                    ]
+                  : null
+              }
+              onSkip={skipPlayback}
+            />
+          ) : null}
+          <div className="flex-1 min-h-0 w-full [container-type:size] flex items-center justify-center">
+            {feltNode}
+          </div>
+          <div className="shrink-0 flex flex-col items-center gap-1.5 pb-1">
+            {controlsNode}
+          </div>
+        </div>
+        <div className="shrink-0 flex flex-col gap-4 w-full lg:w-60">
+          <StatsPanel players={players} highlightIds={winnerIds} />
+        </div>
+        {modals}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
       <div className="flex-1 min-w-0 flex flex-col items-center gap-6">
@@ -394,69 +497,21 @@ export function PokerTable({
             onSkip={skipPlayback}
           />
         ) : null}
-        <Felt
-          key={state.dealId}
-          state={state}
-          winners={highlightForFelt}
-          showdownDone={!!result || !!runs}
-          onToggle={toggleSeat}
-          onFoldToggle={toggleFold}
-          theme={theme}
-        />
-        {result ? (
-          <WinnerBanner
-            names={winnerNames}
-            category={CATEGORY_LABEL[result.category]}
-          />
-        ) : null}
-        {running ? (
-          <div className="text-sm text-zinc-400 animate-pulse">
-            Corriendo runs…
-          </div>
-        ) : null}
-        {!playback ? (
-          <DealControls
-            street={state.street}
-            canAdvance={canAdvance}
-            canShowdown={canShowdown}
-            canAllIn={canAllIn}
-            onAdvance={nextStreet}
-            onShowdown={doShowdown}
-            onAllIn={() => setAllInOpen(true)}
-            onReshuffle={reshuffle}
-            onReset={reset}
-          />
-        ) : null}
-        <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-          Calle: {state.street} · Activos: {activeCount} · Mazo: {unseenCount}
-        </div>
+        {feltNode}
+        {controlsNode}
       </div>
       <div className="flex flex-col gap-4 w-full lg:w-auto">
-        {!sync ? (
-          <EquityPanel
-            seats={state.seats}
-            community={state.community}
-            equity={equity}
-            outs={outs}
-            unseenCount={unseenCount}
-            showdownDone={!!result || !!playback || !!runs}
-          />
-        ) : null}
+        <EquityPanel
+          seats={state.seats}
+          community={state.community}
+          equity={equity}
+          outs={outs}
+          unseenCount={unseenCount}
+          showdownDone={!!result || !!playback || !!runs}
+        />
         <StatsPanel players={players} highlightIds={winnerIds} />
       </div>
-      {allInOpen ? (
-        <AllInModal
-          onCancel={() => setAllInOpen(false)}
-          onConfirm={doAllIn}
-        />
-      ) : null}
-      {runs ? (
-        <RunResults
-          runs={runs}
-          players={state.seats.map((s) => s.player)}
-          onClose={() => setRuns(null)}
-        />
-      ) : null}
+      {modals}
     </div>
   );
 }
@@ -585,6 +640,7 @@ function Felt({
   onToggle,
   onFoldToggle,
   theme,
+  presencial,
 }: {
   state: GameState;
   winners: string[];
@@ -592,11 +648,19 @@ function Felt({
   onToggle: (id: string) => void;
   onFoldToggle: (id: string) => void;
   theme?: TableThemeId;
+  presencial?: boolean;
 }) {
   const n = state.seats.length;
   const t = getTableTheme(theme);
   return (
-    <div className="relative w-full max-w-4xl aspect-[16/11] my-2">
+    <div
+      className="relative aspect-[16/11]"
+      style={
+        presencial
+          ? { width: "min(100cqw, calc(100cqh * 16 / 11))", maxWidth: "896px" }
+          : { width: "100%", maxWidth: "896px", margin: "8px 0" }
+      }
+    >
       <div
         className="absolute inset-0 rounded-[50%] shadow-[inset_0_0_120px_rgba(0,0,0,0.6),0_30px_80px_-30px_rgba(0,0,0,0.7)]"
         style={{

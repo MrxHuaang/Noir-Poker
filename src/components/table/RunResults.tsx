@@ -33,7 +33,7 @@ export function RunResults({
       aria-modal="true"
     >
       <div
-        className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-zinc-950/95 ring-1 ring-white/10 p-6 flex flex-col gap-5"
+        className="custom-scrollbar w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-zinc-950/95 ring-1 ring-white/10 p-6 flex flex-col gap-5"
       >
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">

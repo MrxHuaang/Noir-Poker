@@ -115,7 +115,7 @@ export default function HostPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+    <div className="fixed inset-0 flex flex-col bg-[#06070a] overflow-hidden">
       {/* Compact header bar */}
       <header className="relative flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.06] shrink-0">
         <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hidden sm:block">
@@ -189,12 +189,14 @@ export default function HostPage() {
       </header>
 
       {/* Table fills remaining height */}
-      <div className="flex-1 min-h-0 overflow-auto px-4 pb-4 pt-2">
-        <PokerTable
-          sync={{ roomCode: code, ownersMap }}
-          playersOverride={lobbyAsPlayers}
-          theme={theme}
-        />
+      <div className="flex-1 min-h-0 overflow-hidden px-3 py-2">
+        <div className="h-full">
+          <PokerTable
+            sync={{ roomCode: code, ownersMap }}
+            playersOverride={lobbyAsPlayers}
+            theme={theme}
+          />
+        </div>
       </div>
     </div>
   );
