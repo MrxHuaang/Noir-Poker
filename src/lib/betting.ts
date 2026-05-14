@@ -1,4 +1,4 @@
-import type { Card, Rank } from "./poker";
+import type { Card } from "./poker";
 import { shuffle, makeDeck } from "./poker";
 
 export type SeatStatus =
@@ -151,9 +151,6 @@ function idxOf(seats: NormalSeat[], id: string): number {
   return seats.findIndex((s) => s.id === id);
 }
 
-function countStatus(seats: NormalSeat[], status: SeatStatus): number {
-  return seats.filter((s) => s.status === status).length;
-}
 
 function activePlayers(seats: NormalSeat[]): NormalSeat[] {
   return seats.filter(
@@ -188,7 +185,7 @@ export function startHand(
     revealed: false,
     turnDeadline: null,
     status:
-      s.status === "out" || s.status === "sitting-out" ? s.status : "active",
+      s.chips <= 0 ? "out" : (s.status === "out" || s.status === "sitting-out" ? s.status : "active"),
   }));
 
   // Find dealer: next eligible after prev dealer
@@ -407,6 +404,11 @@ export function handleAction(
   if (!bet.actedThisRound.includes(seatId)) {
     bet.actedThisRound = [...bet.actedThisRound, seatId];
   }
+
+  if (seat.turnDeadline && Date.now() > seat.turnDeadline) {
+    const overflow = Date.now() - seat.turnDeadline;
+    seat.timeBank = Math.max(0, seat.timeBank - overflow);
+  }
   seat.turnDeadline = null;
 
   const nextState: NormalGameState = { ...state, seats, betting: bet, lastAction: { seatId, action, amount, ts: Date.now() } };
@@ -544,7 +546,7 @@ function advanceStreet(state: NormalGameState): NormalGameState {
 }
 
 function runOutBoard(state: NormalGameState): NormalGameState {
-  const { street, deck, burns, community } = state;
+  const { deck, burns, community } = state;
   let s = { ...state, deck: deck.slice(), burns: burns.slice(), community: community.slice() };
 
   while (s.street !== "river") {

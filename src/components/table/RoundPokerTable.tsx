@@ -4,6 +4,7 @@ import { Maximize2, RotateCcw, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import type { NormalSeat, BettingRound } from "@/lib/betting";
 import { formatChips } from "@/lib/betting";
+import { calculateEquity, getRemainingDeck } from "@/lib/equity";
 import type { Card } from "@/lib/poker";
 import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
@@ -101,7 +102,33 @@ export function RoundPokerTable({
   const [rotationOffset, setRotationOffset] = useState(0);
   // Track last action per seat for toasts
   const [seatToasts, setSeatToasts] = useState<Record<string, { action: string; amount?: number; key: number }>>({});
+  const [equities, setEquities] = useState<Record<string, number>>({});
   const t = getTableTheme(theme);
+
+  // Compute equities if multiple holes are revealed
+  useEffect(() => {
+    setTimeout(() => {
+      if (!revealedHoles) {
+        setEquities({});
+        return;
+      }
+      const holes = Object.entries(revealedHoles).map(([id, cards]) => ({ id, cards }));
+      if (holes.length < 2) {
+        setEquities({});
+        return;
+      }
+      
+      const knownCards = [...community, ...holes.flatMap((h) => h.cards)];
+      const deck = getRemainingDeck(knownCards);
+      const result = calculateEquity(holes, community, deck, 1500); 
+      
+      const newEquities: Record<string, number> = {};
+      result.forEach((r) => {
+        newEquities[r.seatId] = r.equity;
+      });
+      setEquities(newEquities);
+    }, 0);
+  }, [community, revealedHoles]);
 
   // Show action toast when lastAction changes
   const prevActionRef = useRef<typeof lastAction>(undefined);
@@ -181,11 +208,15 @@ export function RoundPokerTable({
 
           {/* Community Cards */}
           <div className="flex items-center gap-2">
-            {community.map((c, i) => (
-              <div key={c.id + i} className="animate-in slide-in-from-bottom-2 fade-in duration-300" style={{ animationDelay: `${i * 80}ms` }}>
+            {community.map((c, i) => {
+              // Flop cards (0,1,2) get staggered delay (0, 500, 1000) for suspense.
+              // Turn/River (3,4) appear immediately since the game engine already adds a 2-second sleep between streets.
+              const delay = i < 3 ? i * 600 : 0;
+              return (
+              <div key={c.id + i} className="animate-in slide-in-from-bottom-2 fade-in duration-300 fill-mode-both" style={{ animationDelay: `${delay}ms` }}>
                 <PlayingCard card={c} faceUp size="md" dealIn={false} />
               </div>
-            ))}
+            )})}
             {Array.from({ length: 5 - community.length }).map((_, i) => (
               <div key={`empty-${i}`} className="opacity-10">
                 <div className="w-12 h-[68px] sm:w-16 sm:h-[90px] rounded-lg border-2 border-dashed border-white/40" />
@@ -247,6 +278,13 @@ export function RoundPokerTable({
                   transform: "translate(-50%, calc(-100% - 54px))",
                 }}
               >
+                {/* Equity Tag */}
+                {equities[seat.id] !== undefined && (
+                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-xs font-bold text-emerald-400 ring-1 ring-emerald-500/30 whitespace-nowrap">
+                    {equities[seat.id]}%
+                  </div>
+                )}
+                
                 {faceUpCards ? (
                   faceUpCards.map((c, ci) => (
                     <div key={c.id + ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
