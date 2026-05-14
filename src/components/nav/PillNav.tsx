@@ -8,6 +8,7 @@ export type PillNavItem = {
   label: string;
   href: string;
   ariaLabel?: string;
+  onClick?: () => void;
 };
 
 export interface PillNavProps {
@@ -169,8 +170,18 @@ export function PillNav({
               const pillClass = `${pillBase} ${pillFocus} ${active ? pillActive : pillIdle}`;
 
               return (
-                <li key={item.href} role="none" className="flex items-center">
-                  {!isExternalLink(item.href) ? (
+                <li key={item.label} role="none" className="flex items-center">
+                  {item.onClick ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={item.onClick}
+                      className={pillClass}
+                      aria-label={item.ariaLabel || item.label}
+                    >
+                      {item.label}
+                    </button>
+                  ) : !isExternalLink(item.href) ? (
                     <Link
                       role="menuitem"
                       href={item.href}
@@ -235,8 +246,16 @@ export function PillNav({
             const close = () => setIsMobileMenuOpen(false);
 
             return (
-              <li key={item.href}>
-                {!isExternalLink(item.href) ? (
+              <li key={item.label}>
+                {item.onClick ? (
+                  <button
+                    type="button"
+                    className={rowClass}
+                    onClick={() => { item.onClick!(); close(); }}
+                  >
+                    {item.label}
+                  </button>
+                ) : !isExternalLink(item.href) ? (
                   <Link
                     href={item.href}
                     className={rowClass}

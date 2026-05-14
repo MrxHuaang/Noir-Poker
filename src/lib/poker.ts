@@ -17,7 +17,7 @@ export type Street = "preflop" | "flop" | "turn" | "river";
 export type Seat = {
   player: Player;
   hole: [Card, Card];
-  revealed: boolean;
+  revealedCards: [boolean, boolean];
   folded: boolean;
 };
 
@@ -65,7 +65,7 @@ export function deal(players: Player[]): GameState {
   const seats: Seat[] = players.map((p) => ({
     player: p,
     hole: [deck.shift()!, deck.shift()!],
-    revealed: false,
+    revealedCards: [false, false],
     folded: false,
   }));
   return {

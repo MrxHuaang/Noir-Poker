@@ -65,7 +65,7 @@ export function PokerTable({
   const skipRef = useRef(false);
 
   const { equity, outs, runMany } = useEquity(
-    result || playback ? null : state,
+    sync || result || playback ? null : state,
   );
 
   // Merge inbound fold/reveal flags from phones via Firestore.
@@ -82,9 +82,13 @@ export function PokerTable({
         const seats = prev.seats.map((s) => {
           const r = incoming.find((rs) => rs.id === s.player.id);
           if (!r) return s;
-          if (r.folded !== s.folded || r.revealed !== s.revealed) {
+          if (
+            r.folded !== s.folded ||
+            r.revealedCards[0] !== s.revealedCards[0] ||
+            r.revealedCards[1] !== s.revealedCards[1]
+          ) {
             dirty = true;
-            return { ...s, folded: r.folded, revealed: r.revealed };
+            return { ...s, folded: r.folded, revealedCards: r.revealedCards };
           }
           return s;
         });
@@ -159,9 +163,11 @@ export function PokerTable({
     if (!state) return;
     setState({
       ...state,
-      seats: state.seats.map((s) =>
-        s.player.id === id ? { ...s, revealed: !s.revealed } : s,
-      ),
+      seats: state.seats.map((s) => {
+        if (s.player.id !== id) return s;
+        const both = s.revealedCards[0] && s.revealedCards[1];
+        return { ...s, revealedCards: [!both, !both] as [boolean, boolean] };
+      }),
     });
   }
 
@@ -183,7 +189,7 @@ export function PokerTable({
       ...state,
       seats: state.seats.map((s) => ({
         ...s,
-        revealed: s.folded ? s.revealed : true,
+        revealedCards: s.folded ? s.revealedCards : [true, true],
       })),
     });
     setResult(r);
@@ -216,7 +222,7 @@ export function PokerTable({
             ...s,
             seats: s.seats.map((seat) => ({
               ...seat,
-              revealed: seat.folded ? seat.revealed : true,
+              revealedCards: seat.folded ? seat.revealedCards : ([true, true] as [boolean, boolean]),
             })),
           }
         : s,
@@ -426,14 +432,16 @@ export function PokerTable({
         </div>
       </div>
       <div className="flex flex-col gap-4 w-full lg:w-auto">
-        <EquityPanel
-          seats={state.seats}
-          community={state.community}
-          equity={equity}
-          outs={outs}
-          unseenCount={unseenCount}
-          showdownDone={!!result || !!playback || !!runs}
-        />
+        {!sync ? (
+          <EquityPanel
+            seats={state.seats}
+            community={state.community}
+            equity={equity}
+            outs={outs}
+            unseenCount={unseenCount}
+            showdownDone={!!result || !!playback || !!runs}
+          />
+        ) : null}
         <StatsPanel players={players} highlightIds={winnerIds} />
       </div>
       {allInOpen ? (

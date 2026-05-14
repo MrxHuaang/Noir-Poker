@@ -1,7 +1,4 @@
 "use client";
-import { useRef } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 import { Crown, X } from "lucide-react";
 import type { Player } from "@/lib/poker";
 import { CATEGORY_LABEL, type Category } from "@/lib/handEval";
@@ -18,20 +15,6 @@ export function RunResults({
   players: Player[];
   onClose: () => void;
 }) {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useGSAP(
-    () => {
-      gsap.from(".run-row", {
-        y: 24,
-        opacity: 0,
-        duration: 0.45,
-        ease: "power3.out",
-        stagger: 0.1,
-      });
-    },
-    { scope: rootRef },
-  );
 
   const byId = new Map(players.map((p) => [p.id, p]));
   const tallies = new Map<string, number>();
@@ -50,7 +33,6 @@ export function RunResults({
       aria-modal="true"
     >
       <div
-        ref={rootRef}
         className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-zinc-950/95 ring-1 ring-white/10 p-6 flex flex-col gap-5"
       >
         <header className="flex items-center justify-between">
@@ -104,14 +86,15 @@ export function RunResults({
             return (
               <li
                 key={i}
-                className="run-row flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/10"
+                className="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/10"
+                style={{ animationDelay: `${i * 70}ms`, animationFillMode: "both" }}
               >
                 <span className="text-xs text-zinc-500 w-12 shrink-0 tabular-nums">
                   Run {i + 1}
                 </span>
                 <div className="flex gap-1.5 items-center">
                   {r.community.map((c, j) => (
-                    <PlayingCard key={j} card={c} faceUp size="sm" />
+                    <PlayingCard key={j} card={c} faceUp dealIn={false} size="sm" />
                   ))}
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col">

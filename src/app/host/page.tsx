@@ -1,13 +1,12 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Copy, Check, Palette } from "lucide-react";
+import { Check, Copy, Palette, QrCode, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoom, useLobby } from "@/hooks/useRoom";
 import { createRoom, setRoomTheme } from "@/lib/rooms";
 import { PokerTable } from "@/components/table/PokerTable";
 import { TableThemePicker } from "@/components/themes/TableThemePicker";
-import { BorderGlow } from "@/components/ui/BorderGlow";
 import type { TableThemeId } from "@/lib/themes";
 import type { Player } from "@/lib/poker";
 
@@ -16,7 +15,10 @@ export default function HostPage() {
   const [code, setCode] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef<HTMLDivElement>(null);
   const room = useRoom(code);
   const lobby = useLobby(code);
 
@@ -24,7 +26,6 @@ export default function HostPage() {
     if (loading || !uid || code || creating) return;
     setCreating(true);
 
-    // Check URL first
     const searchParams = new URLSearchParams(window.location.search);
     const existingCode = searchParams.get("code");
     if (existingCode) {
@@ -41,6 +42,20 @@ export default function HostPage() {
       .catch(() => {})
       .finally(() => setCreating(false));
   }, [loading, uid, code, creating]);
+
+  // Close popover on outside click
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (showQr && qrRef.current && !qrRef.current.contains(e.target as Node)) {
+        setShowQr(false);
+      }
+      if (showThemePicker && themeRef.current && !themeRef.current.contains(e.target as Node)) {
+        setShowThemePicker(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [showQr, showThemePicker]);
 
   const ownersMap = useMemo(() => {
     const out: Record<string, string | null> = {};
@@ -62,6 +77,14 @@ export default function HostPage() {
       })),
     [lobby],
   );
+
+  // Lock body scroll so the host table fills the viewport without page scroll
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
   const joinUrl =
     typeof window !== "undefined" && code
@@ -92,72 +115,87 @@ export default function HostPage() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-6 flex flex-col gap-6">
-      <BorderGlow
-        className="w-full"
-        edgeSensitivity={24}
-        glowColor="210 55 50"
-        backgroundColor="rgba(10, 11, 16, 0.88)"
-        borderRadius={18}
-        glowRadius={28}
-        glowIntensity={0.95}
-        coneSpread={26}
-        animated={false}
-        colors={["#34d399", "#60a5fa", "#c4b5fd"]}
-        fillOpacity={0.4}
-      >
-        <header className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-4">
-          <div className="p-2 rounded-xl bg-white">
-            {joinUrl ? <QRCodeSVG value={joinUrl} size={96} /> : null}
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-              Sala · Modo presencial
-            </span>
-            <button
-              type="button"
-              onClick={copy}
-              className="inline-flex items-center gap-2 text-3xl tracking-[0.25em] font-semibold text-zinc-100 btn-press"
-              title="Copiar"
-            >
-              {code}
-              {copied ? (
-                <Check className="w-5 h-5 text-emerald-300" />
-              ) : (
-                <Copy className="w-5 h-5 text-zinc-400" />
-              )}
-            </button>
-            <span className="text-[11px] text-zinc-500 mt-1 truncate max-w-xs">
-              {joinUrl.replace(/^https?:\/\//, "")}
-            </span>
-          </div>
-        </div>
-        <div className="flex max-w-xs flex-col gap-2">
-          <div className="text-xs text-zinc-400">
-            Comparte código o QR. Jugadores entran desde su teléfono y eligen
-            apodo + avatar.
-          </div>
+    <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+      {/* Compact header bar */}
+      <header className="relative flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.06] shrink-0">
+        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hidden sm:block">
+          Sala · Presencial
+        </span>
+        <button
+          type="button"
+          onClick={copy}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-100 text-sm font-mono tracking-[0.2em] transition btn-press"
+          title="Copiar código"
+        >
+          {code}
+          {copied ? (
+            <Check className="w-3.5 h-3.5 text-emerald-300" />
+          ) : (
+            <Copy className="w-3.5 h-3.5 text-zinc-400" />
+          )}
+        </button>
+
+        {/* QR button + popover */}
+        <div className="relative" ref={qrRef}>
           <button
             type="button"
-            onClick={() => setShowThemePicker((v) => !v)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-xs text-zinc-200 w-fit transition btn-press"
+            onClick={() => { setShowQr((v) => !v); setShowThemePicker(false); }}
+            className="p-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-200 transition btn-press"
+            title="Código QR"
+            aria-label="Mostrar QR"
           >
-            <Palette className="w-3.5 h-3.5" />
-            Tema de mesa
+            <QrCode className="w-4 h-4" />
+          </button>
+          {showQr && joinUrl ? (
+            <div className="absolute top-full left-0 mt-2 z-50 p-4 rounded-2xl bg-[#0d0f14] ring-1 ring-white/10 shadow-xl flex flex-col gap-3 min-w-[200px]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">Escanea para unirte</span>
+                <button
+                  type="button"
+                  onClick={() => setShowQr(false)}
+                  className="text-zinc-500 hover:text-zinc-200 transition"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="p-2 rounded-xl bg-white self-center">
+                <QRCodeSVG value={joinUrl} size={140} />
+              </div>
+              <span className="text-[10px] text-zinc-500 text-center break-all">
+                {joinUrl.replace(/^https?:\/\//, "")}
+              </span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Theme button + popover */}
+        <div className="relative" ref={themeRef}>
+          <button
+            type="button"
+            onClick={() => { setShowThemePicker((v) => !v); setShowQr(false); }}
+            className="p-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-200 transition btn-press"
+            title="Tema de mesa"
+            aria-label="Tema de mesa"
+          >
+            <Palette className="w-4 h-4" />
           </button>
           {showThemePicker ? (
-            <TableThemePicker value={theme} onChange={onThemeChange} />
+            <div className="absolute top-full left-0 mt-2 z-50 p-3 rounded-2xl bg-[#0d0f14] ring-1 ring-white/10 shadow-xl min-w-[220px]">
+              <TableThemePicker value={theme} onChange={(id) => { onThemeChange(id); setShowThemePicker(false); }} />
+            </div>
           ) : null}
         </div>
       </header>
-      </BorderGlow>
 
-      <PokerTable
-        sync={{ roomCode: code, ownersMap }}
-        playersOverride={lobbyAsPlayers}
-        theme={theme}
-      />
+      {/* Table fills remaining height */}
+      <div className="flex-1 min-h-0 overflow-auto px-4 pb-4 pt-2">
+        <PokerTable
+          sync={{ roomCode: code, ownersMap }}
+          playersOverride={lobbyAsPlayers}
+          theme={theme}
+        />
+      </div>
     </div>
   );
 }

@@ -165,32 +165,36 @@ function CardFront({ card }: { card?: Card }) {
   const colorClass = color === "red" ? "text-rose-600" : "text-zinc-900";
   return (
     <div
-      className="absolute inset-0 rounded-xl border border-zinc-200 bg-white shadow-[0_15px_35px_-12px_rgba(0,0,0,0.55)] flex flex-col justify-between p-2"
+      className="absolute inset-0 rounded-xl border border-zinc-200 bg-white shadow-[0_15px_35px_-12px_rgba(0,0,0,0.55)] overflow-hidden"
       style={{
         backfaceVisibility: "hidden",
         WebkitBackfaceVisibility: "hidden",
         transform: "rotateY(180deg)",
       }}
     >
-      <div className={`flex flex-col leading-none ${colorClass}`}>
+      <div
+        className={`absolute flex flex-col items-center leading-none ${colorClass}`}
+        style={{ top: "0.4em", left: "0.4em" }}
+      >
         <span className="font-semibold tracking-tight">
           {rankLabel(card.rank)}
         </span>
-        <span className="text-[1em]">{suitGlyph(card.suit)}</span>
+        <span className="text-[0.8em]">{suitGlyph(card.suit)}</span>
       </div>
       <div
-        className={`text-[2.4em] leading-none self-center ${colorClass}`}
+        className={`absolute inset-0 flex items-center justify-center text-[2.4em] leading-none ${colorClass}`}
         aria-hidden
       >
         {suitGlyph(card.suit)}
       </div>
       <div
-        className={`flex flex-col leading-none self-end rotate-180 ${colorClass}`}
+        className={`absolute flex flex-col items-center leading-none rotate-180 ${colorClass}`}
+        style={{ bottom: "0.4em", right: "0.4em" }}
       >
         <span className="font-semibold tracking-tight">
           {rankLabel(card.rank)}
         </span>
-        <span className="text-[1em]">{suitGlyph(card.suit)}</span>
+        <span className="text-[0.8em]">{suitGlyph(card.suit)}</span>
       </div>
     </div>
   );

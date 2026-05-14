@@ -5,7 +5,7 @@ import { Crown, Eye, EyeOff, Flame, LogOut, RotateCcw, Shuffle, Sparkles } from 
 import { useAuth } from "@/hooks/useAuth";
 import { useHole, useRoom, useLobby } from "@/hooks/useRoom";
 import { useCardBack } from "@/hooks/useCardBack";
-import { joinLobby, leaveLobby, phoneSetSeatFlag } from "@/lib/rooms";
+import { joinLobby, leaveLobby, phoneSetSeatFlag, phoneSetCardReveal } from "@/lib/rooms";
 import { randomSeed } from "@/lib/dicebear";
 import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
@@ -183,6 +183,7 @@ function PhoneGameView({
   const { cardBack, setCardBack } = useCardBack();
   const [folding, setFolding] = useState(false);
   const [showCardBackPicker, setShowCardBackPicker] = useState(false);
+  const [peeking, setPeeking] = useState(false);
 
   const label = hole ? handLabel(hole, room.state!.community) : null;
 
@@ -198,9 +199,9 @@ function PhoneGameView({
     }
   }
 
-  async function onRevealToggle() {
+  async function onRevealCard(cardIndex: 0 | 1) {
     try {
-      await phoneSetSeatFlag(code, mySeat.id, "revealed", !mySeat.revealed);
+      await phoneSetCardReveal(code, mySeat.id, cardIndex, !mySeat.revealedCards[cardIndex]);
     } catch {
       /* ignore */
     }
@@ -295,14 +296,14 @@ function PhoneGameView({
             <>
               <PlayingCard
                 card={hole[0]}
-                faceUp={mySeat.revealed || revealing}
+                faceUp={peeking || mySeat.revealedCards[0] || revealing}
                 size="lg"
                 dealIn={false}
                 cardBack={cardBack}
               />
               <PlayingCard
                 card={hole[1]}
-                faceUp={mySeat.revealed || revealing}
+                faceUp={peeking || mySeat.revealedCards[1] || revealing}
                 size="lg"
                 dealIn={false}
                 cardBack={cardBack}
@@ -313,44 +314,73 @@ function PhoneGameView({
           )}
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={onRevealToggle}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-100 text-sm transition btn-press"
-          >
-            {mySeat.revealed ? (
-              <>
-                <EyeOff className="w-4 h-4" /> Ocultar
-              </>
-            ) : (
-              <>
-                <Eye className="w-4 h-4" /> Mostrar a la mesa
-              </>
-            )}
-          </button>
-          {!room.result ? (
+        <div className="mt-3 flex flex-col items-center gap-2">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={onFoldToggle}
-              disabled={folding}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ring-1 text-sm font-medium transition btn-press ${
-                mySeat.folded
-                  ? "bg-white/5 ring-white/10 text-zinc-200 hover:bg-white/10"
-                  : "bg-rose-500/90 ring-rose-400/40 text-rose-950 hover:bg-rose-400"
-              } ${folding ? "opacity-60" : ""}`}
+              onClick={() => setPeeking((v) => !v)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-100 text-sm transition btn-press"
             >
-              {mySeat.folded ? (
+              {peeking ? (
                 <>
-                  <RotateCcw className="w-4 h-4" /> Reactivar
+                  <EyeOff className="w-4 h-4" /> Ocultar
                 </>
               ) : (
                 <>
-                  <Flame className="w-4 h-4" /> Foldear
+                  <Eye className="w-4 h-4" /> Ver mis cartas
                 </>
               )}
             </button>
-          ) : null}
+            {!room.result ? (
+              <button
+                type="button"
+                onClick={onFoldToggle}
+                disabled={folding}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ring-1 text-sm font-medium transition btn-press ${
+                  mySeat.folded
+                    ? "bg-white/5 ring-white/10 text-zinc-200 hover:bg-white/10"
+                    : "bg-rose-500/90 ring-rose-400/40 text-rose-950 hover:bg-rose-400"
+                } ${folding ? "opacity-60" : ""}`}
+              >
+                {mySeat.folded ? (
+                  <>
+                    <RotateCcw className="w-4 h-4" /> Reactivar
+                  </>
+                ) : (
+                  <>
+                    <Flame className="w-4 h-4" /> Foldear
+                  </>
+                )}
+              </button>
+            ) : null}
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+              Mostrar en mesa:
+            </span>
+            <button
+              type="button"
+              onClick={() => onRevealCard(0)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ring-1 text-xs font-medium transition btn-press ${
+                mySeat.revealedCards[0]
+                  ? "bg-emerald-500/20 ring-emerald-400/40 text-emerald-200"
+                  : "bg-white/5 ring-white/10 text-zinc-300 hover:bg-white/10"
+              }`}
+            >
+              Carta 1
+            </button>
+            <button
+              type="button"
+              onClick={() => onRevealCard(1)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ring-1 text-xs font-medium transition btn-press ${
+                mySeat.revealedCards[1]
+                  ? "bg-emerald-500/20 ring-emerald-400/40 text-emerald-200"
+                  : "bg-white/5 ring-white/10 text-zinc-300 hover:bg-white/10"
+              }`}
+            >
+              Carta 2
+            </button>
+          </div>
         </div>
       </section>
 

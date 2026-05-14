@@ -22,7 +22,7 @@ export type PublicSeat = {
   seed: string;
   ownerUid: string | null;
   folded: boolean;
-  revealed: boolean;
+  revealedCards: [boolean, boolean];
 };
 
 export type RoomState = {
@@ -129,7 +129,7 @@ export function gameToPublic(
       seed: s.player.seed,
       ownerUid: ownerByPlayerId[s.player.id] ?? null,
       folded: s.folded,
-      revealed: s.revealed,
+      revealedCards: s.revealedCards,
     })),
     community: gs.community,
     burns: gs.burns,
@@ -173,7 +173,7 @@ export async function patchRoom(
 export async function phoneSetSeatFlag(
   code: string,
   seatId: string,
-  key: "folded" | "revealed",
+  key: "folded",
   value: boolean,
 ): Promise<void> {
   const db = getDb();
@@ -185,6 +185,27 @@ export async function phoneSetSeatFlag(
   const seats = room.state.seats.map((s) =>
     s.id === seatId ? { ...s, [key]: value } : s,
   );
+  await updateDoc(ref, { "state.seats": seats });
+}
+
+export async function phoneSetCardReveal(
+  code: string,
+  seatId: string,
+  cardIndex: 0 | 1,
+  value: boolean,
+): Promise<void> {
+  const db = getDb();
+  const ref = doc(db, "rooms", code);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const room = snap.data() as RoomDoc;
+  if (!room.state) return;
+  const seats = room.state.seats.map((s) => {
+    if (s.id !== seatId) return s;
+    const revealedCards: [boolean, boolean] = [s.revealedCards[0], s.revealedCards[1]];
+    revealedCards[cardIndex] = value;
+    return { ...s, revealedCards };
+  });
   await updateDoc(ref, { "state.seats": seats });
 }
 

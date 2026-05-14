@@ -422,20 +422,20 @@ function advanceAction(state: NormalGameState): NormalGameState {
   const active = actionablePlayers(seats);
   const allIn = seats.filter((s) => s.status === "all-in");
 
-  // Only 1 or 0 actionable players left → go to showdown or next street
-  if (active.length === 0) {
+  // Check round completion: all active players have acted and matched bet
+  const roundDone = isRoundComplete(seats, betting);
+
+  // If the round is complete and 1 or fewer players can still act, betting is permanently closed
+  if (roundDone && active.length <= 1) {
     if (activePlayers(seats).length <= 1) {
       return { ...state, phase: "showdown" };
     }
-    // All players all-in or only one active: close action and let useNormalGame handle runout
+    // All players all-in or only one active with chips: close action for all-in runout
     return {
       ...state,
       betting: { ...betting, toActId: null, actedThisRound: active.map((x) => x.id) },
     };
   }
-
-  // Check round completion: all active players have acted and matched bet
-  const roundDone = isRoundComplete(seats, betting);
 
   if (roundDone) {
     return advanceStreet(state);
