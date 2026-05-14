@@ -43,6 +43,8 @@ export type RoomDoc = {
   playback: { idx: number; total: number; community: Card[] } | null;
   runHighlight: string[];
   theme?: string;
+  cardBack?: string;
+  cardFace?: string;
   mode?: "presencial" | "normal" | "torneo";
 };
 
@@ -91,6 +93,15 @@ export async function createRoom(
 export async function setRoomTheme(code: string, theme: string): Promise<void> {
   const db = getDb();
   await updateDoc(doc(db, "rooms", code), { theme });
+}
+
+export async function setRoomCardStyle(
+  code: string,
+  cardBack: string,
+  cardFace: string,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "rooms", code), { cardBack, cardFace });
 }
 
 export function subscribeRoom(

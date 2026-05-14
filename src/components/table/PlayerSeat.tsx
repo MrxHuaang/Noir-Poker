@@ -3,6 +3,7 @@ import { Crown, X, RotateCcw } from "lucide-react";
 import type { Seat } from "@/lib/poker";
 import { Avatar } from "@/components/players/Avatar";
 import { HoleCards } from "./HoleCards";
+import type { CardBackId, CardFaceId } from "@/lib/themes";
 
 export function PlayerSeat({
   seat,
@@ -11,6 +12,8 @@ export function PlayerSeat({
   onToggle,
   onFoldToggle,
   style,
+  cardBack,
+  cardFace,
 }: {
   seat: Seat;
   isWinner: boolean;
@@ -18,6 +21,8 @@ export function PlayerSeat({
   onToggle: () => void;
   onFoldToggle: () => void;
   style?: React.CSSProperties;
+  cardBack?: CardBackId;
+  cardFace?: CardFaceId;
 }) {
   return (
     <div
@@ -33,7 +38,7 @@ export function PlayerSeat({
       <div
         className={`relative ${seat.folded ? "opacity-40 grayscale" : ""} ${isWinner ? "drop-shadow-[0_10px_30px_rgba(252,211,77,0.35)]" : ""}`}
       >
-        <HoleCards seat={seat} onToggle={onToggle} />
+        <HoleCards seat={seat} onToggle={onToggle} cardBack={cardBack} cardFace={cardFace} />
         {seat.folded ? (
           <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="px-2 py-0.5 rounded-full bg-black/70 text-rose-300 text-[10px] tracking-[0.2em] uppercase ring-1 ring-rose-300/30">
