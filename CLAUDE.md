@@ -113,6 +113,22 @@ Firebase calls require a real network. The smoke test path: `/host` → room cod
 - Avoid useEffects that write to Firestore from multiple components — single source of truth lives in `PokerTable`.
 - No emojis in code, comments, UI strings, or commit messages. The Spanish UI copy is intentional; keep it.
 
+## Canal de voz
+
+Voz P2P entre teléfonos en `/play/[code]`. WebRTC + señalización Supabase Realtime.
+NO está en `/host`: la TV no se une al canal (evita feedback con micros cercanos).
+
+- `src/hooks/useVoiceWebRTC.ts` — peer connections. **No tocar** la lógica de glare (uid mayor inicia oferta), el cleanup por `peerUidsKey`, ni el effect race-fix de móvil que agrega tracks tarde y renegocia. Están comentadas en el archivo.
+- `src/hooks/useVoiceRoom.ts` — presence + broadcast `peer-state` vía Supabase. `callId` = `code` del cuarto Firestore.
+- `src/components/voice/VoicePanel.tsx` — UI con opt-in (botón "Unirme a voz") + Wake Lock. **Importado en `play/[code]/page.tsx` con `next/dynamic({ ssr: false })`** porque usa `navigator.mediaDevices`/`RTCPeerConnection`/`AudioContext` que no existen en Node.
+- `src/components/voice/RemoteAudio.tsx` — `<audio>` invisible por peer remoto.
+- `src/hooks/useAudioLevel.ts` — analizador FFT throttled a ~12 fps (no 60) para no fundir batería con N peers.
+- `src/lib/supabaseClient.ts` — cliente singleton. Supabase NO tiene tablas: solo Realtime Broadcast + Presence con anon key.
+
+Bitrate de Opus capeado a 24 kbps via SDP munging + `sender.setParameters()` en `useVoiceWebRTC` — full-mesh con 6-10 peers saturaría redes móviles sin esto.
+
+Setup completo: `docs/voice-setup.md`.
+
 ## Don'ts (learned from prior incidents)
 
 - Don't write a `useEffect` that depends on a `playback` state and calls `setPlayback` from within — it cascades and crashes the tab.
