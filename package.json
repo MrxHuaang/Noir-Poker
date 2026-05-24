@@ -12,6 +12,7 @@
     "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.2",
     "@gsap/react": "^2.1.2",
+    "@supabase/supabase-js": "^2.105.4",
     "canvas-confetti": "^1.9.4",
     "firebase": "^12.13.0",
     "gsap": "^3.15.0",
