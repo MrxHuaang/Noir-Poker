@@ -1,4 +1,3 @@
-"use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabase } from "@/lib/supabaseClient";
@@ -78,7 +77,13 @@ export function useVoiceRoom(
     }
     presenceUidsRef.current = new Set();
 
-    const supabase = getSupabase();
+    let supabase: ReturnType<typeof getSupabase>;
+    try {
+      supabase = getSupabase();
+    } catch (err) {
+      console.error("Canal de voz no disponible (faltan env vars de Supabase):", err);
+      return;
+    }
     const ch = supabase.channel(`voice:${code}`, {
       config: { presence: { key: uid } },
     });
