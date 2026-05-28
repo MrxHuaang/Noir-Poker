@@ -1,6 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Play, SkipForward, Trophy } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Play, Trophy } from "lucide-react";
+
+const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
+  ssr: false,
+});
 import { useAuth } from "@/hooks/useAuth";
 import { usePresenceMap } from "@/hooks/usePresenceMap";
 import { useNormalLobby, useNormalRoom, useStackRequests } from "@/hooks/useNormalRoom";
@@ -256,29 +261,8 @@ export default function HostTorneoPage() {
     </>
   );
 
-  const adminExtra = (
-    <div className="flex gap-2 mt-3">
-      {isShowdown && !result && (
-        <button
-          type="button"
-          onClick={resolveShowdown}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs uppercase tracking-widest transition shadow-xl animate-pulse"
-        >
-          <Trophy className="w-4 h-4" /> Resolver
-        </button>
-      )}
-      {result && (
-        <button
-          type="button"
-          onClick={startNewHand}
-          disabled={isProcessing}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs uppercase tracking-widest transition shadow-xl"
-        >
-          <SkipForward className="w-4 h-4" /> Siguiente
-        </button>
-      )}
-    </div>
-  );
+  void resolveShowdown; // auto-resolved by useNormalGame after 1.5 s
+  void Trophy; // reserved for centerOverlay
 
   return (
     <>
@@ -331,6 +315,14 @@ export default function HostTorneoPage() {
         }
         bottomLeft={
           <>
+            {myLobbyEntry && (
+              <VoicePanel
+                code={code}
+                uid={uid}
+                displayName={myLobbyEntry.name}
+                seed={myLobbyEntry.seed}
+              />
+            )}
             <ChatPanel
               code={code}
               uid={uid}
@@ -354,12 +346,7 @@ export default function HostTorneoPage() {
               turnTimeMs={config.turnTime}
               hasResult={!!result}
               onAction={handleAction}
-              extra={adminExtra}
             />
-          ) : gameState && (isShowdown || result) ? (
-            <div className="w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-[28px] ring-1 ring-white/10 p-4 shadow-2xl">
-              {adminExtra}
-            </div>
           ) : null
         }
         centerOverlay={centerOverlay}
