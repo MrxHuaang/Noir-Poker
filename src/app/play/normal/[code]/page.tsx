@@ -30,6 +30,7 @@ import {
   dismissStackRequest,
   type StackRequest,
 } from "@/lib/stackRequests";
+import { getMyPublicKeyString } from "@/lib/holeCrypto";
 import { formatChips } from "@/lib/betting";
 import type {
   BettingAction,
@@ -106,6 +107,20 @@ export default function PlayNormalPage() {
   const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
   const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
   const result = room?.result ?? null;
+
+  // Publish our public key into the lobby so the host can encrypt our hole
+  // cards to it. Runs once we're in the lobby and re-publishes only if missing.
+  const myPubKey = myLobbyEntry?.pubKey;
+  useEffect(() => {
+    if (!code || !uid || !inLobby) return;
+    let cancelled = false;
+    (async () => {
+      const pub = await getMyPublicKeyString(uid);
+      if (!pub || cancelled || myPubKey === pub) return;
+      patchLobbyPlayer(code, uid, { pubKey: pub }).catch(() => {});
+    })();
+    return () => { cancelled = true; };
+  }, [code, uid, inLobby, myPubKey]);
 
   const placeholderSeats: NormalSeat[] = useMemo(() => {
     if (gs) return gs.seats as NormalSeat[];
