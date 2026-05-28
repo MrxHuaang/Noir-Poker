@@ -5,6 +5,7 @@ import {
   handleAction,
   startHand,
   computeSidePots,
+  distributeRunPot,
 } from "@/lib/betting";
 import type { NormalRoomDoc, PendingAction, NormalLobbyPlayer } from "@/lib/normalRooms";
 import {
@@ -623,16 +624,15 @@ export function useNormalGame(
               await sleep(1600);
             }
 
-            // Distribute pot across runs. Each run wins pot/N (rounded).
+            // Distribute pot across runs with zero chip leakage: per-run pots
+            // sum to totalPot and uneven splits give the remainder to the first
+            // winner. Divides by actual runRecords (not bestN) so a run that
+            // produced no record never strands chips.
             const totalPot = gameState.betting.pot;
-            const runShare = Math.floor(totalPot / bestN);
-            const winningsByPlayer: Record<string, number> = {};
-            for (const rec of runRecords) {
-              const perWinner = Math.floor(runShare / rec.winners.length);
-              for (const w of rec.winners) {
-                winningsByPlayer[w] = (winningsByPlayer[w] ?? 0) + perWinner;
-              }
-            }
+            const { winningsByPlayer, perRunPot } = distributeRunPot(
+              totalPot,
+              runRecords,
+            );
 
             // Build new chips + final state
             const newChips: Record<string, number> = {};
@@ -681,16 +681,19 @@ export function useNormalGame(
             // History: write one record per run
             for (let i = 0; i < runRecords.length; i++) {
               const rec = runRecords[i];
-              const winnerInfo = rec.winners.map((wid) => ({
+              const runPot = perRunPot[i] ?? 0;
+              const share = Math.floor(runPot / rec.winners.length);
+              const rem = runPot - share * rec.winners.length;
+              const winnerInfo = rec.winners.map((wid, wi) => ({
                 id: wid,
                 name: finalSeats.find((s) => s.id === wid)?.name ?? wid,
-                amount: Math.floor(runShare / rec.winners.length),
+                amount: share + (wi === 0 ? rem : 0),
               }));
               writeHandRecord(code, {
                 handNum: gameState.betting.handNum,
                 winners: winnerInfo,
                 category: rec.category,
-                pot: runShare,
+                pot: runPot,
                 community: rec.community.map((c) => c.id),
                 runIndex: bestN > 1 ? i : undefined,
                 runTotal: bestN > 1 ? bestN : undefined,
