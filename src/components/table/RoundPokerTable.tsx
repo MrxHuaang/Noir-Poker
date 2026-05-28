@@ -523,16 +523,14 @@ export function RoundPokerTable({
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
             >
               {/* Avatar — inline, left of card */}
-              <div className={`relative flex-shrink-0 rounded-full ring-2 transition-all ${
+              <div className={`relative flex-shrink-0 w-8 h-8 rounded-full ring-2 overflow-hidden transition-all ${
                 isToAct
                   ? "ring-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.5)]"
                   : isWinner
                     ? "ring-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.5)]"
                     : "ring-zinc-700"
               } ${seat.status === "folded" ? "opacity-40 grayscale" : ""} ${seat.status === "sitting-out" ? "opacity-50 grayscale" : ""}`}>
-                <div className="rounded-full overflow-hidden bg-zinc-900">
-                  <Avatar seed={seat.seed} size={32} />
-                </div>
+                <Avatar seed={seat.seed} size={32} className="ring-0 rounded-none" />
                 {presenceMap && presenceMap[seat.id] === false && (
                   <span
                     className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-600 ring-2 ring-zinc-950 flex items-center justify-center z-20"
