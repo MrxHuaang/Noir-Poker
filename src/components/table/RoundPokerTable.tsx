@@ -517,25 +517,25 @@ export function RoundPokerTable({
               </div>
             )}
 
-            {/* Seat Box */}
+            {/* Seat Box — horizontal: avatar left, name/chips card right */}
             <div
-              className={`absolute flex flex-col items-center transition-all duration-300 ${isToAct ? "z-30" : "z-20"}`}
+              className={`absolute flex flex-row items-center gap-1 transition-all duration-300 ${isToAct ? "z-30" : "z-20"}`}
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
             >
-              {/* Avatar — dimmed but visible when sitting out */}
-              <div className={`relative absolute -top-7 left-1/2 -translate-x-1/2 z-10 rounded-full ring-2 transition-all ${
+              {/* Avatar — inline, left of card */}
+              <div className={`relative flex-shrink-0 rounded-full ring-2 transition-all ${
                 isToAct
-                  ? "ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.5)]"
+                  ? "ring-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.5)]"
                   : isWinner
-                    ? "ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)]"
+                    ? "ring-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.5)]"
                     : "ring-zinc-700"
               } ${seat.status === "folded" ? "opacity-40 grayscale" : ""} ${seat.status === "sitting-out" ? "opacity-50 grayscale" : ""}`}>
                 <div className="rounded-full overflow-hidden bg-zinc-900">
-                  <Avatar seed={seat.seed} size={40} />
+                  <Avatar seed={seat.seed} size={32} />
                 </div>
                 {presenceMap && presenceMap[seat.id] === false && (
                   <span
-                    className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-rose-600 ring-2 ring-zinc-950 flex items-center justify-center z-20"
+                    className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-600 ring-2 ring-zinc-950 flex items-center justify-center z-20"
                     title="Desconectado"
                   >
                     <WifiOff className="w-2 h-2 text-white" />
@@ -543,7 +543,7 @@ export function RoundPokerTable({
                 )}
               </div>
 
-              {/* Away toggle side button — only on self seat */}
+              {/* Away toggle — right edge of whole seat */}
               {isSelf && onToggleAway && (
                 <button
                   type="button"
@@ -559,7 +559,7 @@ export function RoundPokerTable({
                 </button>
               )}
 
-              <div className={`relative min-w-[96px] sm:min-w-[112px] rounded-lg overflow-hidden transition-all duration-300 border-2 mt-3 ${
+              <div className={`relative min-w-[80px] sm:min-w-[96px] rounded-lg overflow-hidden transition-all duration-300 border-2 ${
                 isToAct
                   ? "border-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.4)]"
                   : isWinner
@@ -609,9 +609,9 @@ export function RoundPokerTable({
                 )}
               </div>
 
-              {/* Winner crown */}
+              {/* Winner crown — over the avatar (left side of seat) */}
               {isWinner && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 animate-bounce">
+                <div className="absolute -top-3 left-0 -translate-x-1/4 animate-bounce z-30">
                   <div className="bg-amber-400 text-amber-950 p-1 rounded-full shadow-lg">
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
