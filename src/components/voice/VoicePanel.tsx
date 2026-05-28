@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Mic, MicOff, PhoneOff, Phone, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Headphones, Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-react";
 import { Avatar } from "@/components/players/Avatar";
 import { useVoiceRoom, type VoiceParticipant } from "@/hooks/useVoiceRoom";
 import { useAudioLevel } from "@/hooks/useAudioLevel";
@@ -18,7 +18,11 @@ export default function VoicePanel({
   seed: string;
 }) {
   const [enabled, setEnabled] = useState(false);
+  // Whether the user joined in listen-only mode (starts with mic muted).
+  const [listenOnly, setListenOnly] = useState(false);
   const [peerMuted, setPeerMuted] = useState<Record<string, boolean>>({});
+  // Guard so we only auto-mute once after localStream becomes available.
+  const listenOnlyApplied = useRef(false);
 
   const {
     participants,
@@ -28,6 +32,19 @@ export default function VoicePanel({
     isMuted,
     toggleMute,
   } = useVoiceRoom(code, uid, displayName, seed, enabled);
+
+  // Auto-mute once when joining in listen-only mode. Waits for localStream
+  // because the audio track must exist before muting has any effect.
+  useEffect(() => {
+    if (!enabled) {
+      listenOnlyApplied.current = false;
+      return;
+    }
+    if (listenOnly && !listenOnlyApplied.current && localStream) {
+      listenOnlyApplied.current = true;
+      if (!isMuted) toggleMute();
+    }
+  }, [enabled, listenOnly, localStream, isMuted, toggleMute]);
 
   // Atajo M para mute (solo cuando ya estamos unidos).
   useEffect(() => {
@@ -96,15 +113,31 @@ export default function VoicePanel({
 
   if (!enabled) {
     return (
-      <button
-        type="button"
-        onClick={() => setEnabled(true)}
-        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-400/30 px-4 py-3 text-sm font-medium text-emerald-100 hover:bg-emerald-500/25 transition btn-press"
-      >
-        <Phone className="w-4 h-4" /> Unirme al canal de voz
-      </button>
+      <div className="flex gap-2">
+        {/* Join with microphone — talk + listen */}
+        <button
+          type="button"
+          onClick={() => { setListenOnly(false); setEnabled(true); }}
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-400/30 px-3 py-3 text-sm font-medium text-emerald-100 hover:bg-emerald-500/25 transition btn-press"
+          title="Unirme con micrófono"
+        >
+          <Mic className="w-4 h-4" />
+          <span className="text-xs">Con mic</span>
+        </button>
+        {/* Join listen-only — audio in, no mic */}
+        <button
+          type="button"
+          onClick={() => { setListenOnly(true); setEnabled(true); }}
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm font-medium text-zinc-300 hover:bg-white/10 transition btn-press"
+          title="Solo escuchar (sin micrófono)"
+        >
+          <Headphones className="w-4 h-4" />
+          <span className="text-xs">Solo escuchar</span>
+        </button>
+      </div>
     );
   }
+
 
   // Lista de peers remotos (todos los participantes menos yo).
   const remotePeers = Object.values(participants).filter((p) => p.uid !== uid);
@@ -127,6 +160,11 @@ export default function VoicePanel({
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-zinc-400">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           Voz · {Object.keys(participants).length} en sala
+          {listenOnly && (
+            <span className="flex items-center gap-0.5 text-zinc-500">
+              <Headphones className="w-2.5 h-2.5" /> escucha
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <button
