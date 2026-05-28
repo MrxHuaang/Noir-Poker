@@ -23,6 +23,12 @@ function NumberField({
   step?: number;
   onChange: (v: number) => void;
 }) {
+  // Clamp on blur so the user can type intermediate digits freely,
+  // but the stored value is always within valid range.
+  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const v = Number(e.target.value);
+    if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
+  }
   return (
     <label className="flex flex-col gap-1">
       <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-500">
@@ -30,11 +36,12 @@ function NumberField({
       </span>
       <input
         type="number"
-        value={value}
+        defaultValue={value}
+        key={value}
         min={min}
         max={max}
         step={step ?? 1}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onBlur={handleBlur}
         className="px-3 py-2 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-emerald-400/40"
       />
     </label>
@@ -43,7 +50,17 @@ function NumberField({
 
 export function NormalConfigPanel({ config, onChange, onClose }: Props) {
   function set(partial: Partial<RoomConfig>) {
-    onChange({ ...config, ...partial });
+    const next = { ...config, ...partial };
+    // BB must always be >= SB + 1
+    if ("bigBlind" in partial) {
+      next.bigBlind = Math.max(next.smallBlind + 1, next.bigBlind);
+    }
+    if ("smallBlind" in partial) {
+      next.smallBlind = Math.min(next.bigBlind - 1, next.smallBlind);
+    }
+    // Stack must be > 0
+    next.startingStack = Math.max(1, next.startingStack);
+    onChange(next);
   }
 
   return (
