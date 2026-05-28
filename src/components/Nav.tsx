@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Coins, Trophy, Tv, X } from "lucide-react";
@@ -107,6 +107,16 @@ function ModeCard({
 export function Nav() {
   const path = usePathname();
   const [showModal, setShowModal] = useState(false);
+
+  // BUG-010: cerrar modal con Escape (estándar WCAG para dialogs)
+  useEffect(() => {
+    if (!showModal) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowModal(false);
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [showModal]);
 
   if (
     path?.startsWith("/host") ||
