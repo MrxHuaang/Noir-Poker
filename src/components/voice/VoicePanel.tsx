@@ -112,27 +112,29 @@ export default function VoicePanel({
   }, [enabled]);
 
   if (!enabled) {
+    // Botones pequeños tipo icono, al lado del chat. Mismo lenguaje visual que
+    // ChatPanel/ReactionBar (glass + p-3 rounded-2xl) para que queden discretos.
     return (
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         {/* Join with microphone — talk + listen */}
         <button
           type="button"
           onClick={() => { setListenOnly(false); setEnabled(true); }}
-          className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-400/30 px-3 py-3 text-sm font-medium text-emerald-100 hover:bg-emerald-500/25 transition btn-press"
+          className="p-3 rounded-2xl glass ring-1 ring-emerald-400/20 text-emerald-300 hover:bg-emerald-500/15 hover:text-emerald-200 transition btn-press shadow-xl"
           title="Unirme con micrófono"
+          aria-label="Unirme con micrófono"
         >
-          <Mic className="w-4 h-4" />
-          <span className="text-xs">Con mic</span>
+          <Mic className="w-5 h-5" />
         </button>
         {/* Join listen-only — audio in, no mic */}
         <button
           type="button"
           onClick={() => { setListenOnly(true); setEnabled(true); }}
-          className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm font-medium text-zinc-300 hover:bg-white/10 transition btn-press"
+          className="p-3 rounded-2xl glass ring-1 ring-white/10 text-zinc-300 hover:bg-white/10 transition btn-press shadow-xl"
           title="Solo escuchar (sin micrófono)"
+          aria-label="Solo escuchar (sin micrófono)"
         >
-          <Headphones className="w-4 h-4" />
-          <span className="text-xs">Solo escuchar</span>
+          <Headphones className="w-5 h-5" />
         </button>
       </div>
     );
