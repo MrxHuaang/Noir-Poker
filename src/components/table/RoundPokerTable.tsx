@@ -1,7 +1,9 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Maximize2, RotateCcw, X } from "lucide-react";
+import { Maximize2, RotateCcw, Volume2, VolumeX, WifiOff, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import type { NormalSeat, BettingRound } from "@/lib/betting";
 import { formatChips } from "@/lib/betting";
 import { calculateEquity, getRemainingDeck } from "@/lib/equity";
@@ -9,6 +11,8 @@ import type { Card } from "@/lib/poker";
 import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import { getTableTheme, type TableThemeId } from "@/lib/themes";
+import { fireConfetti } from "@/lib/confetti";
+import { useSound } from "@/hooks/useSound";
 
 interface RoundPokerTableProps {
   seats: NormalSeat[];
@@ -31,6 +35,7 @@ interface RoundPokerTableProps {
   onSit?: () => void;
   onToggleAway?: () => void;
   amSittingOut?: boolean;
+  presenceMap?: Record<string, boolean>;
 }
 
 const MAX_SEATS = 9;
@@ -151,6 +156,52 @@ function ActionToast({ action, amount }: { action: string; amount?: number }) {
   );
 }
 
+// Transient chip that flies from a seat to the pot when chips move. Mount-only
+// tween scoped to its own node; honors prefers-reduced-motion (skips straight to
+// onDone so the element is removed without animating).
+function FlyingChip({
+  origin,
+  onDone,
+}: {
+  origin: { x: number; y: number };
+  onDone: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useGSAP(
+    () => {
+      const el = ref.current;
+      if (!el) return;
+      const mm = gsap.matchMedia();
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        onDone();
+      });
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.set(el, { xPercent: -50, yPercent: -50, left: `${origin.x}%`, top: `${origin.y}%` });
+        gsap.to(el, {
+          left: "50%",
+          top: "50%",
+          scale: 0.4,
+          opacity: 0,
+          duration: 0.7,
+          ease: "power2.in",
+          onComplete: onDone,
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope: ref, dependencies: [] },
+  );
+  return (
+    <div
+      ref={ref}
+      className="absolute z-[45] pointer-events-none"
+      style={{ left: `${origin.x}%`, top: `${origin.y}%` }}
+    >
+      <div className="w-5 h-5 rounded-full border-2 border-white/40 bg-amber-400 shadow-lg" />
+    </div>
+  );
+}
+
 export function RoundPokerTable({
   seats,
   community,
@@ -170,12 +221,15 @@ export function RoundPokerTable({
   onSit,
   onToggleAway,
   amSittingOut,
+  presenceMap,
 }: RoundPokerTableProps) {
   const [showQR, setShowQR] = useState(false);
   const [rotationOffset, setRotationOffset] = useState(0);
   // Track last action per seat for toasts
   const [seatToasts, setSeatToasts] = useState<Record<string, { action: string; amount?: number; key: number }>>({});
   const [equities, setEquities] = useState<Record<string, number>>({});
+  const { muted, toggleMute, play } = useSound();
+  const [flyingChips, setFlyingChips] = useState<{ id: number; x: number; y: number }[]>([]);
   const t = getTableTheme(theme);
 
   // Compute equities if multiple holes are revealed
@@ -202,18 +256,6 @@ export function RoundPokerTable({
       setEquities(newEquities);
     }, 0);
   }, [community, revealedHoles]);
-
-  // Show action toast when lastAction changes
-  const prevActionRef = useRef<typeof lastAction>(undefined);
-  useEffect(() => {
-    if (!lastAction) return;
-    if (prevActionRef.current?.ts === lastAction.ts) return;
-    prevActionRef.current = lastAction;
-    setSeatToasts(prev => ({
-      ...prev,
-      [lastAction.seatId]: { action: lastAction.action, amount: lastAction.amount, key: lastAction.ts },
-    }));
-  }, [lastAction]);
 
   const joinUrl =
     typeof window !== "undefined" && roomCode
@@ -269,6 +311,40 @@ export function RoundPokerTable({
   }
 
   const selfInSeats = !!(selfUid && seats.some((s) => s.id === selfUid));
+
+  // React to a new lastAction: show the seat toast, play a cue, and fly a chip
+  // from the actor's seat to the pot on chip-moving actions. Guarded by ts so it
+  // fires exactly once per action (slots/positions changing won't re-trigger).
+  const prevActionRef = useRef<typeof lastAction>(undefined);
+  useEffect(() => {
+    if (!lastAction) return;
+    if (prevActionRef.current?.ts === lastAction.ts) return;
+    prevActionRef.current = lastAction;
+    setSeatToasts((prev) => ({
+      ...prev,
+      [lastAction.seatId]: { action: lastAction.action, amount: lastAction.amount, key: lastAction.ts },
+    }));
+    const a = lastAction.action;
+    if (a === "bet" || a === "call" || a === "raise" || a === "all-in") {
+      play(a === "all-in" ? "allIn" : "chip");
+      const slotIdx = slots.findIndex((s) => s?.id === lastAction.seatId);
+      const pos = slotIdx >= 0 ? positions[slotIdx] : null;
+      if (pos) {
+        setFlyingChips((prev) => [...prev, { id: lastAction.ts, x: pos.x, y: pos.y }]);
+      }
+    }
+  }, [lastAction, slots, positions, play]);
+
+  // Fire confetti + winner chime once when winners transition from none to set.
+  const prevWinnersRef = useRef("");
+  useEffect(() => {
+    const key = winners.join(",");
+    if (key && key !== prevWinnersRef.current) {
+      fireConfetti();
+      play("winner");
+    }
+    prevWinnersRef.current = key;
+  }, [winners, play]);
 
   return (
     <div className="relative w-full max-w-[1400px] aspect-[16/8] mx-auto select-none">
@@ -434,7 +510,7 @@ export function RoundPokerTable({
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
             >
               {/* Avatar — dimmed but visible when sitting out */}
-              <div className={`absolute -top-7 left-1/2 -translate-x-1/2 z-10 rounded-full ring-2 transition-all ${
+              <div className={`relative absolute -top-7 left-1/2 -translate-x-1/2 z-10 rounded-full ring-2 transition-all ${
                 isToAct
                   ? "ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.5)]"
                   : isWinner
@@ -444,6 +520,14 @@ export function RoundPokerTable({
                 <div className="rounded-full overflow-hidden bg-zinc-900">
                   <Avatar seed={seat.seed} size={40} />
                 </div>
+                {presenceMap && presenceMap[seat.id] === false && (
+                  <span
+                    className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-rose-600 ring-2 ring-zinc-950 flex items-center justify-center z-20"
+                    title="Desconectado"
+                  >
+                    <WifiOff className="w-2 h-2 text-white" />
+                  </span>
+                )}
               </div>
 
               {/* Away toggle side button — only on self seat */}
@@ -569,6 +653,15 @@ export function RoundPokerTable({
         );
       })}
 
+      {/* Mute toggle */}
+      <button
+        onClick={toggleMute}
+        className="absolute top-1 right-9 p-1.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+        title={muted ? "Activar sonido" : "Silenciar"}
+      >
+        {muted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+      </button>
+
       {/* QR Button */}
       {roomCode && (
         <button
@@ -617,6 +710,15 @@ export function RoundPokerTable({
           </div>
         </div>
       )}
+
+      {/* Flying chips overlay — chips tween from a seat to the pot on chip moves. */}
+      {flyingChips.map((c) => (
+        <FlyingChip
+          key={c.id}
+          origin={{ x: c.x, y: c.y }}
+          onDone={() => setFlyingChips((prev) => prev.filter((f) => f.id !== c.id))}
+        />
+      ))}
     </div>
   );
 }

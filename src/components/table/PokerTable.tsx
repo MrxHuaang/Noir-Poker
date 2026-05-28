@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import confetti from "canvas-confetti";
 import { SkipForward, Trophy } from "lucide-react";
+import { fireConfetti } from "@/lib/confetti";
 import type { Card, GameState, Player } from "@/lib/poker";
 import {
   gameToPublic,
@@ -20,6 +20,7 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { useStats } from "@/hooks/useStats";
 import { useEquity, type RunOne } from "@/hooks/useEquity";
 import { useHistory } from "@/hooks/useHistory";
+import { useSound } from "@/hooks/useSound";
 import { PlayerPicker } from "./PlayerPicker";
 import { PlayerSeat } from "./PlayerSeat";
 import { CommunityRow } from "./CommunityRow";
@@ -55,6 +56,7 @@ export function PokerTable({
   const players = playersOverride ?? local.players;
   const hydrated = playersOverride ? true : local.hydrated;
   const { addWins } = useStats();
+  const { play: playSound } = useSound();
   const { record, recordMany } = useHistory();
   const [state, setState] = useState<GameState | null>(null);
   const [result, setResult] = useState<Showdown | null>(null);
@@ -209,6 +211,7 @@ export function PokerTable({
       category: r.category,
     });
     fireConfetti();
+    playSound("winner");
   }
 
   async function doAllIn(N: number) {
@@ -288,24 +291,7 @@ export function PokerTable({
     }
     setRuns(rs);
     fireConfetti();
-  }
-
-  function fireConfetti() {
-    const opts = {
-      spread: 70,
-      ticks: 120,
-      gravity: 1,
-      decay: 0.92,
-      colors: ["#fcd34d", "#34d399", "#f4f4f5", "#0f3d2e"],
-    };
-    confetti({ ...opts, particleCount: 80, origin: { x: 0.2, y: 0.4 } });
-    confetti({ ...opts, particleCount: 80, origin: { x: 0.8, y: 0.4 } });
-    confetti({
-      ...opts,
-      particleCount: 120,
-      origin: { x: 0.5, y: 0.3 },
-      startVelocity: 55,
-    });
+    playSound("winner");
   }
 
   const activeCount = useMemo(
