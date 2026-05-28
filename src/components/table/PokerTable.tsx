@@ -613,13 +613,16 @@ function HostLobby({
           type="button"
           disabled={players.length < 2 || players.length > 9}
           onClick={() => onDeal(players)}
+          title={players.length < 2 ? "Se necesitan al menos 2 jugadores" : undefined}
           className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-950 font-medium text-sm transition"
         >
           Repartir ({players.length})
         </button>
       </div>
-      <p className="text-[11px] text-zinc-500 text-center">
-        Requiere 2 a 9 jugadores.
+      <p className={`text-[11px] text-center ${players.length < 2 ? "text-rose-400/70" : "text-zinc-500"}`}>
+        {players.length < 2
+          ? `Faltan ${2 - players.length} jugador${2 - players.length === 1 ? "" : "es"} para repartir.`
+          : "Requiere 2 a 9 jugadores."}
       </p>
     </div>
   );
