@@ -178,3 +178,65 @@ export function getCardFace(id?: string | null): CardFace {
   if (id && id in CARD_FACES) return CARD_FACES[id as CardFaceId];
   return CARD_FACES.classic;
 }
+
+/* ── Room backgrounds ──────────────────────────────────────────────── */
+
+export type RoomBgId =
+  | "onyx"
+  | "smoke"
+  | "carbon"
+  | "ash"
+  | "slate"
+  | "ink"
+  | "coal";
+
+export type RoomBg = {
+  id: RoomBgId;
+  label: string;
+  gradient: string;
+};
+
+export const ROOM_BACKGROUNDS: Record<RoomBgId, RoomBg> = {
+  onyx: {
+    id: "onyx",
+    label: "Onyx",
+    gradient: "radial-gradient(ellipse at 50% 0%, #1a1a1a 0%, #0b0b0b 55%, #060606 100%)",
+  },
+  smoke: {
+    id: "smoke",
+    label: "Humo",
+    gradient: "linear-gradient(160deg, #1e1e1e 0%, #111111 40%, #080808 100%)",
+  },
+  carbon: {
+    id: "carbon",
+    label: "Carbón",
+    gradient: "radial-gradient(ellipse at 30% 20%, #242424 0%, #0f0f0f 50%, #050505 100%)",
+  },
+  ash: {
+    id: "ash",
+    label: "Ceniza",
+    gradient: "linear-gradient(135deg, #252525 0%, #141414 50%, #090909 100%)",
+  },
+  slate: {
+    id: "slate",
+    label: "Pizarra",
+    gradient: "linear-gradient(160deg, #1a1d22 0%, #0e1015 50%, #06080b 100%)",
+  },
+  ink: {
+    id: "ink",
+    label: "Tinta",
+    gradient: "radial-gradient(ellipse at 60% 80%, #15161a 0%, #0a0b0e 55%, #040405 100%)",
+  },
+  coal: {
+    id: "coal",
+    label: "Coque",
+    gradient: "conic-gradient(from 180deg at 50% 120%, #1c1c1c 0deg, #0d0d0d 120deg, #181818 240deg, #1c1c1c 360deg)",
+  },
+};
+
+export const ROOM_BG_LIST: RoomBg[] = Object.values(ROOM_BACKGROUNDS);
+
+export function getRoomBg(id?: string | null): RoomBg {
+  if (id && id in ROOM_BACKGROUNDS) return ROOM_BACKGROUNDS[id as RoomBgId];
+  return ROOM_BACKGROUNDS.onyx;
+}

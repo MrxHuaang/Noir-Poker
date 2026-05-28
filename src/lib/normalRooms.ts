@@ -70,6 +70,7 @@ export type NormalRoomDoc = {
   theme: string;
   cardBack?: string;
   cardFace?: string;
+  roomBg?: string;
   tournament: TournamentState | null;
   locked: boolean;
   pendingRebuys: Record<string, number>;
@@ -89,6 +90,14 @@ export async function setNormalRoomCardFace(
 ): Promise<void> {
   const db = getDb();
   await updateDoc(doc(db, "normalRooms", code), { cardFace });
+}
+
+export async function setNormalRoomBg(
+  code: string,
+  roomBg: string,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code), { roomBg });
 }
 
 export async function createNormalRoom(
