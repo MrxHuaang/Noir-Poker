@@ -37,7 +37,7 @@ export default function PlayersPage() {
           </p>
         </div>
         {hydrated && canPlay ? (
-          <Link href="/" className="group block">
+          <Link href="/host" className="group block">
             <BorderGlow
               edgeSensitivity={32}
               glowColor="152 62 50"
@@ -75,6 +75,7 @@ export default function PlayersPage() {
           editing={editing}
           onSubmit={onSubmit}
           onCancel={() => setEditing(null)}
+          existingNames={players.map((p) => p.name)}
         />
       </BorderGlow>
       {hydrated ? (
@@ -91,7 +92,7 @@ export default function PlayersPage() {
           />
           {canPlay ? (
             <div className="flex items-center justify-center pt-2">
-              <Link href="/" className="group block">
+              <Link href="/host" className="group block">
                 <BorderGlow
                   edgeSensitivity={32}
                   glowColor="152 62 50"

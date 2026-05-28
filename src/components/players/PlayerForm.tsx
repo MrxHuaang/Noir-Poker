@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Shuffle, UserPlus, Check, X } from "lucide-react";
+import { AlertCircle, Shuffle, UserPlus, Check, X } from "lucide-react";
 import type { Player } from "@/lib/poker";
 import { randomSeed } from "@/lib/dicebear";
 import { Avatar } from "./Avatar";
@@ -9,13 +9,16 @@ export function PlayerForm({
   editing,
   onSubmit,
   onCancel,
+  existingNames = [],
 }: {
   editing?: Player | null;
   onSubmit: (name: string, seed: string) => void;
   onCancel?: () => void;
+  existingNames?: string[];
 }) {
   const [name, setName] = useState("");
   const [seed, setSeed] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (editing) {
@@ -25,12 +28,24 @@ export function PlayerForm({
       setName("");
       setSeed(randomSeed());
     }
+    setError(null);
   }, [editing]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
-    onSubmit(name, seed || randomSeed());
+    if (!name.trim()) {
+      setError("El nombre es requerido.");
+      return;
+    }
+    const isDuplicate = existingNames.some(
+      (n) => n.toLowerCase() === name.trim().toLowerCase() && name.trim() !== editing?.name,
+    );
+    if (isDuplicate) {
+      setError("Ya existe un jugador con ese nombre.");
+      return;
+    }
+    setError(null);
+    onSubmit(name.trim(), seed || randomSeed());
     if (!editing) {
       setName("");
       setSeed(randomSeed());
@@ -54,14 +69,21 @@ export function PlayerForm({
           Avatar
         </button>
       </div>
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Nombre del jugador"
-        maxLength={32}
-        className="flex-1 px-4 py-2 rounded-full bg-black/30 ring-1 ring-white/10 text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-emerald-400/40"
-      />
+      <div className="flex flex-col flex-1 gap-1">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError(null); }}
+          placeholder="Nombre del jugador"
+          maxLength={32}
+          className={`px-4 py-2 rounded-full bg-black/30 ring-1 text-zinc-100 placeholder:text-zinc-500 outline-none ${error ? "ring-rose-400/60 focus:ring-rose-400/80" : "ring-white/10 focus:ring-emerald-400/40"}`}
+        />
+        {error && (
+          <span className="flex items-center gap-1 text-[11px] text-rose-400 px-1">
+            <AlertCircle className="w-3 h-3 flex-shrink-0" /> {error}
+          </span>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         <button
           type="submit"
