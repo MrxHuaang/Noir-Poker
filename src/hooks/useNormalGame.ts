@@ -72,7 +72,11 @@ export function useNormalGame(
   const startNewHand = useCallback(async () => {
     if (!code || !isAdminRef.current) return;
     const ownersMap: Record<string, string | null> = {};
-    for (const p of lobby) ownersMap[p.uid] = p.uid;
+    const pubKeyByOwner: Record<string, string | undefined> = {};
+    for (const p of lobby) {
+      ownersMap[p.uid] = p.uid;
+      pubKeyByOwner[p.uid] = p.pubKey;
+    }
 
     const cfgFallback: RoomConfig = {
       mode: "normal", startingStack: 1000, smallBlind: 5, bigBlind: 10,
@@ -149,7 +153,7 @@ export function useNormalGame(
 
     dealtHolesRef.current = newHoleCards;
     setGameState(finalState);
-    await writeNormalDealt(code, finalState, newHoleCards, ownersMap);
+    await writeNormalDealt(code, finalState, newHoleCards, ownersMap, pubKeyByOwner);
   }, [code, gameState, lobby, room?.config, room?.pendingRebuys]);
 
   const resolveShowdown = useCallback(async () => {

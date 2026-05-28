@@ -22,6 +22,7 @@ import type {
 import type { TournamentState } from "./tournament";
 import type { Showdown } from "./handEval";
 import { generateCode } from "./rooms";
+import { encryptCardsTo } from "./holeCrypto";
 
 export type PendingAction = {
   seatId: string;
@@ -36,7 +37,11 @@ export type PublicNormalState = Omit<NormalGameState, "deck"> & {
 
 export type NormalHoleDoc = {
   ownerUid: string | null;
-  cards: [Card, Card];
+  // Encrypted to the owner's published public key (base64). Present in the
+  // normal flow. `cards` is only used as a fallback when the owner has no
+  // published key yet (just joined) so the game never breaks.
+  enc?: string;
+  cards?: [Card, Card];
 };
 
 export type NormalLobbyPlayer = {
@@ -47,6 +52,8 @@ export type NormalLobbyPlayer = {
   chips: number;
   sittingOut: boolean;
   useTimeBank?: boolean;
+  // Public RSA-OAEP key (JWK string) used to encrypt this player's hole cards.
+  pubKey?: string;
 };
 
 export type NormalRoomDoc = {
@@ -240,8 +247,30 @@ export async function writeNormalDealt(
   gs: NormalGameState,
   holeCards: Record<string, [Card, Card]>,
   ownerByPlayerId: Record<string, string | null>,
+  pubKeyByOwner: Record<string, string | undefined> = {},
 ): Promise<void> {
   const db = getDb();
+  // Encrypt each hole to the owner's published public key. If a key is missing
+  // (a player joined this instant and hasn't published yet, or an AI seat with
+  // no device) fall back to plaintext for that single seat so the game never
+  // breaks. The fallback is logged for visibility.
+  const docs = await Promise.all(
+    Object.entries(holeCards).map(async ([seatId, cards]) => {
+      const ownerUid = ownerByPlayerId[seatId] ?? null;
+      const pub = ownerUid ? pubKeyByOwner[ownerUid] : undefined;
+      if (pub) {
+        const enc = await encryptCardsTo(pub, cards);
+        if (enc) return { seatId, data: { ownerUid, enc } as NormalHoleDoc };
+      }
+      if (typeof console !== "undefined") {
+        console.warn(
+          `[holes] sin clave publica para ${seatId}; guardando en texto plano (fallback)`,
+        );
+      }
+      return { seatId, data: { ownerUid, cards } as NormalHoleDoc };
+    }),
+  );
+
   const batch = writeBatch(db);
   batch.update(doc(db, "normalRooms", code), {
     state: toPublicState(gs),
@@ -249,12 +278,8 @@ export async function writeNormalDealt(
     pendingAction: null,
     revealedHoles: null,
   });
-  for (const [seatId, cards] of Object.entries(holeCards)) {
-    const ref = doc(db, "normalRooms", code, "holes", seatId);
-    batch.set(ref, {
-      ownerUid: ownerByPlayerId[seatId] ?? null,
-      cards,
-    });
+  for (const { seatId, data } of docs) {
+    batch.set(doc(db, "normalRooms", code, "holes", seatId), data);
   }
   await batch.commit();
 }
