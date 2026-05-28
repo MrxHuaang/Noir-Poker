@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Play, SkipForward, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { usePresenceMap } from "@/hooks/usePresenceMap";
 import { useNormalLobby, useNormalRoom, useStackRequests } from "@/hooks/useNormalRoom";
 import { useNormalHole } from "@/hooks/useNormalRoom";
 import { useNormalGame } from "@/hooks/useNormalGame";
@@ -83,6 +84,7 @@ export default function HostTorneoPage() {
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
   const requests = useStackRequests(code);
+  const presenceMap = usePresenceMap(code);
   const hole = useNormalHole(code, uid);
   const chatMessages = useChat(code);
   const reactions = useReactions(code);
@@ -293,6 +295,7 @@ export default function HostTorneoPage() {
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={cardBack}
         cardFace={cardFace}
+        presenceMap={presenceMap}
         topLeft={
           <HostDock
             code={code}
