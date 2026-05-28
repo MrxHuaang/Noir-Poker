@@ -427,17 +427,21 @@ export function useNormalGame(
     return () => clearTimeout(t);
   }, [gameState, code, isProcessing, room?.result, resolveShowdown]);
 
-  // Admin: auto next hand — DISABLED: host manually clicks "Siguiente"
-  // useEffect(() => {
-  //   if (!isAdminRef.current || !code) return;
-  //   if (!room?.result) return;
-  //   const remainingPlayers = (room.state?.seats ?? []).filter(
-  //     (s) => s.status !== "out" && s.chips > 0,
-  //   ).length;
-  //   if (remainingPlayers < 2) return;
-  //   const t = setTimeout(() => { void startNewHand(); }, 6000);
-  //   return () => clearTimeout(t);
-  // }, [room?.result, room?.state?.seats, code, startNewHand]);
+  // Admin: auto-deal next hand after showing the result for 5 s.
+  // Skips if fewer than 2 players remain (tournament over) or if already processing.
+  useEffect(() => {
+    if (!isAdminRef.current || !code) return;
+    if (!room?.result) return;
+    if (isProcessing) return;
+    const remainingPlayers = (room.state?.seats ?? []).filter(
+      (s) => s.status !== "out" && s.chips > 0,
+    ).length;
+    if (remainingPlayers < 2) return;
+    const t = setTimeout(() => {
+      void startNewHand();
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [room?.result, room?.state?.seats, code, isProcessing, startNewHand]);
 
   // Admin: Auto-advance street if round is complete or all-in
   useEffect(() => {
@@ -486,16 +490,21 @@ export function useNormalGame(
     }
   }, [gameState, code, isProcessing, resolveShowdown, room?.revealedHoles]);
 
-  // Admin: sync all-in votes from Firestore
+  // Admin: sync all-in votes from Firestore.
+  // Use a JSON diff (not just count comparison) so simultaneous votes from
+  // multiple players are always merged even when the count doesn't increase
+  // monotonically in the local render cycle.
   useEffect(() => {
     if (!isAdminRef.current || !gameState || !room?.state) return;
     if (gameState.phase !== "all-in-negotiation") return;
-    
+
     const firestoreVotes = room.state.allInNegotiation?.votes;
-    if (!firestoreVotes) return;
+    if (!firestoreVotes || Object.keys(firestoreVotes).length === 0) return;
 
     const localVotes = gameState.allInNegotiation?.votes ?? {};
-    if (Object.keys(firestoreVotes).length > Object.keys(localVotes).length) {
+    // Merge: always apply remote votes on top of local so nothing is lost.
+    const merged = { ...localVotes, ...firestoreVotes };
+    if (JSON.stringify(merged) !== JSON.stringify(localVotes)) {
       setTimeout(() => {
         setGameState((prev) => {
           if (prev?.phase !== "all-in-negotiation" || !prev.allInNegotiation) return prev;
@@ -503,7 +512,7 @@ export function useNormalGame(
             ...prev,
             allInNegotiation: {
               ...prev.allInNegotiation,
-              votes: firestoreVotes,
+              votes: { ...prev.allInNegotiation.votes, ...firestoreVotes },
             },
           };
         });
