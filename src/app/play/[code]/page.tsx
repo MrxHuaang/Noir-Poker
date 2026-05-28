@@ -39,9 +39,15 @@ export default function PlayPage() {
   }
   if (room === null) {
     return (
-      <div className="w-full max-w-md mx-auto px-4 py-10 text-center">
+      <div className="w-full max-w-md mx-auto px-4 py-10 text-center flex flex-col items-center gap-4">
         <p className="text-zinc-300">Sala no encontrada.</p>
-        <p className="text-xs text-zinc-500 mt-2">Código: {code}</p>
+        <p className="text-xs text-zinc-500">Código: {code}</p>
+        <a
+          href="/join"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-sm transition"
+        >
+          Intentar con otro código
+        </a>
       </div>
     );
   }
