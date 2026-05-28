@@ -347,7 +347,7 @@ export function RoundPokerTable({
   }, [winners, play]);
 
   return (
-    <div className="relative w-full max-w-[1400px] aspect-[16/8] mx-auto select-none">
+    <div className="relative w-full max-w-[1100px] aspect-[16/8] mx-auto select-none">
       {/* Table Surface — inset slightly so seats at edges don't clip */}
       <div
         className="absolute inset-x-[8%] inset-y-[16%] rounded-[180px] overflow-hidden"
@@ -363,9 +363,9 @@ export function RoundPokerTable({
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
           {/* Pot */}
           <div className="flex flex-col items-center gap-1">
-            <div className="px-5 py-1.5 rounded-xl bg-black/55 backdrop-blur-md ring-1 ring-white/10 flex flex-col items-center">
-              <span className="text-[9px] uppercase tracking-[0.4em] text-zinc-500 font-bold">Total Pot</span>
-              <span className="text-xl font-bold text-white tabular-nums">{formatChips(betting.pot)}</span>
+            <div className="px-3 py-1 rounded-lg bg-black/55 backdrop-blur-md ring-1 ring-white/10 flex items-center gap-2">
+              <span className="text-[8px] uppercase tracking-[0.3em] text-zinc-500 font-bold">Pot</span>
+              <span className="text-sm font-bold text-white tabular-nums">{formatChips(betting.pot)}</span>
             </div>
             {betting.sidePots.length > 1 && (
               <div className="flex gap-1.5 flex-wrap justify-center">
@@ -458,56 +458,9 @@ export function RoundPokerTable({
 
         const toast = seatToasts[seat.id];
 
-        // Hole card placement depends on the seat's zone so cards never clip the
-        // top edge nor collide with the seat's own chips/avatar:
-        // - Top seats (small pos.y): cards drop BELOW the panel, toward center.
-        // - Everyone else: cards float ABOVE the avatar (classic look).
-        const cardsBelow = pos.y < 45;
-        const cardTransform = cardsBelow
-          ? "translate(-50%, 60px)"
-          : "translate(-50%, calc(-100% - 54px))";
-
         return (
           <React.Fragment key={seat.id}>
-            {/* Hole cards — rendered outside overflow:hidden, z-40 */}
-            {isDealt && (
-              <div
-                className={`absolute flex gap-0.5 z-40 pointer-events-none ${seat.status === "folded" ? "opacity-30 grayscale" : ""}`}
-                style={{
-                  left: `${pos.x}%`,
-                  top: `${pos.y}%`,
-                  transform: cardTransform,
-                }}
-              >
-                {/* Equity Tag */}
-                {equities[seat.id] !== undefined && (
-                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-xs font-bold text-emerald-400 ring-1 ring-emerald-500/30 whitespace-nowrap">
-                    {equities[seat.id]}%
-                  </div>
-                )}
-                
-                {faceUpCards ? (
-                  faceUpCards.map((c, ci) => (
-                    <div key={c.id + ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
-                      <PlayingCard card={c} faceUp size="sm" cardBack={cardBack as never} cardFace={cardFace as never} />
-                    </div>
-                  ))
-                ) : (
-                  [0, 1].map((ci) => (
-                    <div key={ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
-                      <PlayingCard
-                        card={{ id: `back-${seat.id}-${ci}`, rank: "A", suit: "S" } as Card}
-                        faceUp={false}
-                        size="sm"
-                        cardBack={cardBack as never} cardFace={cardFace as never}
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Action Toast — globally positioned so z-index works over cards */}
+            {/* Action Toast */}
             {toast && (
               <div
                 className="absolute z-50 pointer-events-none"
@@ -517,12 +470,45 @@ export function RoundPokerTable({
               </div>
             )}
 
-            {/* Seat Box — horizontal: avatar left, name/chips card right */}
+            {/* Seat Box — flex-col: hole cards on top, avatar+info row on bottom.
+                Cards are always above the name box regardless of seat position.
+                Rendered outside the felt overflow:hidden so cards never clip. */}
             <div
-              className={`absolute flex flex-row items-center gap-1 transition-all duration-300 ${isToAct ? "z-30" : "z-20"}`}
+              className={`absolute flex flex-col items-center gap-1 transition-all duration-300 ${isToAct ? "z-40" : "z-20"}`}
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
             >
-              {/* Avatar — inline, left of card */}
+              {/* Hole cards — top of seat group */}
+              {isDealt && (
+                <div className={`relative flex gap-0.5 pointer-events-none ${seat.status === "folded" ? "opacity-30 grayscale" : ""}`}>
+                  {equities[seat.id] !== undefined && (
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-400 ring-1 ring-emerald-500/30 whitespace-nowrap">
+                      {equities[seat.id]}%
+                    </div>
+                  )}
+                  {faceUpCards ? (
+                    faceUpCards.map((c, ci) => (
+                      <div key={c.id + ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
+                        <PlayingCard card={c} faceUp size="sm" cardBack={cardBack as never} cardFace={cardFace as never} />
+                      </div>
+                    ))
+                  ) : (
+                    [0, 1].map((ci) => (
+                      <div key={ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
+                        <PlayingCard
+                          card={{ id: `back-${seat.id}-${ci}`, rank: "A", suit: "S" } as Card}
+                          faceUp={false}
+                          size="sm"
+                          cardBack={cardBack as never} cardFace={cardFace as never}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Info row — avatar left, name/chips right */}
+              <div className="flex flex-row items-center gap-1">
+              {/* Avatar */}
               <div className={`relative flex-shrink-0 w-8 h-8 rounded-full ring-2 overflow-hidden transition-all ${
                 isToAct
                   ? "ring-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.5)]"
@@ -606,10 +592,11 @@ export function RoundPokerTable({
                   </div>
                 )}
               </div>
+              </div>{/* end info row */}
 
-              {/* Winner crown — over the avatar (left side of seat) */}
+              {/* Winner crown */}
               {isWinner && (
-                <div className="absolute -top-3 left-0 -translate-x-1/4 animate-bounce z-30">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 animate-bounce z-30">
                   <div className="bg-amber-400 text-amber-950 p-1 rounded-full shadow-lg">
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
