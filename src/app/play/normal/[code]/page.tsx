@@ -1,8 +1,17 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { Clock, Trophy, X as CloseIcon, Menu } from "lucide-react";
+
+// Importar con ssr:false porque VoicePanel usa navigator.mediaDevices,
+// RTCPeerConnection y AudioContext que no existen en Node.
+const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
+  ssr: false,
+});
 import { useAuth } from "@/hooks/useAuth";
+import { usePresence } from "@/hooks/usePresence";
+import { usePresenceMap } from "@/hooks/usePresenceMap";
 import { useNormalRoom, useNormalLobby, useNormalHole } from "@/hooks/useNormalRoom";
 import { useChat } from "@/hooks/useChat";
 import { useReactions } from "@/hooks/useReactions";
@@ -62,6 +71,9 @@ export default function PlayNormalPage() {
     undefined,
   );
 
+  usePresence(code, uid);
+  const presenceMap = usePresenceMap(code);
+
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
   const hole = useNormalHole(code, uid);
@@ -75,13 +87,24 @@ export default function PlayNormalPage() {
 
   const gs = room?.state ?? null;
   const config = room?.config;
+
+  // Vibrate once when it becomes the player's turn (mobile UX).
+  const isMyTurn = !!(gs && gs.betting.toActId === uid);
+  const prevTurnRef = useRef(false);
+  useEffect(() => {
+    if (isMyTurn && !prevTurnRef.current) {
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate([180]);
+      }
+    }
+    prevTurnRef.current = isMyTurn;
+  }, [isMyTurn]);
   const theme: TableThemeId = (room?.theme as TableThemeId) ?? "emerald";
   const locked = room?.locked ?? false;
 
   const inLobby = uid ? lobby.some((p) => p.uid === uid) : false;
   const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
   const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
-  const isMyTurn = !!(gs && gs.betting.toActId === uid);
   const result = room?.result ?? null;
 
   const placeholderSeats: NormalSeat[] = useMemo(() => {
@@ -347,9 +370,16 @@ export default function PlayNormalPage() {
         turnTimeMs={config?.turnTime ?? 30_000}
         onToggleAway={inLobby ? handleToggleSitOut : undefined}
         amSittingOut={myLobbyEntry?.sittingOut === true}
+        presenceMap={presenceMap}
         topLeft={topLeft}
         bottomLeft={
           <>
+            <VoicePanel
+              code={code ?? ""}
+              uid={uid}
+              displayName={myLobbyEntry?.name ?? mySeat?.name ?? ""}
+              seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
+            />
             <ChatPanel
               code={code}
               uid={uid}

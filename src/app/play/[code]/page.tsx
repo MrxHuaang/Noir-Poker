@@ -1,6 +1,5 @@
 "use client";
 import { useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { Crown, Eye, EyeOff, Flame, LogOut, RotateCcw, Shuffle, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,15 +13,6 @@ import { CardBackPicker } from "@/components/themes/CardBackPicker";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { describeHand } from "@/lib/handLabel";
 import type { Card } from "@/lib/poker";
-
-// Importar con ssr:false porque VoicePanel usa navigator.mediaDevices,
-// RTCPeerConnection y AudioContext, que no existen en Node. "use client"
-// solo no basta: Next.js sigue intentando pre-renderizar el árbol en server.
-const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
-  ssr: false,
-});
-
-
 
 export default function PlayPage() {
   const params = useParams<{ code: string }>();
@@ -72,14 +62,6 @@ export default function PlayPage() {
           {lobby.length} jugador{lobby.length === 1 ? "" : "es"} conectado
           {lobby.length === 1 ? "" : "s"}.
         </p>
-        <div className="w-full pt-2">
-          <VoicePanel
-            code={code}
-            uid={uid}
-            displayName={inLobby.name}
-            seed={inLobby.seed}
-          />
-        </div>
       </div>
     );
   }
@@ -263,13 +245,6 @@ function PhoneGameView({
           </button>
         </div>
       </header>
-
-      <VoicePanel
-        code={code}
-        uid={uid}
-        displayName={mySeat.name}
-        seed={mySeat.seed}
-      />
 
       {room.result ? (
         <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-amber-300/10 ring-1 ring-amber-300/40 text-amber-100">

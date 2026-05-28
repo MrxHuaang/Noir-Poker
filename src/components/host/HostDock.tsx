@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import {
   Check,
   Copy,
+  Download,
   Palette,
   Settings,
   Users,
@@ -31,6 +32,37 @@ import type { CardBackId, CardFaceId } from "@/lib/themes";
 import type { StackRequest } from "@/lib/stackRequests";
 import type { NormalSeat, RoomConfig } from "@/lib/betting";
 import type { TableThemeId } from "@/lib/themes";
+
+// Tiny inline card badge — rank + suit glyph without PlayingCard overhead.
+function MiniCard({ id }: { id: string }) {
+  const rank = id.length === 3 ? id.slice(0, 2) : id.slice(0, 1);
+  const suit = id.slice(-1) as "S" | "H" | "D" | "C";
+  const glyph = { S: "♠", H: "♥", D: "♦", C: "♣" }[suit] ?? suit;
+  const isRed = suit === "H" || suit === "D";
+  const rankLabel = rank === "T" ? "10" : rank;
+  return (
+    <span
+      className={`inline-flex items-center gap-0 text-[9px] font-black leading-none px-1 py-0.5 rounded bg-white/10 tabular-nums ${
+        isRed ? "text-rose-400" : "text-zinc-200"
+      }`}
+    >
+      {rankLabel}{glyph}
+    </span>
+  );
+}
+
+function exportHistory(history: HandRecord[], code: string) {
+  const blob = new Blob(
+    [JSON.stringify(history, null, 2)],
+    { type: "application/json" },
+  );
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `historial-${code}-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 type Tab = "sala" | "config" | "tema" | "jugadores" | "historial";
 
@@ -268,30 +300,61 @@ export function HostDock({
 
         {tab === "historial" && (
           <div className="animate-in fade-in duration-200 flex flex-col gap-2">
+            {/* Export button */}
+            {history && history.length > 0 && code && (
+              <button
+                type="button"
+                onClick={() => exportHistory(history, code)}
+                className="self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-100 hover:bg-white/10 text-[10px] font-bold uppercase tracking-widest transition"
+              >
+                <Download className="w-3 h-3" /> Exportar JSON
+              </button>
+            )}
+
             {(!history || history.length === 0) && (
               <div className="text-center py-8 text-zinc-600 text-xs">
                 Sin manos jugadas
               </div>
             )}
+
             {history?.map((h) => (
               <div
                 key={h.id}
-                className="p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/8 flex flex-col gap-1"
+                className="p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.08] flex flex-col gap-2"
               >
+                {/* Header */}
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase tracking-widest font-black text-zinc-500">
                     Mano #{h.handNum}
+                    {h.runTotal != null && h.runTotal > 1
+                      ? ` · Run ${(h.runIndex ?? 0) + 1}/${h.runTotal}`
+                      : ""}
                   </span>
-                  <span className="text-[10px] tabular-nums text-zinc-500">
+                  <span className="text-[10px] tabular-nums text-emerald-400 font-black">
                     {formatChips(h.pot)}
                   </span>
                 </div>
+
+                {/* Board (community cards) */}
+                {h.community.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {h.community.map((id) => (
+                      <MiniCard key={id} id={id} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Winner(s) */}
                 <div className="flex items-center gap-2">
-                  <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
                   <span className="text-xs text-zinc-100 font-bold truncate">
-                    {h.winners.map((w) => w.name).join(" & ")}
+                    {h.winners
+                      .map((w) => `${w.name} +${formatChips(w.amount)}`)
+                      .join(" · ")}
                   </span>
                 </div>
+
+                {/* Hand category */}
                 <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
                   {CATEGORY_LABEL[h.category]}
                 </div>
