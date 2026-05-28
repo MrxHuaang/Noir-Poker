@@ -6,6 +6,7 @@ import type { TableThemeId } from "@/lib/themes";
 import { RoundPokerTable } from "@/components/table/RoundPokerTable";
 import { ReactionLayer } from "@/components/reactions/ReactionLayer";
 import type { Reaction } from "@/lib/reactions";
+import { getRoomBg } from "@/lib/themes";
 
 type Props = {
   seats: NormalSeat[];
@@ -35,6 +36,7 @@ type Props = {
   bottomRight?: ReactNode;
   centerOverlay?: ReactNode;
   reactions?: Reaction[];
+  roomBg?: string;
 };
 
 export function TableShell({
@@ -64,9 +66,11 @@ export function TableShell({
   bottomRight,
   centerOverlay,
   reactions,
+  roomBg,
 }: Props) {
+  const bg = getRoomBg(roomBg);
   return (
-    <div className="fixed inset-0 bg-[#0b0b0b] flex flex-col overflow-hidden select-none">
+    <div className="fixed inset-0 flex flex-col overflow-hidden select-none" style={{ background: bg.gradient }}>
       {/* Mesa */}
       <main className="relative flex-1 flex items-center justify-center p-2 sm:p-4">
         <div className="w-full h-full max-h-[88vh] flex items-center justify-center">

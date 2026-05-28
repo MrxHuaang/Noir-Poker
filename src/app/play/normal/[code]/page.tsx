@@ -387,6 +387,7 @@ export default function PlayNormalPage() {
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={(room?.cardBack as never) ?? "classic-blue"}
         cardFace={(room?.cardFace as never) ?? "classic"}
+        roomBg={room?.roomBg ?? "onyx"}
         lastAction={gs?.lastAction}
         timeBankByUid={timeBankByUid}
         turnTimeMs={config?.turnTime ?? 30_000}

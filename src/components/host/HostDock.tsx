@@ -27,8 +27,9 @@ import { TableThemePicker } from "@/components/themes/TableThemePicker";
 import { CardBackPicker } from "@/components/themes/CardBackPicker";
 import { CardFacePicker } from "@/components/themes/CardFacePicker";
 import type { NormalLobbyPlayer } from "@/lib/normalRooms";
-import { setNormalRoomTheme, setNormalRoomCardBack, setNormalRoomCardFace } from "@/lib/normalRooms";
-import type { CardBackId, CardFaceId } from "@/lib/themes";
+import { setNormalRoomTheme, setNormalRoomCardBack, setNormalRoomCardFace, setNormalRoomBg } from "@/lib/normalRooms";
+import type { CardBackId, CardFaceId, RoomBgId } from "@/lib/themes";
+import { RoomBgPicker } from "@/components/themes/RoomBgPicker";
 import type { StackRequest } from "@/lib/stackRequests";
 import type { NormalSeat, RoomConfig } from "@/lib/betting";
 import type { TableThemeId } from "@/lib/themes";
@@ -80,6 +81,7 @@ type Props = {
   theme: TableThemeId;
   cardBack: CardBackId;
   cardFace?: CardFaceId;
+  roomBg?: string;
 
   lobby: NormalLobbyPlayer[];
   requests: StackRequest[];
@@ -105,6 +107,7 @@ export function HostDock({
   theme,
   cardBack,
   cardFace = "classic",
+  roomBg,
   lobby,
   requests,
   gameSeats,
@@ -262,6 +265,17 @@ export function HostDock({
 
         {tab === "tema" && (
           <div className="animate-in fade-in duration-200 flex flex-col gap-4">
+            <div className="p-4 rounded-2xl bg-black/40 ring-1 ring-white/5 flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">
+                Fondo de sala
+              </span>
+              <RoomBgPicker
+                value={roomBg ?? "onyx"}
+                onChange={(id) => {
+                  if (code) setNormalRoomBg(code, id).catch(() => {});
+                }}
+              />
+            </div>
             <div className="p-4 rounded-2xl bg-black/40 ring-1 ring-white/5 flex flex-col gap-2">
               <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">
                 Tema de mesa
