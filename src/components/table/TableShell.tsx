@@ -26,6 +26,7 @@ type Props = {
   onSit?: () => void;
   onToggleAway?: () => void;
   amSittingOut?: boolean;
+  presenceMap?: Record<string, boolean>;
 
   topLeft?: ReactNode;
   topCenter?: ReactNode;
@@ -55,6 +56,7 @@ export function TableShell({
   onSit,
   onToggleAway,
   amSittingOut,
+  presenceMap,
   topLeft,
   topCenter,
   topRight,
@@ -87,6 +89,7 @@ export function TableShell({
             onSit={onSit}
             onToggleAway={onToggleAway}
             amSittingOut={amSittingOut}
+            presenceMap={presenceMap}
           />
         </div>
 
