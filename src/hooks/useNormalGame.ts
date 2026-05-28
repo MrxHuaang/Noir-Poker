@@ -11,6 +11,7 @@ import type { NormalRoomDoc, PendingAction, NormalLobbyPlayer } from "@/lib/norm
 import {
   lobbyToSeats,
   patchNormalRoom,
+  patchLobbyPlayer,
   kickFromLobby,
   writeNormalDealt,
 } from "@/lib/normalRooms";
@@ -281,6 +282,7 @@ export function useNormalGame(
   const setAllChips = useCallback(
     (amount: number) => {
       if (!code) return;
+      // Update game seats when a hand is active
       setGameState((prev) => {
         if (!prev) return prev;
         const seats = prev.seats.map((s) =>
@@ -292,8 +294,13 @@ export function useNormalGame(
         patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {});
         return next;
       });
+      // Always also update lobby chips so pre-game players and the lobby list
+      // both reflect the change immediately (fixes BUG-004: no game state yet).
+      for (const p of lobby) {
+        patchLobbyPlayer(code, p.uid, { chips: amount }).catch(() => {});
+      }
     },
-    [code],
+    [code, lobby],
   );
 
   const kickPlayer = useCallback(
