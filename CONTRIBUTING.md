@@ -1,6 +1,6 @@
 <div align="center">
 
-[![General](https://img.shields.io/badge/General-ver-555?style=for-the-badge)](README.md)&nbsp;&nbsp;[![Actualizaciones](https://img.shields.io/badge/Actualizaciones_%26_Roadmap-activo-1a7f5a?style=for-the-badge)](UPDATES.md)
+[![General](https://img.shields.io/badge/General-ver-555?style=for-the-badge)](README.md)&nbsp;&nbsp;[![Actualizaciones](https://img.shields.io/badge/Actualizaciones_%26_Roadmap-activo-1a7f5a?style=for-the-badge)](CONTRIBUTING.md)
 
 </div>
 

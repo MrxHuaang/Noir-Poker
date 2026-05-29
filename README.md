@@ -1,6 +1,6 @@
 <div align="center">
 
-[![General](https://img.shields.io/badge/General-activo-1a7f5a?style=for-the-badge)](README.md)&nbsp;&nbsp;[![Actualizaciones](https://img.shields.io/badge/Actualizaciones_%26_Roadmap-ver-555?style=for-the-badge)](UPDATES.md)
+[![General](https://img.shields.io/badge/General-activo-1a7f5a?style=for-the-badge)](README.md)&nbsp;&nbsp;[![Actualizaciones](https://img.shields.io/badge/Actualizaciones_%26_Roadmap-ver-555?style=for-the-badge)](CONTRIBUTING.md)
 
 </div>
 
@@ -552,7 +552,7 @@ Si trabajas con asistentes AI (Cursor, Claude Code, etc.), `CLAUDE.md` en la ra�
 
 ### Por hacer ⏳
 
-Ver el detalle completo con prioridades, notas de implementación y bugs conocidos en **[UPDATES.md](UPDATES.md)**.
+Ver el detalle completo con prioridades, notas de implementación y bugs conocidos en **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 Resumen:
 
@@ -570,7 +570,7 @@ Resumen:
 
 ## Roadmap
 
-Ver **[UPDATES.md → Roadmap](UPDATES.md#roadmap)** para el plan detallado.
+Ver **[CONTRIBUTING.md → Roadmap](CONTRIBUTING.md#roadmap)** para el plan detallado.
 
 ---
 
