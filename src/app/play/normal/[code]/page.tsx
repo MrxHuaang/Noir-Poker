@@ -132,12 +132,13 @@ export default function PlayNormalPage() {
     return lobbyToSeats(lobby, config, ownerMap);
   }, [gs, lobby, config]);
 
-  async function handleJoinRequest(name: string, stack: number) {
+  async function handleJoinRequest(name: string, stack: number, seed: string) {
     if (!uid || !code) return;
+    mySeedRef.current = seed; // persist the picked avatar seed
     await submitStackRequest(code, {
       uid,
       name,
-      seed: mySeedRef.current,
+      seed,
       requestedStack: stack,
       type: "join",
       ts: Date.now(),
@@ -235,16 +236,59 @@ export default function PlayNormalPage() {
     return (
       <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-4">
         {myRequest?.status === "pending" ? (
-          <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
-            <Clock className="w-12 h-12 text-amber-300 animate-pulse" />
-            <h2 className="text-xl font-bold text-white">Solicitud enviada</h2>
-            <p className="text-sm text-zinc-500 text-center max-w-xs">
-              Esperando aprobación con{" "}
-              <span className="text-emerald-400 font-mono font-bold">
-                {formatChips(myRequest.requestedStack)}
-              </span>{" "}
-              fichas.
-            </p>
+          <div className="fixed inset-0 bg-[#0b0b0b] flex flex-col items-center justify-center gap-0 p-6 animate-in fade-in duration-500">
+            {/* Ambient glow */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-emerald-500/5 blur-[80px]" />
+            </div>
+
+            {/* Room code chip */}
+            {code && (
+              <div className="mb-8 px-4 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">
+                Sala {code}
+              </div>
+            )}
+
+            {/* Avatar */}
+            <div className="relative mb-6">
+              <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-emerald-400/30 shadow-[0_0_40px_-8px_rgba(52,211,153,0.3)]">
+                <Avatar seed={mySeedRef.current} size={96} className="ring-0 rounded-none" />
+              </div>
+              {/* Pulsing ring */}
+              <div className="absolute inset-0 rounded-full ring-2 ring-emerald-400/20 animate-ping" />
+            </div>
+
+            {/* Name */}
+            <h2 className="text-2xl font-black text-white tracking-tight mb-1">
+              {myRequest.name}
+            </h2>
+
+            {/* Stack badge */}
+            <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-emerald-500/10 ring-1 ring-emerald-400/20 mb-8">
+              <div className="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+              <span className="text-emerald-300 font-mono font-black tabular-nums">
+                {formatChips(myRequest.requestedStack)} fichas
+              </span>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-zinc-900/80 ring-1 ring-white/8">
+              <Clock className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
+              <p className="text-sm text-zinc-400">
+                Esperando aprobación del host…
+              </p>
+            </div>
+
+            {/* Animated dots */}
+            <div className="flex gap-1.5 mt-6">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-zinc-600"
+                  style={{ animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite` }}
+                />
+              ))}
+            </div>
           </div>
         ) : myRequest?.status === "rejected" ? (
           <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
@@ -265,10 +309,12 @@ export default function PlayNormalPage() {
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="fixed inset-0 bg-[#0b0b0b] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             <JoinWithStack
               suggestedStack={config?.startingStack ?? 1000}
               locked={locked}
+              showAvatar
+              roomCode={code ?? undefined}
               onSubmit={handleJoinRequest}
             />
           </div>
@@ -323,7 +369,7 @@ export default function PlayNormalPage() {
             defaultName={myLobbyEntry?.name ?? ""}
             suggestedStack={config?.startingStack ?? 1000}
             mode="rebuy"
-            onSubmit={async (_, stack) => handleRebuyRequest(stack)}
+            onSubmit={async (_, stack) => handleRebuyRequest(stack) as unknown as Promise<void>}
           />
         )}
         {rebuyPending && (
