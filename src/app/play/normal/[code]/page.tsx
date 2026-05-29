@@ -132,6 +132,18 @@ export default function PlayNormalPage() {
     return lobbyToSeats(lobby, config, ownerMap);
   }, [gs, lobby, config]);
 
+  // SeatPicker data — must be before any early returns (Rules of Hooks)
+  const seatOccupants = useMemo(() => {
+    const map: Record<number, { uid: string; name: string; seed: string }> = {};
+    for (const p of lobby) {
+      if (p.preferredSlot !== undefined) {
+        map[p.preferredSlot] = { uid: p.uid, name: p.name, seed: p.seed };
+      }
+    }
+    return map;
+  }, [lobby]);
+  const myPreferredSlot = myLobbyEntry?.preferredSlot;
+
   async function handleJoinRequest(name: string, stack: number, seed: string) {
     if (!uid || !code) return;
     mySeedRef.current = seed; // persist the picked avatar seed
@@ -379,19 +391,6 @@ export default function PlayNormalPage() {
         )}
       </div>
     ) : showMuckUI;
-
-  // Build occupant map for SeatPicker — lobby players with a preferredSlot
-  const seatOccupants = useMemo(() => {
-    const map: Record<number, { uid: string; name: string; seed: string }> = {};
-    for (const p of lobby) {
-      if (p.preferredSlot !== undefined) {
-        map[p.preferredSlot] = { uid: p.uid, name: p.name, seed: p.seed };
-      }
-    }
-    return map;
-  }, [lobby]);
-
-  const myPreferredSlot = myLobbyEntry?.preferredSlot;
 
   async function handlePickSeat(slot: number) {
     if (!code || !uid) return;
