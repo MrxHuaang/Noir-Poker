@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   subscribeNormalRoom,
   subscribeNormalLobby,
@@ -17,12 +17,54 @@ import type { Card } from "@/lib/poker";
 // Decrypted hole as consumed by the UI. Always plaintext cards once resolved.
 type DecryptedHole = { ownerUid: string | null; cards: [Card, Card] };
 
+// Retry delays on subscription error (ms). Grows exponentially up to ~30s.
+const RETRY_DELAYS = [1000, 2000, 4000, 8000, 15000, 30000];
+
 export function useNormalRoom(code: string | null) {
   const [room, setRoom] = useState<NormalRoomDoc | null | undefined>(undefined);
+  const retryRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   useEffect(() => {
     if (!code) { setRoom(null); return; }
-    return subscribeNormalRoom(code, setRoom);
+    retryRef.current = 0;
+
+    let unsub: (() => void) | null = null;
+    let cancelled = false;
+
+    function connect() {
+      if (cancelled) return;
+      unsub = subscribeNormalRoom(
+        code!,
+        (doc) => {
+          if (!cancelled) {
+            retryRef.current = 0; // reset retry counter on successful data
+            setRoom(doc);
+          }
+        },
+        () => {
+          // Error: subscription terminated. Retry with backoff so the player
+          // doesn't get permanently stuck if the connection is momentarily lost.
+          if (cancelled) return;
+          const delay = RETRY_DELAYS[Math.min(retryRef.current, RETRY_DELAYS.length - 1)];
+          retryRef.current++;
+          timerRef.current = setTimeout(() => {
+            unsub?.();
+            connect();
+          }, delay);
+        },
+      );
+    }
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timerRef.current);
+      unsub?.();
+    };
   }, [code]);
+
   return room;
 }
 

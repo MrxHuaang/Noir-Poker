@@ -407,9 +407,18 @@ export default function PlayNormalPage() {
             occupants={seatOccupants}
             onPick={handlePickSeat}
           />
-          <div className="flex items-center gap-2 text-zinc-500 text-[11px] font-bold uppercase tracking-widest">
-            <Clock className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-            Esperando al host…
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-zinc-500 text-[11px] font-bold uppercase tracking-widest">
+              <Clock className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+              Esperando al host…
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="text-[10px] text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2"
+            >
+              ¿Sin actualizaciones? Refrescar
+            </button>
           </div>
         </div>
       )}

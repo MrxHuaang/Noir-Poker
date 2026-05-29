@@ -155,12 +155,16 @@ export async function createNormalRoom(
 export function subscribeNormalRoom(
   code: string,
   cb: (room: NormalRoomDoc | null) => void,
+  onError?: () => void,
 ): () => void {
   const db = getDb();
   return onSnapshot(
     doc(db, "normalRooms", code),
     (snap) => cb(snap.exists() ? (snap.data() as NormalRoomDoc) : null),
-    () => cb(null),
+    // On error: call the optional error handler instead of silently nullifying.
+    // The hook (useNormalRoom) handles retry logic; we do NOT call cb(null) so
+    // the last known room state is preserved while reconnecting.
+    () => { if (onError) onError(); else cb(null); },
   );
 }
 
