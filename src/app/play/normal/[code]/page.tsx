@@ -101,7 +101,7 @@ export default function PlayNormalPage() {
     }
     prevTurnRef.current = isMyTurn;
   }, [isMyTurn]);
-  const theme: TableThemeId = (room?.theme as TableThemeId) ?? "emerald";
+  const theme: TableThemeId = (room?.theme as TableThemeId) ?? "noir";
   const locked = room?.locked ?? false;
 
   const inLobby = uid ? lobby.some((p) => p.uid === uid) : false;

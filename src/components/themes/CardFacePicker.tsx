@@ -32,11 +32,11 @@ const PREVIEW_CONFIGS: Record<
     glowColor: "rgba(244,63,94,0.25)",
     label: "A",
   },
-  showdown: {
-    bg: "linear-gradient(160deg,#071510,#04090b)",
-    border: "rgba(52,211,153,0.25)",
-    rankColor: "#fbbf24",
-    glowColor: "rgba(251,191,36,0.18)",
+  noir: {
+    bg: "linear-gradient(160deg,#1a1a1e,#050506)",
+    border: "rgba(224,177,94,0.30)",
+    rankColor: "#e0b15e",
+    glowColor: "rgba(224,177,94,0.22)",
     label: "A",
   },
 };

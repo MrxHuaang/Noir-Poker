@@ -101,7 +101,7 @@ export default function HostPage() {
     });
   }
 
-  const theme = (room?.theme as TableThemeId | undefined) ?? "emerald";
+  const theme = (room?.theme as TableThemeId | undefined) ?? "noir";
   const cardBack = (room?.cardBack as CardBackId | undefined) ?? "classic-blue";
   const cardFace = (room?.cardFace as CardFaceId | undefined) ?? "classic";
 

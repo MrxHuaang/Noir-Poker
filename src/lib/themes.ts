@@ -1,4 +1,5 @@
 export type TableThemeId =
+  | "noir"
   | "emerald"
   | "ruby"
   | "sapphire"
@@ -15,6 +16,15 @@ export type TableTheme = {
 };
 
 export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
+  noir: {
+    id: "noir",
+    label: "Noir",
+    feltGradient:
+      "radial-gradient(ellipse at center, #1c1c20 0%, #0e0e11 55%, #050506 100%)",
+    ringColor: "rgba(224,177,94,0.18)",
+    accent: "#e0b15e",
+    accentSoft: "rgba(224,177,94,0.12)",
+  },
   emerald: {
     id: "emerald",
     label: "Esmeralda",
@@ -66,7 +76,7 @@ export const TABLE_THEME_LIST: TableTheme[] = Object.values(TABLE_THEMES);
 
 export function getTableTheme(id?: string | null): TableTheme {
   if (id && id in TABLE_THEMES) return TABLE_THEMES[id as TableThemeId];
-  return TABLE_THEMES.emerald;
+  return TABLE_THEMES.noir;
 }
 
 export type CardBackId =
@@ -123,12 +133,12 @@ export const CARD_BACKS: Record<CardBackId, CardBack> = {
   },
   logo: {
     id: "logo",
-    label: "Showdown",
+    label: "Noir",
     background:
-      "linear-gradient(135deg,#0f3d2e 0%,#06140f 60%,#020806 100%)",
+      "linear-gradient(135deg,#1c1c20 0%,#0e0e11 60%,#050506 100%)",
     pattern:
-      "radial-gradient(circle at center, rgba(52,211,153,0.18) 0%, transparent 60%)",
-    centerColor: "#34d399",
+      "radial-gradient(circle at center, rgba(224,177,94,0.20) 0%, transparent 60%)",
+    centerColor: "#e0b15e",
   },
 };
 
@@ -141,7 +151,7 @@ export function getCardBack(id?: string | null): CardBack {
 
 /* ── Card Face designs ─────────────────────────────────────────────── */
 
-export type CardFaceId = "classic" | "dark" | "neon" | "showdown";
+export type CardFaceId = "classic" | "dark" | "neon" | "noir";
 
 export type CardFace = {
   id: CardFaceId;
@@ -165,10 +175,10 @@ export const CARD_FACES: Record<CardFaceId, CardFace> = {
     label: "Neón",
     description: "Brillo neón por palo",
   },
-  showdown: {
-    id: "showdown",
-    label: "Showdown",
-    description: "Estilo de marca esmeralda",
+  noir: {
+    id: "noir",
+    label: "Noir",
+    description: "Estilo de marca negro-ámbar",
   },
 };
 

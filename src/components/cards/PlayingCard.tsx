@@ -167,7 +167,7 @@ function CardFront({ card, face }: { card?: Card; face?: CardFaceId }) {
   }
   if (face === "dark") return <CardFrontDark card={card} />;
   if (face === "neon") return <CardFrontNeon card={card} />;
-  if (face === "showdown") return <CardFrontShowdown card={card} />;
+  if (face === "noir") return <CardFrontShowdown card={card} />;
   return <CardFrontClassic card={card} />;
 }
 

@@ -81,7 +81,7 @@ export async function createRoom(
       result: null,
       playback: null,
       runHighlight: [],
-      theme: opts?.theme ?? "emerald",
+      theme: opts?.theme ?? "noir",
       mode: opts?.mode ?? "presencial",
     };
     await setDoc(ref, room);

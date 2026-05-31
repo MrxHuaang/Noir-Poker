@@ -55,7 +55,7 @@ export default function AdminTorneoPage() {
   const gs = room?.state ?? null;
   const tournament = room?.tournament ?? null;
   const config = room?.config;
-  const theme = (room?.theme as TableThemeId) ?? "emerald";
+  const theme = (room?.theme as TableThemeId) ?? "noir";
   const t = getTableTheme(theme);
 
   // Auto-advance blind level when timer expires
