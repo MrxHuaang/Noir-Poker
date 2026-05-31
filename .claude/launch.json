@@ -4,8 +4,8 @@
     {
       "name": "poker-sim",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "-p", "3456"],
-      "port": 3456,
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
       "autoPort": false
     }
   ]
