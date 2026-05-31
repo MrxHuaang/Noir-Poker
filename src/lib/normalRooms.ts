@@ -1,6 +1,7 @@
 "use client";
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -258,6 +259,85 @@ export function subscribeOpenRooms(
 export async function setHostHeartbeat(code: string): Promise<void> {
   const db = getDb();
   await updateDoc(doc(db, "normalRooms", code), { hostHeartbeat: Date.now() });
+}
+
+// ── Wait queue ───────────────────────────────────────────────────────────
+// FIFO queue for a full room. The host auto-seats the head when a seat frees.
+export type QueueEntry = {
+  uid: string;
+  name: string;
+  seed: string;
+  joinedAt: number;
+};
+
+export async function joinQueue(
+  code: string,
+  uid: string,
+  name: string,
+  seed: string,
+): Promise<void> {
+  const db = getDb();
+  await setDoc(doc(db, "normalRooms", code, "waitQueue", uid), {
+    uid,
+    name,
+    seed,
+    joinedAt: Date.now(),
+  } satisfies QueueEntry);
+}
+
+export async function leaveQueue(code: string, uid: string): Promise<void> {
+  const db = getDb();
+  await deleteDoc(doc(db, "normalRooms", code, "waitQueue", uid));
+}
+
+export function subscribeQueue(
+  code: string,
+  cb: (queue: QueueEntry[]) => void,
+): () => void {
+  const db = getDb();
+  const q = query(
+    collection(db, "normalRooms", code, "waitQueue"),
+    orderBy("joinedAt", "asc"),
+  );
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data() as QueueEntry)),
+    () => cb([]),
+  );
+}
+
+// ── Spectators ───────────────────────────────────────────────────────────
+export type SpectatorEntry = { uid: string; name: string; seed: string };
+
+export async function joinSpectators(
+  code: string,
+  uid: string,
+  name: string,
+  seed: string,
+): Promise<void> {
+  const db = getDb();
+  await setDoc(doc(db, "normalRooms", code, "spectators", uid), {
+    uid,
+    name,
+    seed,
+  } satisfies SpectatorEntry);
+}
+
+export async function leaveSpectators(code: string, uid: string): Promise<void> {
+  const db = getDb();
+  await deleteDoc(doc(db, "normalRooms", code, "spectators", uid));
+}
+
+export function subscribeSpectators(
+  code: string,
+  cb: (specs: SpectatorEntry[]) => void,
+): () => void {
+  const db = getDb();
+  return onSnapshot(
+    collection(db, "normalRooms", code, "spectators"),
+    (snap) => cb(snap.docs.map((d) => d.data() as SpectatorEntry)),
+    () => cb([]),
+  );
 }
 
 export function subscribeNormalLobby(
