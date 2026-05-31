@@ -7,27 +7,31 @@ import { ArrowRight, Coins, Trophy, Tv, X } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { PillNav } from "@/components/nav/PillNav";
 
+// Monochrome tiers — Noir. Differentiated only by glow brightness, not hue.
 const ACCENTS = {
-  emerald: {
-    badge: "bg-emerald-500/15 text-emerald-200 ring-emerald-400/30",
-    cta: "bg-emerald-500/90 text-emerald-950 hover:bg-emerald-400",
-    iconBg: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30",
-    glow: "152 72 48" as const,
-    bg: "rgba(6, 24, 18, 0.78)",
+  one: {
+    badge: "bg-white/[0.06] text-zinc-200 ring-white/15",
+    cta: "bg-white text-black hover:bg-zinc-200",
+    iconBg: "bg-white/[0.06] text-zinc-200 ring-white/15",
+    glow: "0 0 90",
+    glowColors: ["#ffffff", "#e4e4e7", "#a1a1aa"],
+    bg: "rgba(14, 14, 16, 0.8)",
   },
-  amber: {
-    badge: "bg-amber-500/15 text-amber-200 ring-amber-400/30",
-    cta: "bg-amber-500/90 text-amber-950 hover:bg-amber-400",
-    iconBg: "bg-amber-500/15 text-amber-300 ring-amber-400/30",
-    glow: "40 80 50" as const,
-    bg: "rgba(28, 18, 6, 0.78)",
+  two: {
+    badge: "bg-white/[0.06] text-zinc-200 ring-white/15",
+    cta: "bg-white text-black hover:bg-zinc-200",
+    iconBg: "bg-white/[0.06] text-zinc-200 ring-white/15",
+    glow: "0 0 76",
+    glowColors: ["#ededf2", "#c4c4cc", "#8a8a93"],
+    bg: "rgba(11, 11, 13, 0.8)",
   },
-  rose: {
-    badge: "bg-rose-500/15 text-rose-200 ring-rose-400/30",
-    cta: "bg-rose-500/90 text-rose-950 hover:bg-rose-400",
-    iconBg: "bg-rose-500/15 text-rose-300 ring-rose-400/30",
-    glow: "350 80 55" as const,
-    bg: "rgba(28, 8, 14, 0.78)",
+  three: {
+    badge: "bg-white/[0.06] text-zinc-200 ring-white/15",
+    cta: "bg-white text-black hover:bg-zinc-200",
+    iconBg: "bg-white/[0.06] text-zinc-200 ring-white/15",
+    glow: "0 0 62",
+    glowColors: ["#d4d4d8", "#a1a1aa", "#52525b"],
+    bg: "rgba(9, 9, 11, 0.8)",
   },
 } as const;
 
@@ -42,7 +46,6 @@ function ModeCard({
   description,
   features,
   cta,
-  glowColors,
   onNavigate,
 }: {
   href: string;
@@ -53,7 +56,6 @@ function ModeCard({
   description: string;
   features: string[];
   cta: string;
-  glowColors: string[];
   onNavigate: () => void;
 }) {
   const a = ACCENTS[accent];
@@ -69,8 +71,8 @@ function ModeCard({
         glowIntensity={1.05}
         coneSpread={22}
         animated={false}
-        colors={glowColors}
-        fillOpacity={0.42}
+        colors={a.glowColors as unknown as string[]}
+        fillOpacity={0.4}
       >
         <div className="flex h-full flex-col gap-4 p-6">
           <div className="flex items-center justify-between">
@@ -93,7 +95,7 @@ function ModeCard({
             ))}
           </ul>
           <div className="mt-auto pt-1">
-            <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition ${a.cta}`}>
+            <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition ${a.cta}`}>
               {cta}
               <ArrowRight className="w-4 h-4" />
             </span>
@@ -108,7 +110,7 @@ export function Nav() {
   const path = usePathname();
   const [showModal, setShowModal] = useState(false);
 
-  // BUG-010: cerrar modal con Escape (estándar WCAG para dialogs)
+  // Close the create modal with Escape (WCAG dialog standard).
   useEffect(() => {
     if (!showModal) return;
     function handleKey(e: KeyboardEvent) {
@@ -127,6 +129,7 @@ export function Nav() {
   }
 
   const navItems = [
+    { href: "/lobby", label: "Lobby" },
     { href: "#", label: "Crear sala", onClick: () => setShowModal(true) },
     { href: "/join", label: "Unirse" },
   ];
@@ -138,15 +141,15 @@ export function Nav() {
           <BorderGlow
             className="w-full !border-white/10"
             edgeSensitivity={20}
-            glowColor="38 70 60"
-            backgroundColor="rgba(7, 7, 8, 0.86)"
+            glowColor="0 0 82"
+            backgroundColor="rgba(7, 7, 8, 0.88)"
             borderRadius={999}
             glowRadius={22}
             glowIntensity={0.85}
             coneSpread={28}
             animated={false}
-            colors={["#e0b15e", "#f0c98a", "#c2415a", "#64748b"]}
-            fillOpacity={0.32}
+            colors={["#ededf2", "#c4c4cc", "#8a8a93", "#52525b"]}
+            fillOpacity={0.3}
           >
             <div className="min-h-0 overflow-hidden rounded-[inherit] px-2 py-1.5 sm:px-3 sm:py-2">
               <PillNav
@@ -168,7 +171,9 @@ export function Nav() {
           role="dialog"
           aria-modal="true"
           aria-label="Crear sala"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
         >
           <div className="w-full max-w-4xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-1">
@@ -188,37 +193,34 @@ export function Nav() {
               <ModeCard
                 href="/host"
                 icon={<Tv className="w-5 h-5" />}
-                accent="emerald"
+                accent="one"
                 title="Presencial"
                 subtitle="Sin apuestas · Para mesa real"
-                description="Big screen muestra mesa. Cada jugador ve sus cartas en su teléfono. Equity y stats para el host."
-                features={["Hasta 9 jugadores", "All-in con run-it-N", "Equity en vivo (solo host)"]}
+                description="Big screen muestra la mesa. Cada jugador ve sus cartas en su teléfono. Equity y stats para el host."
+                features={["Hasta 9 jugadores", "All-in con run-out", "Equity en vivo (solo host)"]}
                 cta="Abrir mesa"
-                glowColors={["#34d399", "#10b981", "#6ee7b7"]}
                 onNavigate={() => setShowModal(false)}
               />
               <ModeCard
-                href="/host/normal"
+                href="/create"
                 icon={<Coins className="w-5 h-5" />}
-                accent="amber"
-                title="Normal"
-                subtitle="Apuestas virtuales · Online"
-                description="Sala online con fichas, ciegas y apuestas reales. Todo en cada teléfono. El dueño configura reglas."
-                features={["Slider de apuestas + presets", "Time bank por jugador", "Side pots automáticos"]}
+                accent="two"
+                title="Online"
+                subtitle="Apuestas virtuales · Lobby"
+                description="Sala con fichas y apuestas. Crea pública o privada; las reglas se ajustan dentro de la mesa."
+                features={["Lobby de mesas en vivo", "Pública o privada", "Side pots automáticos"]}
                 cta="Crear sala"
-                glowColors={["#fbbf24", "#f59e0b", "#fde68a"]}
                 onNavigate={() => setShowModal(false)}
               />
               <ModeCard
                 href="/host/torneo"
                 icon={<Trophy className="w-5 h-5" />}
-                accent="rose"
+                accent="three"
                 title="Torneo"
                 subtitle="Ciegas escalonadas · Admin"
                 description="Estructura de torneo con niveles de ciegas, antes y timer. Panel de admin con estadísticas en vivo."
                 features={["Niveles automáticos", "Knockouts + ranking final", "Panel admin con equity"]}
                 cta="Crear torneo"
-                glowColors={["#fb7185", "#f43f5e", "#fda4af"]}
                 onNavigate={() => setShowModal(false)}
               />
             </div>
