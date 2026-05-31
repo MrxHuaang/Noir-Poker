@@ -526,6 +526,26 @@ export async function setNormalRoomTheme(
   await updateDoc(doc(db, "normalRooms", code), { theme });
 }
 
+export async function setNormalRoomName(
+  code: string,
+  roomName: string,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code), {
+    roomName: roomName.trim().slice(0, 32) || `Mesa ${code}`,
+  });
+}
+
+export async function setNormalRoomMaxPlayers(
+  code: string,
+  maxPlayers: number,
+): Promise<void> {
+  const db = getDb();
+  await updateDoc(doc(db, "normalRooms", code), {
+    maxPlayers: Math.min(9, Math.max(2, Math.round(maxPlayers))),
+  });
+}
+
 export function lobbyToSeats(
   lobby: NormalLobbyPlayer[],
   config: RoomConfig,
