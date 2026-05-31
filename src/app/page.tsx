@@ -11,19 +11,18 @@ import {
   Star,
 } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
-import { FaultyTerminal } from "@/components/ui/FaultyTerminal";
-
-const HOME_TERMINAL_GRID: [number, number] = [2, 1];
+import Grainient from "@/components/ui/Grainient";
+import { PresencialTutorial } from "@/components/home/PresencialTutorial";
 
 export default function Home() {
-  const [pauseTerminalBg, setPauseTerminalBg] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setPauseTerminalBg(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   return (
@@ -32,40 +31,39 @@ export default function Home() {
         className="pointer-events-none fixed inset-0 z-[1] overflow-hidden"
         aria-hidden
       >
-        <div className="absolute inset-0 opacity-[0.42]">
-          <FaultyTerminal
-            className="h-full min-h-[100dvh] w-full"
-            scale={1.35}
-            gridMul={HOME_TERMINAL_GRID}
-            digitSize={1.25}
-            timeScale={0.46}
-            pause={pauseTerminalBg}
-            scanlineIntensity={0.4}
-            glitchAmount={1}
-            flickerAmount={0.8}
-            noiseAmp={0.9}
-            chromaticAberration={0}
-            dither={0.35}
-            curvature={0.1}
-            tint="#b8b8c0"
-            mouseReact={false}
-            mouseStrength={0.3}
-            pageLoadAnimation={false}
-            brightness={pauseTerminalBg ? 0.5 : 0.56}
-          />
-        </div>
+        {!isMobile && (
+          <div className="absolute inset-0">
+            <Grainient
+              color1="#5c2e9a"
+              color2="#0e0e22"
+              color3="#2e1e60"
+              timeSpeed={0.18}
+              colorBalance={0.05}
+              warpStrength={0.9}
+              warpFrequency={4}
+              warpSpeed={1.2}
+              warpAmplitude={55}
+              blendAngle={10}
+              blendSoftness={0.1}
+              rotationAmount={340}
+              noiseScale={2}
+              grainAmount={0.18}
+              grainScale={1.2}
+              grainAnimated={false}
+              contrast={1.4}
+              gamma={0.9}
+              saturation={0.72}
+              centerX={0}
+              centerY={0}
+              zoom={0.88}
+            />
+          </div>
+        )}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 100% 72% at 50% 44%, rgba(7,7,8,0.18) 0%, rgba(7,7,8,0.6) 58%, rgba(7,7,8,0.85) 100%), linear-gradient(180deg, rgba(7,7,8,0.4) 0%, transparent 26%, transparent 74%, rgba(7,7,8,0.5) 100%)",
-          }}
-        />
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(255,255,255,0.03) 0%, transparent 70%)",
+              "radial-gradient(ellipse 100% 72% at 50% 44%, transparent 0%, rgba(7,7,8,0.5) 58%, rgba(7,7,8,0.88) 100%), linear-gradient(180deg, rgba(7,7,8,0.5) 0%, transparent 22%, transparent 78%, rgba(7,7,8,0.6) 100%)",
           }}
         />
       </div>
@@ -95,6 +93,7 @@ export default function Home() {
             description="Big screen muestra la mesa. Cada jugador ve sus cartas en su teléfono. Equity y stats para el host."
             features={["Hasta 9 jugadores", "All-in con run-out", "Equity en vivo (solo host)"]}
             cta="Abrir mesa"
+            onInfo={() => setShowTutorial(true)}
           />
           <ModeCard
             href="/create"
@@ -135,6 +134,10 @@ export default function Home() {
 
         <SiteFooter />
       </div>
+
+      {showTutorial && (
+        <PresencialTutorial onClose={() => setShowTutorial(false)} />
+      )}
     </div>
   );
 }
@@ -169,6 +172,7 @@ function ModeCard({
   description,
   features,
   cta,
+  onInfo,
 }: {
   href: string;
   icon: React.ReactNode;
@@ -178,6 +182,7 @@ function ModeCard({
   description: string;
   features: string[];
   cta: string;
+  onInfo?: () => void;
 }) {
   const t = TIERS[tier];
   return (
@@ -217,11 +222,20 @@ function ModeCard({
               </li>
             ))}
           </ul>
-          <div className="mt-auto pt-1">
+          <div className="mt-auto pt-1 flex items-center gap-2">
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition bg-white/[0.07] text-zinc-100 ring-1 ring-white/15 group-hover:bg-white/[0.12] group-hover:ring-white/25 group-hover:shadow-[0_0_22px_rgba(255,255,255,0.08)]">
               {cta}
               <ArrowRight className="w-4 h-4" />
             </span>
+            {onInfo && (
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInfo(); }}
+                className="px-3 py-2 rounded-full text-xs font-semibold text-zinc-400 hover:text-zinc-200 ring-1 ring-white/10 hover:ring-white/20 transition bg-white/[0.03] hover:bg-white/[0.07]"
+              >
+                ¿Cómo funciona?
+              </button>
+            )}
           </div>
         </div>
       </BorderGlow>
