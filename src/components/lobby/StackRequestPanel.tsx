@@ -144,7 +144,7 @@ function ApproveRow({
             onChange={(e) => setAmount(Math.max(1, Number(e.target.value)))}
             min={1}
             step={100}
-            className="w-24 px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none focus:ring-emerald-400/40 tabular-nums"
+            className="w-24 px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none focus:ring-amber-500/40 tabular-nums"
           />
           <button
             type="button"
@@ -166,7 +166,7 @@ function ApproveRow({
             type="button"
             onClick={handleApprove}
             disabled={loading}
-            className="p-1.5 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/30 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-40 transition"
+            className="p-1.5 rounded-lg bg-amber-500/10 ring-1 ring-amber-400/25 text-amber-300 hover:bg-amber-500/18 disabled:opacity-40 transition"
           >
             <Check className="w-3.5 h-3.5" />
           </button>
@@ -260,7 +260,7 @@ function PlayerRow({
           <Avatar seed={lobbyPlayer.seed} size={36} />
           {isSelf && (
             <div className="absolute -bottom-0.5 -right-0.5 p-0.5 rounded-full bg-zinc-900 ring-1 ring-white/10">
-              <Shuffle className="w-2.5 h-2.5 text-emerald-400" />
+              <Shuffle className="w-2.5 h-2.5 text-amber-400" />
             </div>
           )}
         </button>
@@ -277,12 +277,12 @@ function PlayerRow({
                 }}
                 maxLength={24}
                 autoFocus
-                className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/50 ring-1 ring-emerald-400/30 text-zinc-100 text-sm outline-none"
+                className="flex-1 min-w-0 px-2 py-1 rounded-lg bg-black/50 ring-1 ring-amber-400/25 text-zinc-100 text-sm outline-none"
               />
               <button
                 type="button"
                 onClick={handleSaveName}
-                className="p-1 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/30 text-emerald-300 hover:bg-emerald-500/30 transition"
+                className="p-1 rounded-lg bg-amber-500/10 ring-1 ring-amber-400/25 text-amber-300 hover:bg-amber-500/15 transition"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
@@ -309,7 +309,7 @@ function PlayerRow({
             </div>
           )}
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs tabular-nums text-emerald-300 font-mono font-bold">
+            <span className="text-xs tabular-nums text-amber-300 font-mono font-bold">
               {formatChips(chips)}
             </span>
             {lobbyPlayer.sittingOut && (
@@ -338,7 +338,7 @@ function PlayerRow({
               title="Ajustar stack"
               className={`p-1.5 rounded-lg ring-1 transition ${
                 stackOpen
-                  ? "bg-emerald-500/20 ring-emerald-400/30 text-emerald-300"
+                  ? "bg-amber-500/10 ring-amber-400/25 text-amber-300"
                   : "bg-white/5 ring-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
               }`}
             >
@@ -381,7 +381,7 @@ function PlayerRow({
                 className={`flex-1 px-1 py-1.5 rounded-lg text-[10px] font-bold tabular-nums transition ring-1 ${
                   d < 0
                     ? "bg-rose-500/5 ring-rose-400/20 text-rose-300 hover:bg-rose-500/15"
-                    : "bg-emerald-500/5 ring-emerald-400/20 text-emerald-300 hover:bg-emerald-500/15"
+                    : "bg-amber-500/5 ring-amber-400/18 text-amber-300 hover:bg-amber-500/10"
                 }`}
               >
                 {d > 0 ? "+" : ""}
@@ -395,13 +395,13 @@ function PlayerRow({
               inputMode="numeric"
               value={setAmount}
               onChange={(e) => setSetAmount(e.target.value.replace(/[^0-9]/g, ""))}
-              className="flex-1 px-2.5 py-1.5 rounded-lg bg-black/50 ring-1 ring-white/10 text-zinc-100 text-xs outline-none tabular-nums focus:ring-emerald-400/40"
+              className="flex-1 px-2.5 py-1.5 rounded-lg bg-black/50 ring-1 ring-white/10 text-zinc-100 text-xs outline-none tabular-nums focus:ring-amber-500/40"
               placeholder="Fijar stack..."
             />
             <button
               type="button"
               onClick={handleSetChips}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/30 text-emerald-300 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-500/30 transition btn-press"
+              className="px-3 py-1.5 rounded-lg bg-amber-500/10 ring-1 ring-amber-400/25 text-amber-300 text-[11px] font-bold uppercase tracking-widest hover:bg-amber-500/15 transition btn-press"
             >
               Fijar
             </button>
@@ -537,12 +537,12 @@ export function StackRequestPanel({
                   }
                   min={1}
                   step={100}
-                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none tabular-nums focus:ring-emerald-400/40"
+                  className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none tabular-nums focus:ring-amber-500/40"
                 />
                 <button
                   type="button"
                   onClick={() => onSetAllChips(setAllAmount)}
-                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500/20 ring-1 ring-emerald-400/30 text-emerald-300 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-500/30 transition btn-press"
+                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/10 ring-1 ring-amber-400/25 text-amber-300 text-[11px] font-bold uppercase tracking-widest hover:bg-amber-500/15 transition btn-press"
                 >
                   Aplicar
                 </button>

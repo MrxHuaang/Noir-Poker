@@ -38,7 +38,7 @@ export function EquityPanel({
     <aside className="w-full lg:w-72 lg:shrink-0 flex flex-col gap-3 p-4 rounded-2xl bg-white/[0.03] ring-1 ring-white/10">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-zinc-100">
-          <BarChart3 className="w-4 h-4 text-emerald-300" />
+          <BarChart3 className="w-4 h-4 text-amber-300" />
           <h3 className="text-sm tracking-tight">Probabilidades</h3>
         </div>
         <button
@@ -83,7 +83,7 @@ export function EquityPanel({
                   </div>
                   <div className="mt-1 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
-                      className="h-full bg-emerald-400/80"
+                      className="h-full bg-amber-400/80"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -92,7 +92,7 @@ export function EquityPanel({
                       {score ? categoryLabel(score) : "—"}
                     </span>
                     {!showdownDone && community.length === 4 && o > 0 ? (
-                      <span className="text-emerald-300 tabular-nums">
+                      <span className="text-amber-300 tabular-nums">
                         {o} outs ·{" "}
                         {((o / Math.max(1, unseenCount)) * 100).toFixed(0)}%
                       </span>

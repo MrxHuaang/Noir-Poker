@@ -29,6 +29,7 @@ export default function CreateRoom() {
   const router = useRouter();
 
   const [isPublic, setIsPublic] = useState(true);
+  const [roomName, setRoomName] = useState("");
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function CreateRoom() {
       const c = await createNormalRoom(
         uid,
         { ...DEFAULT_CONFIG, mode: "normal" },
-        { isPublic, maxPlayers: 9 },
+        { isPublic, maxPlayers: 9, roomName: roomName.trim() || undefined },
       );
       setCode(c);
     } catch {
@@ -194,6 +195,34 @@ export default function CreateRoom() {
         </BorderGlow>
       ) : (
         <>
+          {/* Room name */}
+          <BorderGlow
+            className="w-full"
+            glowColor={GLOW}
+            colors={GLOW_COLORS}
+            backgroundColor="rgba(10,10,12,0.85)"
+            borderRadius={18}
+            glowRadius={26}
+            glowIntensity={0.75}
+            coneSpread={24}
+            fillOpacity={0.35}
+            animated={false}
+          >
+            <label className="flex flex-col gap-1.5 p-4">
+              <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500 font-bold">
+                Nombre de la mesa
+              </span>
+              <input
+                type="text"
+                maxLength={32}
+                placeholder="Mesa sin nombre"
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                className="bg-transparent text-zinc-100 text-sm outline-none placeholder:text-zinc-600 caret-white"
+              />
+            </label>
+          </BorderGlow>
+
           {/* Visibility choice */}
           <div className="grid grid-cols-2 gap-3">
             <VisToggle

@@ -50,7 +50,7 @@ export function BettingDock({
   return (
     <div className="w-[min(360px,90vw)] bg-zinc-900/95 backdrop-blur-xl rounded-2xl ring-1 ring-white/10 p-2.5 shadow-2xl overflow-hidden relative">
       {isMyTurn && (
-        <div className="absolute inset-0 bg-emerald-500/5 animate-pulse pointer-events-none" />
+        <div className="absolute inset-0 bg-amber-500/5 animate-pulse pointer-events-none" />
       )}
 
       {/* Player header — compact */}
@@ -62,7 +62,7 @@ export function BettingDock({
               {name}
             </span>
             {seat && (
-              <span className="text-[10px] text-emerald-400 font-mono font-bold leading-none">
+              <span className="text-[10px] text-amber-400 font-mono font-bold leading-none">
                 {formatChips(seat.chips)}
               </span>
             )}
@@ -118,7 +118,7 @@ export function BettingDock({
             title={useTimeBank ? "Desactivar timebank" : "Activar timebank"}
             className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ring-1 transition btn-press ${
               useTimeBank
-                ? "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30 hover:bg-emerald-500/25"
+                ? "bg-amber-500/10 text-amber-300 ring-amber-400/25 hover:bg-amber-500/18"
                 : "bg-zinc-800 text-zinc-500 ring-white/10 hover:bg-zinc-700"
             }`}
           >

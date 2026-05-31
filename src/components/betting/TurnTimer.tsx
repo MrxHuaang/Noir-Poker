@@ -25,7 +25,7 @@ export function TurnTimer({
 
   // Progress: normal phase scales to turnTime, bank phase scales to effectiveBank and is fully red.
   let pct = 0;
-  let barColor = "bg-emerald-400";
+  let barColor = "bg-amber-400";
   let textColor = "text-zinc-300";
   if (!inBank && !isExhausted) {
     pct = Math.min(100, (remainingNormal / turnTime) * 100);
@@ -33,11 +33,11 @@ export function TurnTimer({
       barColor = "bg-rose-500";
       textColor = "text-rose-400";
     } else if (pct < 50) {
-      barColor = "bg-amber-400";
+      barColor = "bg-amber-500";
       textColor = "text-amber-300";
     } else {
-      barColor = "bg-emerald-400";
-      textColor = "text-emerald-300";
+      barColor = "bg-amber-400";
+      textColor = "text-amber-200";
     }
   } else if (inBank) {
     pct = Math.min(100, (remainingTotal / effectiveBank) * 100);

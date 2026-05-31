@@ -69,7 +69,7 @@ export function StatsPanel({
                   </div>
                   <div className="mt-1 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
-                      className={`h-full ${isHi ? "bg-amber-300" : "bg-emerald-400/70"}`}
+                      className={`h-full ${isHi ? "bg-amber-300" : "bg-amber-600/50"}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>

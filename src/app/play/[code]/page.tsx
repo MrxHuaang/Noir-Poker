@@ -144,13 +144,13 @@ function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
             placeholder="Tu apodo"
             maxLength={20}
             autoFocus
-            className="rounded-2xl bg-black/40 px-5 py-4 text-center text-lg text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-emerald-400/40"
+            className="rounded-2xl bg-black/40 px-5 py-4 text-center text-lg text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-amber-500/40"
           />
 
           <button
             type="submit"
             disabled={!name.trim() || submitting}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 px-5 py-3 font-medium text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-30 btn-press"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-700/70 px-5 py-3 font-medium text-amber-100 transition hover:bg-amber-600/75 disabled:cursor-not-allowed disabled:opacity-30 btn-press"
           >
             Entrar a la mesa
           </button>
@@ -269,9 +269,9 @@ function PhoneGameView({
       {/* Hand strength label — PokerStars style */}
       {label && hole && !mySeat.folded && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/10 ring-1 ring-emerald-400/30 shadow-[0_0_20px_-4px_rgba(52,211,153,0.25)]">
-            <span className="text-[11px] uppercase tracking-[0.25em] text-emerald-400/60 font-bold">Tu mano</span>
-            <span className="text-sm font-semibold text-emerald-100">{label}</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/12 to-amber-700/8 ring-1 ring-amber-400/25 shadow-[0_0_20px_-4px_rgba(180,130,40,0.2)]">
+            <span className="text-[11px] uppercase tracking-[0.25em] text-amber-400/60 font-bold">Tu mano</span>
+            <span className="text-sm font-semibold text-amber-100">{label}</span>
           </div>
         </div>
       )}
@@ -367,7 +367,7 @@ function PhoneGameView({
               onClick={() => onRevealCard(0)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ring-1 text-xs font-medium transition btn-press ${
                 mySeat.revealedCards[0]
-                  ? "bg-emerald-500/20 ring-emerald-400/40 text-emerald-200"
+                  ? "bg-amber-500/15 ring-amber-400/40 text-amber-200"
                   : "bg-white/5 ring-white/10 text-zinc-300 hover:bg-white/10"
               }`}
             >
@@ -378,7 +378,7 @@ function PhoneGameView({
               onClick={() => onRevealCard(1)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ring-1 text-xs font-medium transition btn-press ${
                 mySeat.revealedCards[1]
-                  ? "bg-emerald-500/20 ring-emerald-400/40 text-emerald-200"
+                  ? "bg-amber-500/15 ring-amber-400/40 text-amber-200"
                   : "bg-white/5 ring-white/10 text-zinc-300 hover:bg-white/10"
               }`}
             >

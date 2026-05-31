@@ -34,7 +34,7 @@ export function PlayerPicker({
         </p>
         <Link
           href="/players"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-emerald-950 font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-700/70 hover:bg-amber-600/75 text-amber-100 font-medium text-sm transition"
         >
           <UserPlus className="w-4 h-4" />
           Crear jugadores
@@ -63,7 +63,7 @@ export function PlayerPicker({
                 onClick={() => toggle(p.id)}
                 className={`w-full flex items-center gap-3 p-3 rounded-2xl ring-1 transition text-left ${
                   on
-                    ? "bg-emerald-500/10 ring-emerald-400/40"
+                    ? "bg-amber-500/8 ring-amber-400/40"
                     : "bg-white/[0.02] ring-white/10 hover:bg-white/[0.04]"
                 }`}
               >
@@ -79,7 +79,7 @@ export function PlayerPicker({
           type="button"
           disabled={!valid}
           onClick={() => onDeal(chosen)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-950 font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-700/70 hover:bg-amber-600/75 disabled:opacity-30 disabled:cursor-not-allowed text-amber-100 font-medium text-sm transition"
         >
           Repartir
         </button>

@@ -45,7 +45,7 @@ export function TableShell({
   community,
   betting,
   winners,
-  theme = "emerald",
+  theme = "noir",
   roomCode,
   isTournament,
   selfUid,

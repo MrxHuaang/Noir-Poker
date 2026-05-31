@@ -20,10 +20,10 @@ export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
     id: "noir",
     label: "Noir",
     feltGradient:
-      "radial-gradient(ellipse at center, #1c1c20 0%, #0e0e11 55%, #050506 100%)",
-    ringColor: "rgba(255,255,255,0.16)",
-    accent: "#ededf2",
-    accentSoft: "rgba(255,255,255,0.10)",
+      "radial-gradient(ellipse at center, #1e1b14 0%, #0f0d09 55%, #050504 100%)",
+    ringColor: "rgba(212,191,148,0.18)",
+    accent: "#d4bf94",
+    accentSoft: "rgba(212,191,148,0.10)",
   },
   emerald: {
     id: "emerald",

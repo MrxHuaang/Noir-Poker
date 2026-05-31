@@ -19,7 +19,7 @@ export function HoleCards({
     <button
       type="button"
       onClick={onToggle}
-      className="hole-cards group relative flex gap-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 rounded-xl p-1 -m-1"
+      className="hole-cards group relative flex gap-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 rounded-xl p-1 -m-1"
       aria-label={anyRevealed ? "Ocultar cartas" : "Revelar cartas"}
     >
       <PlayingCard

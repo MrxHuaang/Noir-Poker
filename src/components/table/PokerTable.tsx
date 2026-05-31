@@ -614,7 +614,7 @@ function HostLobby({
           disabled={players.length < 2 || players.length > 9}
           onClick={() => onDeal(players)}
           title={players.length < 2 ? "Se necesitan al menos 2 jugadores" : undefined}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-950 font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-amber-700/70 hover:bg-amber-600/75 disabled:opacity-30 disabled:cursor-not-allowed text-amber-100 font-medium text-sm transition"
         >
           Repartir ({players.length})
         </button>

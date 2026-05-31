@@ -38,7 +38,7 @@ export function DealControls({
         <button
           type="button"
           onClick={onAdvance}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-emerald-950 font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-700/70 hover:bg-amber-600/75 text-amber-100 font-medium text-sm transition"
         >
           <Play className="w-4 h-4" />
           {nextLabel}

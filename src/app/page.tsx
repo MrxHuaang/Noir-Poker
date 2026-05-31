@@ -8,7 +8,7 @@ import {
   ArrowRight,
   KeyRound,
   LayoutGrid,
-  Sparkles,
+  Star,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { BorderGlow } from "@/components/ui/BorderGlow";
@@ -60,6 +60,13 @@ export default function Home() {
           style={{
             background:
               "radial-gradient(ellipse 100% 72% at 50% 44%, rgba(7,7,8,0.18) 0%, rgba(7,7,8,0.6) 58%, rgba(7,7,8,0.85) 100%), linear-gradient(180deg, rgba(7,7,8,0.4) 0%, transparent 26%, transparent 74%, rgba(7,7,8,0.5) 100%)",
+          }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 40% at 50% -5%, rgba(180,130,40,0.07) 0%, transparent 70%)",
           }}
         />
       </div>
@@ -124,10 +131,7 @@ export default function Home() {
           />
         </section>
 
-        <footer className="text-[11px] uppercase tracking-[0.25em] text-zinc-600 flex items-center gap-2">
-          <Sparkles className="w-3 h-3" />
-          Noir · v1
-        </footer>
+        <SiteFooter />
       </div>
     </div>
   );
@@ -138,19 +142,19 @@ const TIERS: Record<
   { glow: string; colors: string[]; bg: string }
 > = {
   one: {
-    glow: "0 0 90",
-    colors: ["#ffffff", "#e4e4e7", "#a1a1aa"],
-    bg: "rgba(14,14,16,0.8)",
+    glow: "38 65 68",
+    colors: ["#d4bf94", "#b8994e", "#7a6030"],
+    bg: "rgba(14,12,8,0.85)",
   },
   two: {
-    glow: "0 0 76",
-    colors: ["#ededf2", "#c4c4cc", "#8a8a93"],
-    bg: "rgba(11,11,13,0.8)",
+    glow: "260 30 68",
+    colors: ["#c4bdd8", "#9b93b8", "#6b6380"],
+    bg: "rgba(11,10,14,0.85)",
   },
   three: {
-    glow: "0 0 62",
-    colors: ["#d4d4d8", "#a1a1aa", "#52525b"],
-    bg: "rgba(9,9,11,0.8)",
+    glow: "35 25 52",
+    colors: ["#b0a88a", "#7a7260", "#52493a"],
+    bg: "rgba(9,8,6,0.85)",
   },
 };
 
@@ -212,7 +216,7 @@ function ModeCard({
             ))}
           </ul>
           <div className="mt-auto pt-1">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition bg-white text-black group-hover:bg-zinc-200">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition bg-amber-950/40 text-amber-200 ring-1 ring-amber-600/40 group-hover:bg-amber-900/55 group-hover:ring-amber-500/55 group-hover:shadow-[0_0_22px_rgba(180,130,40,0.18)]">
               {cta}
               <ArrowRight className="w-4 h-4" />
             </span>
@@ -220,6 +224,79 @@ function ModeCard({
         </div>
       </BorderGlow>
     </Link>
+  );
+}
+
+function GithubIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 fill-current" aria-hidden>
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+    </svg>
+  );
+}
+
+function SiteFooter() {
+  const [stars, setStars] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("https://api.github.com/repos/MrxHuaang/poker-sim")
+      .then((r) => r.json())
+      .then((d) => typeof d.stargazers_count === "number" && setStars(d.stargazers_count))
+      .catch(() => {});
+  }, []);
+
+  return (
+    <footer className="w-full flex flex-col items-center gap-3 pb-2">
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
+      <div className="flex items-center gap-6 flex-wrap justify-center">
+        <a
+          href="https://github.com/MrxHuaang/poker-sim"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 text-zinc-500 hover:text-zinc-300 transition text-[11px] tracking-wide group"
+        >
+          <GithubIcon />
+          poker-sim
+        </a>
+        {stars !== null && (
+          <span className="flex items-center gap-1 text-[11px] text-zinc-600">
+            <Star className="w-3 h-3 fill-zinc-700 text-zinc-700" />
+            {stars}
+          </span>
+        )}
+        <span className="text-zinc-700 text-[11px]">·</span>
+        <a
+          href="https://github.com/MrxHuaang"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-zinc-500 hover:text-zinc-300 transition tracking-wide"
+        >
+          @MrxHuaang
+        </a>
+        <span className="text-zinc-700 text-[11px]">·</span>
+        <a
+          href="https://github.com/poethy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-zinc-500 hover:text-zinc-300 transition tracking-wide"
+        >
+          @poethy
+        </a>
+        <span className="text-zinc-700 text-[11px]">·</span>
+        <a
+          href="https://github.com/JuanGaitanD"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-zinc-500 hover:text-zinc-300 transition tracking-wide"
+        >
+          @JuanGaitanD
+        </a>
+        <span className="text-zinc-700 text-[11px]">·</span>
+        <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-700">
+          Noir v1
+        </span>
+      </div>
+    </footer>
   );
 }
 

@@ -76,7 +76,7 @@ export function PlayerForm({
           onChange={(e) => { setName(e.target.value); setError(null); }}
           placeholder="Nombre del jugador"
           maxLength={32}
-          className={`px-4 py-2 rounded-full bg-black/30 ring-1 text-zinc-100 placeholder:text-zinc-500 outline-none ${error ? "ring-rose-400/60 focus:ring-rose-400/80" : "ring-white/10 focus:ring-emerald-400/40"}`}
+          className={`px-4 py-2 rounded-full bg-black/30 ring-1 text-zinc-100 placeholder:text-zinc-500 outline-none ${error ? "ring-rose-400/60 focus:ring-rose-400/80" : "ring-white/10 focus:ring-amber-500/40"}`}
         />
         {error && (
           <span className="flex items-center gap-1 text-[11px] text-rose-400 px-1">
@@ -87,7 +87,7 @@ export function PlayerForm({
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-emerald-950 font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-700/70 hover:bg-amber-600/75 text-amber-100 font-medium text-sm transition"
         >
           {editing ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
           {editing ? "Guardar" : "Agregar"}

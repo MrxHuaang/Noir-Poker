@@ -40,17 +40,17 @@ export default function PlayersPage() {
           <Link href="/host" className="group block">
             <BorderGlow
               edgeSensitivity={32}
-              glowColor="152 62 50"
-              backgroundColor="rgba(6, 52, 40, 0.82)"
+              glowColor="38 65 68"
+              backgroundColor="rgba(14,12,8,0.85)"
               borderRadius={999}
               glowRadius={18}
               glowIntensity={1}
               coneSpread={28}
               animated={false}
-              colors={["#34d399", "#6ee7b7", "#2dd4bf"]}
+              colors={["#d4bf94", "#b8994e", "#7a6030"]}
               fillOpacity={0.42}
             >
-              <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-50 transition group-hover:text-white">
+              <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-200 transition group-hover:text-white">
                 Ir a la mesa
                 <ArrowRight className="w-4 h-4" />
               </span>
@@ -102,10 +102,10 @@ export default function PlayersPage() {
                   glowIntensity={1}
                   coneSpread={28}
                   animated={false}
-                  colors={["#34d399", "#6ee7b7", "#2dd4bf"]}
+                  colors={["#d4bf94", "#b8994e", "#7a6030"]}
                   fillOpacity={0.42}
                 >
-                  <span className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-emerald-50 transition group-hover:text-white">
+                  <span className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-amber-200 transition group-hover:text-white">
                     Ir a la mesa ({players.length} jugadores)
                     <ArrowRight className="w-4 h-4" />
                   </span>

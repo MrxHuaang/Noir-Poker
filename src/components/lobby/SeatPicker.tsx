@@ -62,7 +62,7 @@ export function SeatPicker({ myUid, myPreferredSlot, occupants, onPick }: Props)
               {occupant ? (
                 // Occupied slot — show avatar + name
                 <div className={`flex flex-col items-center gap-0.5 ${isMine ? "opacity-100" : "opacity-70"}`}>
-                  <div className={`w-7 h-7 rounded-full overflow-hidden ring-2 ${isMine ? "ring-emerald-400" : "ring-zinc-600"}`}>
+                  <div className={`w-7 h-7 rounded-full overflow-hidden ring-2 ${isMine ? "ring-amber-400" : "ring-zinc-600"}`}>
                     <Avatar seed={occupant.seed} size={28} className="ring-0 rounded-none" />
                   </div>
                   <span className="text-[8px] text-zinc-400 font-bold max-w-[40px] truncate leading-none">
@@ -73,8 +73,8 @@ export function SeatPicker({ myUid, myPreferredSlot, occupants, onPick }: Props)
                 // Free slot
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center ring-2 transition ${
                   isMine
-                    ? "bg-emerald-500/20 ring-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.4)]"
-                    : "bg-zinc-900/70 ring-dashed ring-white/20 hover:ring-emerald-400/50 hover:bg-emerald-500/10"
+                    ? "bg-amber-500/12 ring-amber-400 shadow-[0_0_10px_rgba(180,130,40,0.35)]"
+                    : "bg-zinc-900/70 ring-dashed ring-white/20 hover:ring-amber-400/50 hover:bg-amber-500/8"
                 }`}>
                   <span className="text-[8px] font-black uppercase text-zinc-500">
                     {isMine ? "✓" : i + 1}
@@ -87,7 +87,7 @@ export function SeatPicker({ myUid, myPreferredSlot, occupants, onPick }: Props)
       </div>
 
       {myPreferredSlot !== undefined ? (
-        <p className="text-[11px] text-emerald-400">
+        <p className="text-[11px] text-amber-400">
           Asiento {myPreferredSlot + 1} reservado · toca otro para cambiar
         </p>
       ) : (

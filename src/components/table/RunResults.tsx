@@ -115,7 +115,7 @@ export function RunResults({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-full bg-emerald-500/90 hover:bg-emerald-400 text-emerald-950 font-medium text-sm transition"
+            className="px-5 py-2 rounded-full bg-amber-700/70 hover:bg-amber-600/75 text-amber-100 font-medium text-sm transition"
           >
             Cerrar
           </button>

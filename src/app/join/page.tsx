@@ -62,12 +62,12 @@ function JoinInner() {
             placeholder="ABCD2"
             maxLength={6}
             autoFocus
-            className="w-full rounded-2xl bg-black/45 px-5 py-4 text-center text-2xl uppercase tracking-[0.4em] text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-emerald-400/40"
+            className="w-full rounded-2xl bg-black/45 px-5 py-4 text-center text-2xl uppercase tracking-[0.4em] text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-amber-500/40"
           />
           <button
             type="submit"
             disabled={code.length < 4}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 px-5 py-3 font-medium text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-30"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-700/70 px-5 py-3 font-medium text-amber-100 transition hover:bg-amber-600/75 disabled:cursor-not-allowed disabled:opacity-30"
           >
             Entrar
             <ArrowRight className="w-4 h-4" />

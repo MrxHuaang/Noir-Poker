@@ -23,7 +23,7 @@ type Props = {
 };
 
 const KIND_STYLE: Record<Toast["kind"], { icon: typeof Coins; color: string; ring: string }> = {
-  join: { icon: Coins, color: "text-emerald-300", ring: "ring-emerald-400/30" },
+  join: { icon: Coins, color: "text-amber-300", ring: "ring-amber-400/30" },
   rebuy: { icon: RefreshCw, color: "text-sky-300", ring: "ring-sky-400/30" },
   "all-in": { icon: Zap, color: "text-amber-300", ring: "ring-amber-400/30" },
   out: { icon: UserX, color: "text-rose-300", ring: "ring-rose-400/30" },

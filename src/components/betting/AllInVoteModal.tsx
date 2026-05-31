@@ -23,7 +23,7 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClos
 
   return (
     <div className="fixed inset-x-0 bottom-6 sm:bottom-12 z-[110] flex flex-col items-center justify-end pointer-events-none">
-      <div className="pointer-events-auto w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-3xl ring-2 ring-emerald-400/40 shadow-[0_30px_120px_-20px_rgba(52,211,153,0.4)] p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 animate-in slide-in-from-bottom-8 fade-in duration-300 relative">
+      <div className="pointer-events-auto w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-3xl ring-2 ring-amber-400/40 shadow-[0_30px_120px_-20px_rgba(180,130,40,0.3)] p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 animate-in slide-in-from-bottom-8 fade-in duration-300 relative">
         {onClose && (
           <button
             type="button"
@@ -35,8 +35,8 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClos
           </button>
         )}
         <div className="flex items-center gap-2 justify-center">
-          <Zap className="w-5 h-5 text-emerald-400" />
-          <span className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-300">
+          <Zap className="w-5 h-5 text-amber-400" />
+          <span className="text-[11px] font-black uppercase tracking-[0.3em] text-amber-300">
             All-in
           </span>
         </div>
@@ -57,7 +57,7 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClos
                 onClick={() => onVote(n)}
                 className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-black transition btn-press ${
                   myVote === n
-                    ? "bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-300"
+                    ? "bg-amber-700/80 text-amber-100 shadow-lg shadow-amber-700/30 ring-2 ring-amber-400"
                     : "bg-white/5 text-zinc-200 hover:bg-white/10 ring-1 ring-white/10"
                 }`}
               >
@@ -77,7 +77,7 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClos
         <div className="flex items-center gap-2 justify-center">
           <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-emerald-400 transition-all"
+              className="h-full bg-amber-400 transition-all"
               style={{ width: `${(totalVoted / total) * 100}%` }}
             />
           </div>

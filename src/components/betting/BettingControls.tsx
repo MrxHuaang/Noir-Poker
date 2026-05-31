@@ -74,7 +74,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
           <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-black/40 border border-white/5">
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Amount</span>
-              <span className="text-base font-black text-emerald-400 tabular-nums leading-none">
+              <span className="text-base font-black text-amber-400 tabular-nums leading-none">
                 {formatChips(raiseAmount)}
               </span>
             </div>
@@ -85,7 +85,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
               step={betting.minRaise > 0 ? betting.minRaise : 1}
               value={raiseAmount}
               onChange={handleSlider}
-              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
             />
           </div>
         </div>
@@ -120,7 +120,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={handleBetRaise}
-            className="flex-[2] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/20"
+            className="flex-[2] rounded-xl bg-amber-700/80 hover:bg-amber-600/85 text-amber-100 text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-900/20"
           >
             {raiseOpt ? "Raise" : "Bet"}
           </button>

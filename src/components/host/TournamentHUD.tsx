@@ -52,7 +52,7 @@ export function TournamentHUD({
         <span className="text-[9px] uppercase tracking-[0.25em] text-zinc-500 font-black">
           Ciegas
         </span>
-        <span className="text-lg font-black text-emerald-400 tabular-nums leading-tight">
+        <span className="text-lg font-black text-amber-400 tabular-nums leading-tight">
           {formatChips(level.sb)}/{formatChips(level.bb)}
         </span>
         {level.ante > 0 && (

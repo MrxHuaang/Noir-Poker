@@ -254,7 +254,7 @@ export default function AdminTorneoPage() {
                     key={seat.id}
                     className={`flex items-center gap-3 p-3 rounded-2xl ring-1 transition ${
                       gs.betting.toActId === seat.id
-                        ? "bg-emerald-500/10 ring-emerald-400/40"
+                        ? "bg-amber-500/8 ring-amber-400/40"
                         : seat.status === "folded"
                           ? "glass ring-white/5 opacity-50"
                           : seat.status === "out"
@@ -269,7 +269,7 @@ export default function AdminTorneoPage() {
                           {seat.name}
                         </span>
                         {gs.betting.toActId === seat.id && (
-                          <span className="text-[9px] uppercase tracking-widest text-emerald-300 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[9px] uppercase tracking-widest text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
                             Turno
                           </span>
                         )}
@@ -346,7 +346,7 @@ export default function AdminTorneoPage() {
                       key={i}
                       className={`border-b border-white/5 ${
                         i === currentLevelIdx
-                          ? "bg-emerald-500/10 text-zinc-100"
+                          ? "bg-amber-500/8 text-zinc-100"
                           : i < currentLevelIdx
                             ? "opacity-40"
                             : ""
@@ -398,7 +398,7 @@ export default function AdminTorneoPage() {
                   {i === 0 && (
                     <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                   )}
-                  <span className="tabular-nums font-medium text-emerald-300">
+                  <span className="tabular-nums font-medium text-amber-300">
                     {formatChips(seat.chips)}
                   </span>
                 </li>

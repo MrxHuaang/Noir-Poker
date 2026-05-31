@@ -25,12 +25,12 @@ export function AllInVoteChip({ gameState, selfUid, onClick }: Props) {
     <button
       type="button"
       onClick={onClick}
-      className="fixed top-1/2 right-3 -translate-y-1/2 z-[105] flex flex-col items-center gap-1 px-3 py-2.5 rounded-2xl bg-zinc-900/95 backdrop-blur-xl ring-2 ring-emerald-400/40 shadow-[0_12px_40px_-12px_rgba(52,211,153,0.6)] hover:ring-emerald-300/70 transition btn-press animate-in slide-in-from-right-4 fade-in duration-200"
+      className="fixed top-1/2 right-3 -translate-y-1/2 z-[105] flex flex-col items-center gap-1 px-3 py-2.5 rounded-2xl bg-zinc-900/95 backdrop-blur-xl ring-2 ring-amber-400/40 shadow-[0_12px_40px_-12px_rgba(180,130,40,0.4)] hover:ring-amber-300/70 transition btn-press animate-in slide-in-from-right-4 fade-in duration-200"
       title="Votar número de runs"
     >
       <div className="flex items-center gap-1.5">
-        <Zap className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200">
+        <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-amber-200">
           All-in
         </span>
       </div>
@@ -42,7 +42,7 @@ export function AllInVoteChip({ gameState, selfUid, onClick }: Props) {
           : "Esperando votos"}
       </span>
       <div className="w-16 h-1 bg-zinc-800 rounded-full overflow-hidden mt-0.5">
-        <div className="h-full bg-emerald-400 transition-all" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-amber-400 transition-all" style={{ width: `${pct}%` }} />
       </div>
       <span className="text-[9px] tabular-nums text-zinc-500 leading-none">
         {totalVoted}/{total}
