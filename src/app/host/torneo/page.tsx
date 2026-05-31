@@ -43,7 +43,8 @@ import {
 } from "@/lib/tournament";
 import { randomSeed } from "@/lib/dicebear";
 import { TableShell } from "@/components/table/TableShell";
-import { HostDock } from "@/components/host/HostDock";
+import { OptionsMenu } from "@/components/settings/OptionsMenu";
+import { HostSettings } from "@/components/settings/HostSettings";
 import { HostNotifications } from "@/components/host/HostNotifications";
 import { TournamentHUD } from "@/components/host/TournamentHUD";
 import { ChatPanel } from "@/components/chat/ChatPanel";
@@ -82,7 +83,7 @@ export default function HostTorneoPage() {
   const [code, setCode] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
-  const [dockOpen, setDockOpen] = useState(true);
+  const [dockOpen, setDockOpen] = useState(false);
   const [tournament, setTournament] = useState<TournamentState>(
     initTournamentState(),
   );
@@ -238,7 +239,7 @@ export default function HostTorneoPage() {
               type="button"
               disabled={!canDeal || isProcessing}
               onClick={handleStartTournament}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 text-emerald-950 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-emerald-500/30 btn-press animate-in zoom-in fade-in duration-500"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-amber-700 hover:bg-amber-600 disabled:opacity-30 text-amber-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-amber-700/25 btn-press animate-in zoom-in fade-in duration-500"
             >
               <Play className="w-5 h-5 fill-current" /> Iniciar torneo
             </button>
@@ -297,28 +298,17 @@ export default function HostTorneoPage() {
         roomBg={roomBg}
         presenceMap={presenceMap}
         topLeft={
-          <HostDock
-            code={code}
-            joinUrl={joinUrl}
-            open={dockOpen}
-            onOpen={() => setDockOpen(true)}
-            onClose={() => setDockOpen(false)}
-            config={config}
-            onConfigChange={updateConfig}
-            theme={theme}
-            cardBack={cardBack}
-            cardFace={cardFace}
-            roomBg={roomBg}
-            lobby={lobby}
-            requests={requests}
-            gameSeats={gameState?.seats ?? null}
-            locked={room?.locked ?? false}
-            hostUid={room?.hostUid}
-            selfUid={uid}
-            history={history}
-            onAdjustChips={adjustPlayerChips}
-            onSetAllChips={setAllChips}
-            onKick={kickPlayer}
+          <OptionsMenu
+            name={myLobbyEntry?.name ?? "Host"}
+            seed={myLobbyEntry?.seed}
+            onOpenSettings={() => setDockOpen(true)}
+            onLeave={() => {
+              if (confirm("¿Salir del torneo? Los jugadores perderán el host.")) {
+                window.location.href = "/";
+              }
+            }}
+            leaveLabel="Salir del torneo"
+            badge={requests.filter((r) => r.status === "pending").length}
           />
         }
         topCenter={
@@ -368,6 +358,29 @@ export default function HostTorneoPage() {
         }
         centerOverlay={centerOverlay}
       />
+      {dockOpen && (
+        <HostSettings
+          code={code}
+          joinUrl={joinUrl}
+          onClose={() => setDockOpen(false)}
+          config={config}
+          onConfigChange={updateConfig}
+          theme={theme}
+          cardBack={cardBack}
+          cardFace={cardFace}
+          roomBg={roomBg}
+          lobby={lobby}
+          requests={requests}
+          gameSeats={gameState?.seats ?? null}
+          locked={room?.locked ?? false}
+          hostUid={room?.hostUid}
+          selfUid={uid}
+          history={history}
+          onAdjustChips={adjustPlayerChips}
+          onSetAllChips={setAllChips}
+          onKick={kickPlayer}
+        />
+      )}
       <HostNotifications
         requests={requests}
         gameState={gameState}

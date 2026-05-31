@@ -7,9 +7,7 @@ type Props = {
   onChange: (c: RoomConfig) => void;
   onClose: () => void;
   // Room identity (top-level room doc fields, not part of RoomConfig).
-  roomName?: string;
   maxPlayers?: number;
-  onRoomNameChange?: (name: string) => void;
   onMaxPlayersChange?: (n: number) => void;
 };
 
@@ -57,9 +55,7 @@ export function NormalConfigPanel({
   config,
   onChange,
   onClose,
-  roomName,
   maxPlayers,
-  onRoomNameChange,
   onMaxPlayersChange,
 }: Props) {
   function set(partial: Partial<RoomConfig>) {
@@ -89,33 +85,15 @@ export function NormalConfigPanel({
         </button>
       </div>
 
-      {(onRoomNameChange || onMaxPlayersChange) && (
+      {onMaxPlayersChange && (
         <div className="flex flex-col gap-3 pb-4 border-b border-white/5">
-          {onRoomNameChange && (
-            <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-500">
-                Nombre de la sala
-              </span>
-              <input
-                type="text"
-                defaultValue={roomName ?? ""}
-                key={roomName}
-                maxLength={32}
-                placeholder="Mesa"
-                onBlur={(e) => onRoomNameChange(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-white/40"
-              />
-            </label>
-          )}
-          {onMaxPlayersChange && (
-            <NumberField
-              label="Jugadores máximos"
-              value={maxPlayers ?? 9}
-              min={2}
-              max={9}
-              onChange={onMaxPlayersChange}
-            />
-          )}
+          <NumberField
+            label="Jugadores máximos"
+            value={maxPlayers ?? 9}
+            min={2}
+            max={9}
+            onChange={onMaxPlayersChange}
+          />
         </div>
       )}
 

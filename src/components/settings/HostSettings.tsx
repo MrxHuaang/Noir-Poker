@@ -56,9 +56,7 @@ type Props = {
   onClose: () => void;
   config: RoomConfig;
   onConfigChange: (c: RoomConfig) => void;
-  roomName?: string;
   maxPlayers?: number;
-  onRoomNameChange?: (name: string) => void;
   onMaxPlayersChange?: (n: number) => void;
   theme: TableThemeId;
   cardBack: CardBackId;
@@ -233,9 +231,7 @@ export function HostSettings(props: Props) {
             config={config}
             onChange={props.onConfigChange}
             onClose={onClose}
-            roomName={props.roomName}
             maxPlayers={props.maxPlayers}
-            onRoomNameChange={props.onRoomNameChange}
             onMaxPlayersChange={props.onMaxPlayersChange}
           />
         ),

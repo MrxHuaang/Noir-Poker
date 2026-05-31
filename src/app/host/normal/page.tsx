@@ -24,7 +24,6 @@ import {
   lobbyToSeats,
   setHostHeartbeat,
   leaveQueue,
-  setNormalRoomName,
   setNormalRoomMaxPlayers,
 } from "@/lib/normalRooms";
 import { DEFAULT_CONFIG } from "@/lib/betting";
@@ -33,7 +32,8 @@ import type { TableThemeId, CardBackId } from "@/lib/themes";
 import type { Card } from "@/lib/poker";
 import { randomSeed } from "@/lib/dicebear";
 import { TableShell } from "@/components/table/TableShell";
-import { HostDock } from "@/components/host/HostDock";
+import { OptionsMenu } from "@/components/settings/OptionsMenu";
+import { HostSettings } from "@/components/settings/HostSettings";
 import { HostNotifications } from "@/components/host/HostNotifications";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
@@ -58,7 +58,7 @@ export default function HostNormalPage() {
   const { uid, loading } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
-  const [dockOpen, setDockOpen] = useState(true);
+  const [dockOpen, setDockOpen] = useState(false);
 
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
@@ -226,7 +226,7 @@ export default function HostNormalPage() {
                 startNewHand();
                 setDockOpen(false);
               }}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 text-emerald-950 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-emerald-500/30 btn-press animate-in zoom-in fade-in duration-500"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-amber-700 hover:bg-amber-600 disabled:opacity-30 text-amber-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-amber-700/25 btn-press animate-in zoom-in fade-in duration-500"
             >
               <Play className="w-5 h-5 fill-current" /> Repartir
             </button>
@@ -289,36 +289,19 @@ export default function HostNormalPage() {
         amSittingOut={myLobbyEntry?.sittingOut === true}
         presenceMap={presenceMap}
         topLeft={
-          <HostDock
-            code={code}
-            joinUrl={joinUrl}
-            open={dockOpen}
-            onOpen={() => setDockOpen(true)}
-            onClose={() => setDockOpen(false)}
-            config={config}
-            onConfigChange={updateConfig}
-            roomName={room?.roomName}
-            maxPlayers={room?.maxPlayers}
-            onRoomNameChange={(name) => {
-              if (code) setNormalRoomName(code, name).catch(() => {});
+          <OptionsMenu
+            name={myLobbyEntry?.name ?? "Host"}
+            seed={myLobbyEntry?.seed}
+            onOpenSettings={() => setDockOpen(true)}
+            away={myLobbyEntry?.sittingOut === true}
+            onToggleAway={myLobbyEntry ? handleToggleAway : undefined}
+            onLeave={() => {
+              if (confirm("¿Salir de la sala? Los jugadores perderán el host.")) {
+                window.location.href = "/";
+              }
             }}
-            onMaxPlayersChange={(n) => {
-              if (code) setNormalRoomMaxPlayers(code, n).catch(() => {});
-            }}
-            theme={theme}
-            cardBack={cardBack}
-            cardFace={cardFace}
-            roomBg={roomBg}
-            lobby={lobby}
-            requests={requests}
-            gameSeats={gameState?.seats ?? null}
-            locked={room?.locked ?? false}
-            hostUid={room?.hostUid}
-            selfUid={uid}
-            history={history}
-            onAdjustChips={adjustPlayerChips}
-            onSetAllChips={setAllChips}
-            onKick={kickPlayer}
+            leaveLabel="Salir de la sala"
+            badge={requests.filter((r) => r.status === "pending").length}
           />
         }
         bottomLeft={
@@ -362,6 +345,33 @@ export default function HostNormalPage() {
         }
         centerOverlay={centerOverlay}
       />
+      {dockOpen && (
+        <HostSettings
+          code={code}
+          joinUrl={joinUrl}
+          onClose={() => setDockOpen(false)}
+          config={config}
+          onConfigChange={updateConfig}
+          maxPlayers={room?.maxPlayers}
+          onMaxPlayersChange={(n) => {
+            if (code) setNormalRoomMaxPlayers(code, n).catch(() => {});
+          }}
+          theme={theme}
+          cardBack={cardBack}
+          cardFace={cardFace}
+          roomBg={roomBg}
+          lobby={lobby}
+          requests={requests}
+          gameSeats={gameState?.seats ?? null}
+          locked={room?.locked ?? false}
+          hostUid={room?.hostUid}
+          selfUid={uid}
+          history={history}
+          onAdjustChips={adjustPlayerChips}
+          onSetAllChips={setAllChips}
+          onKick={kickPlayer}
+        />
+      )}
       <HostNotifications
         requests={requests}
         gameState={gameState}
