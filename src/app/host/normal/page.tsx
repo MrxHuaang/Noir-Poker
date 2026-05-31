@@ -22,6 +22,7 @@ import {
   patchNormalRoom,
   patchLobbyPlayer,
   lobbyToSeats,
+  setHostHeartbeat,
 } from "@/lib/normalRooms";
 import { DEFAULT_CONFIG } from "@/lib/betting";
 import type { BettingAction, BettingRound, NormalSeat, RoomConfig } from "@/lib/betting";
@@ -98,12 +99,29 @@ export default function HostNormalPage() {
       .finally(() => { creatingRef.current = false; });
   }, [loading, uid, code]);
 
+  // Lobby liveness: while the host tab is open, refresh the heartbeat so the
+  // room stays listed. When the tab closes the heartbeat goes stale and the
+  // lobby drops the room (rooms exist only while the host is present).
+  useEffect(() => {
+    if (!code || !uid || room?.hostUid !== uid) return;
+    setHostHeartbeat(code).catch(() => {});
+    const id = setInterval(() => setHostHeartbeat(code).catch(() => {}), 15000);
+    return () => clearInterval(id);
+  }, [code, uid, room?.hostUid]);
+
+  // Mirror the lobby size onto the room doc so the lobby list can show
+  // occupancy (N/max) without reading every room's lobby subcollection.
+  useEffect(() => {
+    if (!code || !uid || room?.hostUid !== uid) return;
+    patchNormalRoom(code, { playerCount: lobby.length }).catch(() => {});
+  }, [code, uid, room?.hostUid, lobby.length]);
+
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(() => gameState?.seats.find((s) => s.id === uid) ?? null, [gameState, uid]);
   const isMyTurn = !!(gameState && gameState.betting.toActId === uid);
 
   const config: RoomConfig = room?.config ?? DEFAULT_CONFIG;
-  const theme: TableThemeId = (room?.theme as TableThemeId) ?? "emerald";
+  const theme: TableThemeId = (room?.theme as TableThemeId) ?? "noir";
   const cardBack: CardBackId = (room?.cardBack as CardBackId) ?? "classic-blue";
   const cardFace = (room?.cardFace as never) ?? "classic";
   const roomBg = room?.roomBg ?? "onyx";
