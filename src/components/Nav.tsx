@@ -152,7 +152,7 @@ export function Nav() {
           >
             <div className="min-h-0 overflow-hidden rounded-[inherit] px-2 py-1.5 sm:px-3 sm:py-2">
               <PillNav
-                logo="/logonav.png"
+                logo="/logonav.svg"
                 logoAlt="Noir Poker"
                 logoHref="/"
                 items={navItems}

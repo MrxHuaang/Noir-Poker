@@ -116,7 +116,7 @@ export function PillNav({
                 alt={logoAlt}
                 ref={logoImgRef}
                 className="block object-contain"
-                style={{ height: "44px", width: "180px", objectFit: "cover", objectPosition: "center", mixBlendMode: "screen" }}
+                style={{ height: "28px", width: "auto" }}
               />
             </Link>
           ) : (
@@ -132,7 +132,7 @@ export function PillNav({
                 alt={logoAlt}
                 ref={logoImgRef}
                 className="block object-contain"
-                style={{ height: "44px", width: "180px", objectFit: "cover", objectPosition: "center", mixBlendMode: "screen" }}
+                style={{ height: "28px", width: "auto" }}
               />
             </a>
           )}
