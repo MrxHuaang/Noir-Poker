@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
-import { Clock, LogOut, Trophy, X as CloseIcon, Menu } from "lucide-react";
+import { Clock, LogOut, Trophy, X as CloseIcon, Menu, Eye, Hourglass, Users } from "lucide-react";
 
 // Importar con ssr:false porque VoicePanel usa navigator.mediaDevices,
 // RTCPeerConnection y AudioContext que no existen en Node.
@@ -12,7 +12,7 @@ const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
 import { useAuth } from "@/hooks/useAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { usePresenceMap } from "@/hooks/usePresenceMap";
-import { useNormalRoom, useNormalLobby, useNormalHole } from "@/hooks/useNormalRoom";
+import { useNormalRoom, useNormalLobby, useNormalHole, useQueue } from "@/hooks/useNormalRoom";
 import { useChat } from "@/hooks/useChat";
 import { useReactions } from "@/hooks/useReactions";
 import { ReactionBar } from "@/components/reactions/ReactionBar";
@@ -26,6 +26,10 @@ import {
   postPlayerVote,
   lobbyToSeats,
   kickFromLobby,
+  joinQueue,
+  leaveQueue,
+  joinSpectators,
+  leaveSpectators,
 } from "@/lib/normalRooms";
 import {
   submitStackRequest,
@@ -81,6 +85,17 @@ export default function PlayNormalPage() {
   const hole = useNormalHole(code, uid);
   const chatMessages = useChat(code);
   const reactions = useReactions(code);
+  const { position: queuePos } = useQueue(code, uid);
+  const [spectating, setSpectating] = useState(false);
+
+  // Register/unregister spectator presence while watching.
+  useEffect(() => {
+    if (!code || !uid || !spectating) return;
+    joinSpectators(code, uid, "Espectador", mySeedRef.current).catch(() => {});
+    return () => {
+      leaveSpectators(code, uid).catch(() => {});
+    };
+  }, [code, uid, spectating]);
 
   useEffect(() => {
     if (!code || !uid) return;
@@ -105,6 +120,8 @@ export default function PlayNormalPage() {
   const locked = room?.locked ?? false;
 
   const inLobby = uid ? lobby.some((p) => p.uid === uid) : false;
+  const maxPlayers = room?.maxPlayers ?? 9;
+  const roomFull = lobby.length >= maxPlayers;
   const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
   const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
   const result = room?.result ?? null;
@@ -205,11 +222,17 @@ export default function PlayNormalPage() {
 
   async function handleLeave() {
     if (!uid || !code) return;
+    if (spectating) {
+      await leaveSpectators(code, uid).catch(() => {});
+      setSpectating(false);
+      router.push("/lobby");
+      return;
+    }
     if (!confirm("¿Salir de la sala? Perderás tu lugar en esta mano.")) return;
     try {
       await kickFromLobby(code, uid);
     } catch { /* ignore */ }
-    router.push("/join");
+    router.push("/lobby");
   }
 
   if (loading || room === undefined) {
@@ -234,7 +257,7 @@ export default function PlayNormalPage() {
     );
   }
 
-  if (!inLobby) {
+  if (!inLobby && !spectating) {
     return (
       <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-4">
         {myRequest?.status === "pending" ? (
@@ -310,6 +333,20 @@ export default function PlayNormalPage() {
               Intentar de nuevo
             </button>
           </div>
+        ) : roomFull ? (
+          <FullRoomPanel
+            code={code ?? ""}
+            playerCount={lobby.length}
+            maxPlayers={maxPlayers}
+            queuePos={queuePos}
+            onSpectate={() => setSpectating(true)}
+            onJoinQueue={(name) => {
+              if (uid && code) joinQueue(code, uid, name, mySeedRef.current).catch(() => {});
+            }}
+            onLeaveQueue={() => {
+              if (uid && code) leaveQueue(code, uid).catch(() => {});
+            }}
+          />
         ) : (
           <div className="fixed inset-0 bg-[#0b0b0b] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             <JoinWithStack
@@ -389,7 +426,7 @@ export default function PlayNormalPage() {
 
   const centerOverlay = (
     <>
-      {!gs && (
+      {!gs && inLobby && (
         <div className="flex flex-col items-center gap-4 px-4 py-5 rounded-2xl bg-zinc-900/90 backdrop-blur-md ring-1 ring-white/10 shadow-2xl">
           <SeatPicker
             myUid={uid ?? ""}
@@ -455,7 +492,8 @@ export default function PlayNormalPage() {
         theme={theme}
         roomCode={code ?? undefined}
         selfUid={uid}
-        ownHole={hole?.cards ?? null}
+        ownHole={inLobby ? (hole?.cards ?? null) : null}
+        isSpectator={!inLobby && spectating}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={(room?.cardBack as never) ?? "classic-blue"}
         cardFace={(room?.cardFace as never) ?? "classic"}
@@ -487,21 +525,23 @@ export default function PlayNormalPage() {
         }
         reactions={reactions}
         bottomRight={
-          <BettingDock
-            seat={mySeat}
-            name={myLobbyEntry?.name ?? mySeat?.name ?? ""}
-            seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
-            betting={gs?.betting ?? null}
-            holeCards={hole?.cards ?? null}
-            community={gs?.community ?? []}
-            isMyTurn={isMyTurn}
-            turnTimeMs={config?.turnTime ?? 30_000}
-            hasResult={!!result}
-            onAction={handleAction}
-            extra={playerExtra}
-            useTimeBank={myUseTimeBank}
-            onToggleTimeBank={handleToggleTimeBank}
-          />
+          inLobby ? (
+            <BettingDock
+              seat={mySeat}
+              name={myLobbyEntry?.name ?? mySeat?.name ?? ""}
+              seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
+              betting={gs?.betting ?? null}
+              holeCards={hole?.cards ?? null}
+              community={gs?.community ?? []}
+              isMyTurn={isMyTurn}
+              turnTimeMs={config?.turnTime ?? 30_000}
+              hasResult={!!result}
+              onAction={handleAction}
+              extra={playerExtra}
+              useTimeBank={myUseTimeBank}
+              onToggleTimeBank={handleToggleTimeBank}
+            />
+          ) : null
         }
         centerOverlay={centerOverlay}
       />
@@ -528,7 +568,7 @@ export default function PlayNormalPage() {
                   {myLobbyEntry?.sittingOut ? "Sentado fuera" : "Activo"}
                 </p>
               </div>
-              {!isOut && (
+              {!isOut && myLobbyEntry && (
                 <button
                   type="button"
                   onClick={handleToggleSitOut}
@@ -567,11 +607,102 @@ export default function PlayNormalPage() {
               className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 ring-1 ring-rose-400/20 text-rose-300 text-sm font-bold transition btn-press"
             >
               <LogOut className="w-4 h-4" />
-              Salir de la sala
+              {spectating ? "Dejar de observar" : "Salir de la sala"}
             </button>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+// Shown when the room is full: spectate now, or take a numbered spot in the
+// wait queue (the host auto-seats the head when a seat frees).
+function FullRoomPanel({
+  code,
+  playerCount,
+  maxPlayers,
+  queuePos,
+  onSpectate,
+  onJoinQueue,
+  onLeaveQueue,
+}: {
+  code: string;
+  playerCount: number;
+  maxPlayers: number;
+  queuePos: number;
+  onSpectate: () => void;
+  onJoinQueue: (name: string) => void;
+  onLeaveQueue: () => void;
+}) {
+  const [name, setName] = useState("");
+  const queued = queuePos > 0;
+  return (
+    <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-6 animate-in fade-in duration-500">
+      <div className="w-full max-w-sm flex flex-col gap-6 text-center">
+        {code && (
+          <div className="mx-auto px-4 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">
+            Sala {code}
+          </div>
+        )}
+
+        <div className="flex flex-col items-center gap-2">
+          <div className="p-3 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 text-zinc-300">
+            <Users className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-zinc-50">Sala llena</h2>
+          <p className="text-sm text-zinc-500 tabular-nums">
+            {playerCount}/{maxPlayers} jugadores
+          </p>
+        </div>
+
+        {queued ? (
+          <div className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
+            <Hourglass className="w-5 h-5 text-zinc-300 animate-pulse" />
+            <p className="text-sm text-zinc-300">
+              Estás en el puesto{" "}
+              <span className="text-zinc-50 font-black text-lg">#{queuePos}</span>
+            </p>
+            <p className="text-[11px] text-zinc-500">
+              Te sentaremos automáticamente cuando se libere un asiento.
+            </p>
+            <button
+              type="button"
+              onClick={onLeaveQueue}
+              className="mt-1 text-[11px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-200 transition"
+            >
+              Salir de la fila
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, 20))}
+              placeholder="Tu nombre"
+              className="w-full px-4 py-3 rounded-xl bg-white/[0.04] ring-1 ring-white/10 focus:ring-white/40 outline-none text-zinc-100 placeholder:text-zinc-600 text-center transition"
+            />
+            <button
+              type="button"
+              disabled={!name.trim()}
+              onClick={() => onJoinQueue(name.trim())}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 disabled:opacity-40 transition btn-press"
+            >
+              <Hourglass className="w-4 h-4" />
+              Hacer fila
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onSpectate}
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/[0.05] hover:bg-white/[0.1] ring-1 ring-white/10 text-zinc-200 font-bold text-sm uppercase tracking-widest transition btn-press"
+        >
+          <Eye className="w-4 h-4" />
+          Observar la mesa
+        </button>
+      </div>
+    </div>
   );
 }
