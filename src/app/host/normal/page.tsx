@@ -8,7 +8,7 @@ const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
   ssr: false,
 });
 import { usePresenceMap } from "@/hooks/usePresenceMap";
-import { useNormalLobby, useNormalRoom, useStackRequests } from "@/hooks/useNormalRoom";
+import { useNormalLobby, useNormalRoom, useStackRequests, useQueue } from "@/hooks/useNormalRoom";
 import { useNormalHole } from "@/hooks/useNormalRoom";
 import { useNormalGame } from "@/hooks/useNormalGame";
 import { useChat } from "@/hooks/useChat";
@@ -23,6 +23,7 @@ import {
   patchLobbyPlayer,
   lobbyToSeats,
   setHostHeartbeat,
+  leaveQueue,
 } from "@/lib/normalRooms";
 import { DEFAULT_CONFIG } from "@/lib/betting";
 import type { BettingAction, BettingRound, NormalSeat, RoomConfig } from "@/lib/betting";
@@ -60,6 +61,7 @@ export default function HostNormalPage() {
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
   const requests = useStackRequests(code);
+  const { queue } = useQueue(code, uid);
   const presenceMap = usePresenceMap(code);
   const hole = useNormalHole(code, uid);
   const chatMessages = useChat(code);
@@ -115,6 +117,21 @@ export default function HostNormalPage() {
     if (!code || !uid || room?.hostUid !== uid) return;
     patchNormalRoom(code, { playerCount: lobby.length }).catch(() => {});
   }, [code, uid, room?.hostUid, lobby.length]);
+
+  // Auto-seat the head of the wait queue whenever a seat is free. Seats added
+  // here are dealt in on the next hand (startNewHand merges new lobby members).
+  // TODO(roadmap): 30s accept countdown before promoting, instead of auto-seat.
+  useEffect(() => {
+    if (!code || !uid || room?.hostUid !== uid) return;
+    const max = room?.maxPlayers ?? 9;
+    if (lobby.length >= max || queue.length === 0) return;
+    const head = queue[0];
+    if (lobby.some((p) => p.uid === head.uid)) return; // already seated
+    const stack = room?.config?.startingStack ?? 1000;
+    approveJoin(code, head.uid, head.name, head.seed, stack)
+      .then(() => leaveQueue(code, head.uid))
+      .catch(() => {});
+  }, [code, uid, room?.hostUid, room?.maxPlayers, room?.config?.startingStack, lobby, queue]);
 
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(() => gameState?.seats.find((s) => s.id === uid) ?? null, [gameState, uid]);
