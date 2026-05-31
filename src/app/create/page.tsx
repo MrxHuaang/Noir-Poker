@@ -2,7 +2,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Globe, Lock, Loader2, Spade, ArrowRight } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import {
+  ArrowLeft,
+  Globe,
+  Lock,
+  Loader2,
+  Spade,
+  ArrowRight,
+  Copy,
+  Check,
+  Share2,
+  Link2,
+  LayoutGrid,
+} from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { useAuth } from "@/hooks/useAuth";
 import { createNormalRoom } from "@/lib/normalRooms";
@@ -19,6 +32,31 @@ export default function CreateRoom() {
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const joinUrl =
+    code && typeof window !== "undefined"
+      ? `${window.location.origin}/play/normal/${code}`
+      : "";
+
+  function copy(text: string, mark: (v: boolean) => void) {
+    if (!text) return;
+    navigator.clipboard?.writeText(text).then(() => {
+      mark(true);
+      setTimeout(() => mark(false), 1500);
+    });
+  }
+
+  const canShare =
+    typeof navigator !== "undefined" && "share" in navigator;
+
+  function share() {
+    if (!canShare || !joinUrl) return;
+    navigator
+      .share({ title: "Noir — mesa de poker", text: `Únete a mi mesa (${code})`, url: joinUrl })
+      .catch(() => {});
+  }
 
   async function handleCreate() {
     if (!uid || creating) return;
@@ -71,18 +109,71 @@ export default function CreateRoom() {
           fillOpacity={0.42}
           animated
         >
-          <div className="flex flex-col items-center gap-5 p-8 text-center">
+          <div className="flex flex-col items-center gap-5 p-7 text-center">
             <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold">
               {isPublic ? "Mesa pública creada" : "Mesa privada creada"}
             </span>
-            <span className="text-5xl font-mono font-black tracking-[0.25em] text-zinc-50">
-              {code}
-            </span>
-            <p className="text-xs text-zinc-500">
+
+            {/* QR */}
+            {joinUrl && (
+              <div className="p-3 bg-white rounded-2xl">
+                <QRCodeSVG value={joinUrl} size={150} />
+              </div>
+            )}
+
+            {/* Code — click to copy */}
+            <button
+              type="button"
+              onClick={() => copy(code!, setCopied)}
+              title="Copiar código"
+              className="flex items-center gap-2 hover:opacity-80 transition"
+            >
+              <span className="text-5xl font-mono font-black tracking-[0.25em] text-zinc-50">
+                {code}
+              </span>
+              {copied ? (
+                <Check className="w-5 h-5 text-zinc-300" />
+              ) : (
+                <Copy className="w-5 h-5 text-zinc-600" />
+              )}
+            </button>
+
+            <p className="text-xs text-zinc-500 -mt-1">
               {isPublic
-                ? "Ya aparece en el lobby. Comparte el código o el QR."
-                : "Comparte este código: solo con él pueden entrar."}
+                ? "Ya aparece en el lobby. Comparte el código, el enlace o el QR."
+                : "Sala privada: solo con el código o el enlace pueden entrar."}
             </p>
+
+            {/* Share row */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => copy(code!, setCopied)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                Código
+              </button>
+              <button
+                type="button"
+                onClick={() => copy(joinUrl, setCopiedLink)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+              >
+                {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Link2 className="w-3.5 h-3.5" />}
+                Enlace
+              </button>
+              {canShare && (
+                <button
+                  type="button"
+                  onClick={share}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  Compartir
+                </button>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={() => router.push(`/host/normal?code=${code}`)}
@@ -91,6 +182,14 @@ export default function CreateRoom() {
               Entrar a la mesa
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            <Link
+              href="/lobby"
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Volver al lobby
+            </Link>
           </div>
         </BorderGlow>
       ) : (
