@@ -5,10 +5,12 @@ import {
   subscribeNormalLobby,
   subscribeNormalHole,
   subscribeOpenRooms,
+  subscribeQueue,
   ROOM_LIVE_WINDOW_MS,
   type NormalRoomDoc,
   type NormalLobbyPlayer,
   type OpenRoomSummary,
+  type QueueEntry,
 } from "@/lib/normalRooms";
 import {
   subscribeStackRequests,
@@ -106,6 +108,24 @@ export function useOpenRooms(
   }, [enabled]);
   const rooms = all.filter((r) => now - r.hostHeartbeat < ROOM_LIVE_WINDOW_MS);
   return { rooms, ready };
+}
+
+// Wait queue for a room. `position` is the caller's 1-based spot, or 0 if not
+// queued. The host uses `queue` to auto-seat the head when a seat frees.
+export function useQueue(
+  code: string | null,
+  uid: string | null,
+): { queue: QueueEntry[]; position: number } {
+  const [queue, setQueue] = useState<QueueEntry[]>([]);
+  useEffect(() => {
+    if (!code) {
+      setQueue([]);
+      return;
+    }
+    return subscribeQueue(code, setQueue);
+  }, [code]);
+  const idx = uid ? queue.findIndex((q) => q.uid === uid) : -1;
+  return { queue, position: idx < 0 ? 0 : idx + 1 };
 }
 
 export function useStackRequests(code: string | null): StackRequest[] {
