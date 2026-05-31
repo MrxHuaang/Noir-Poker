@@ -24,6 +24,8 @@ import {
   lobbyToSeats,
   setHostHeartbeat,
   leaveQueue,
+  setNormalRoomName,
+  setNormalRoomMaxPlayers,
 } from "@/lib/normalRooms";
 import { DEFAULT_CONFIG } from "@/lib/betting";
 import type { BettingAction, BettingRound, NormalSeat, RoomConfig } from "@/lib/betting";
@@ -295,6 +297,14 @@ export default function HostNormalPage() {
             onClose={() => setDockOpen(false)}
             config={config}
             onConfigChange={updateConfig}
+            roomName={room?.roomName}
+            maxPlayers={room?.maxPlayers}
+            onRoomNameChange={(name) => {
+              if (code) setNormalRoomName(code, name).catch(() => {});
+            }}
+            onMaxPlayersChange={(n) => {
+              if (code) setNormalRoomMaxPlayers(code, n).catch(() => {});
+            }}
             theme={theme}
             cardBack={cardBack}
             cardFace={cardFace}

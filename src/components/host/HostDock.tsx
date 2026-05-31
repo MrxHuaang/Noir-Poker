@@ -77,6 +77,10 @@ type Props = {
 
   config: RoomConfig;
   onConfigChange: (c: RoomConfig) => void;
+  roomName?: string;
+  maxPlayers?: number;
+  onRoomNameChange?: (name: string) => void;
+  onMaxPlayersChange?: (n: number) => void;
 
   theme: TableThemeId;
   cardBack: CardBackId;
@@ -104,6 +108,10 @@ export function HostDock({
   initialTab = "sala",
   config,
   onConfigChange,
+  roomName,
+  maxPlayers,
+  onRoomNameChange,
+  onMaxPlayersChange,
   theme,
   cardBack,
   cardFace = "classic",
@@ -258,6 +266,10 @@ export function HostDock({
                 config={config}
                 onChange={onConfigChange}
                 onClose={() => setTab("sala")}
+                roomName={roomName}
+                maxPlayers={maxPlayers}
+                onRoomNameChange={onRoomNameChange}
+                onMaxPlayersChange={onMaxPlayersChange}
               />
             )}
           </div>
