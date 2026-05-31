@@ -21,9 +21,9 @@ export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
     label: "Noir",
     feltGradient:
       "radial-gradient(ellipse at center, #1c1c20 0%, #0e0e11 55%, #050506 100%)",
-    ringColor: "rgba(224,177,94,0.18)",
-    accent: "#e0b15e",
-    accentSoft: "rgba(224,177,94,0.12)",
+    ringColor: "rgba(255,255,255,0.16)",
+    accent: "#ededf2",
+    accentSoft: "rgba(255,255,255,0.10)",
   },
   emerald: {
     id: "emerald",
@@ -137,8 +137,8 @@ export const CARD_BACKS: Record<CardBackId, CardBack> = {
     background:
       "linear-gradient(135deg,#1c1c20 0%,#0e0e11 60%,#050506 100%)",
     pattern:
-      "radial-gradient(circle at center, rgba(224,177,94,0.20) 0%, transparent 60%)",
-    centerColor: "#e0b15e",
+      "radial-gradient(circle at center, rgba(255,255,255,0.18) 0%, transparent 60%)",
+    centerColor: "#ededf2",
   },
 };
 
@@ -178,7 +178,7 @@ export const CARD_FACES: Record<CardFaceId, CardFace> = {
   noir: {
     id: "noir",
     label: "Noir",
-    description: "Estilo de marca negro-ámbar",
+    description: "Estilo de marca blanco y negro",
   },
 };
 

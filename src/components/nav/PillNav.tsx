@@ -91,10 +91,10 @@ export function PillNav({
     "bg-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:bg-white/[0.09] hover:text-zinc-100 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] active:scale-[0.98]";
 
   const pillActive =
-    "border border-emerald-400/35 bg-emerald-500/[0.12] text-emerald-100 shadow-[inset_0_1px_0_rgba(52,211,153,0.14)]";
+    "border border-white/25 bg-white/[0.12] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]";
 
   const pillFocus =
-    "focus-visible:border-emerald-400/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/40";
+    "focus-visible:border-white/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/40";
 
   return (
     <div className={`relative w-full ${className}`}>
@@ -109,7 +109,7 @@ export function PillNav({
               aria-label={logoAlt}
               onMouseEnter={handleLogoEnter}
               ref={logoRef}
-              className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.06] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-[background-color,transform] duration-300 ease-out outline-none hover:bg-white/[0.1] active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/40"
+              className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.06] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-[background-color,transform] duration-300 ease-out outline-none hover:bg-white/[0.1] active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/40"
               style={{
                 width: "42px",
                 height: "42px",
@@ -128,7 +128,7 @@ export function PillNav({
               aria-label={logoAlt}
               onMouseEnter={handleLogoEnter}
               ref={logoRef}
-              className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.06] p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/40"
+              className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.06] p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/40"
               style={{
                 width: "42px",
                 height: "42px",
@@ -212,7 +212,7 @@ export function PillNav({
           onClick={toggleMobileMenu}
           aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={isMobileMenuOpen}
-          className="relative flex shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.06] p-0 outline-none transition-[background-color] duration-300 ease-out hover:bg-white/[0.1] md:hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400/40"
+          className="relative flex shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.06] p-0 outline-none transition-[background-color] duration-300 ease-out hover:bg-white/[0.1] md:hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/40"
           style={{
             width: "42px",
             height: "42px",

@@ -43,11 +43,11 @@ export function Logo({ size = 28, className = "", withText = false }: Props) {
         />
         <path
           d="M11 30.5c4.2-2.4 7.4 2.2 11.6.2 4.2-2 7.2 1.8 9.4.2"
-          stroke="#e0b15e"
+          stroke="#8a8a93"
           strokeWidth="2.1"
           fill="none"
           strokeLinecap="round"
-          opacity="0.9"
+          opacity="0.95"
         />
       </svg>
       {withText ? (

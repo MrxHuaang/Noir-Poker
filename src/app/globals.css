@@ -6,10 +6,10 @@
   --surface: rgba(255, 255, 255, 0.03);
   --surface-strong: rgba(255, 255, 255, 0.06);
   --border-soft: rgba(255, 255, 255, 0.08);
-  /* Noir brand accent — warm amber spotlight + crimson on near-black. */
-  --accent: #e0b15e;
-  --accent-soft: rgba(224, 177, 94, 0.14);
-  --accent-2: #c2415a;
+  /* Noir brand accent — monochrome platinum + steel silver on near-black. */
+  --accent: #ededf2;
+  --accent-soft: rgba(237, 237, 242, 0.12);
+  --accent-2: #8a8a93;
 }
 
 /* stylelint-disable-next-line at-rule-no-unknown */
@@ -42,12 +42,12 @@ body {
   background-image:
     radial-gradient(
       ellipse at 80% -10%,
-      rgba(224, 177, 94, 0.08) 0%,
+      rgba(255, 255, 255, 0.06) 0%,
       transparent 50%
     ),
     radial-gradient(
       ellipse at 0% 110%,
-      rgba(194, 65, 90, 0.05) 0%,
+      rgba(255, 255, 255, 0.035) 0%,
       transparent 50%
     );
   background-attachment: fixed;
@@ -101,15 +101,15 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(224, 177, 94, 0.22);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(224, 177, 94, 0.42);
+  background: rgba(255, 255, 255, 0.34);
 }
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(224, 177, 94, 0.22) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
 /* Custom scrollbar (kept for explicit opt-in) */
@@ -121,11 +121,11 @@ body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.20);
+  background: rgba(139, 92, 246, 0.2);
   border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.40);
+  background: rgba(139, 92, 246, 0.4);
 }
 
 .elevate {

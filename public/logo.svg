@@ -12,6 +12,6 @@
   <rect width="48" height="48" rx="12" fill="url(#lnr-bg)"/>
   <rect x="0.75" y="0.75" width="46.5" height="46.5" rx="11.25" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1.5"/>
   <path d="M24 9.5s-11 8.4-11 16.2c0 4.2 3.2 6.6 6.6 5.9-.6 2.9-2.3 4.7-4.1 5.9h17c-1.8-1.2-3.5-3-4.1-5.9 3.4.7 6.6-1.7 6.6-5.9C35 17.9 24 9.5 24 9.5Z" fill="url(#lnr-mk)"/>
-  <path d="M11 30.5c4.2-2.4 7.4 2.2 11.6.2 4.2-2 7.2 1.8 9.4.2" stroke="#e0b15e" stroke-width="2.1" fill="none" stroke-linecap="round" opacity="0.9"/>
+  <path d="M11 30.5c4.2-2.4 7.4 2.2 11.6.2 4.2-2 7.2 1.8 9.4.2" stroke="#8a8a93" stroke-width="2.1" fill="none" stroke-linecap="round" opacity="0.95"/>
   <text x="60" y="32" font-size="23" font-weight="600" fill="#f4f4f5" font-family="ui-sans-serif,system-ui" letter-spacing="0.5">Noir</text>
 </svg>
