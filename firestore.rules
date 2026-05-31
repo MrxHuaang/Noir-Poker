@@ -148,6 +148,23 @@ service cloud.firestore {
           && request.resource.data.online is bool;
         allow delete: if isSignedIn() && request.auth.uid == uid;
       }
+
+      match /waitQueue/{uid} {
+        allow read: if isSignedIn();
+        // Players manage their own queue entry; the host can remove it (promote/clear).
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid;
+        allow delete: if isSignedIn() && (request.auth.uid == uid || isHost(code));
+      }
+
+      match /spectators/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid;
+        allow delete: if isSignedIn() && (request.auth.uid == uid || isHost(code));
+      }
     }
   }
 }
