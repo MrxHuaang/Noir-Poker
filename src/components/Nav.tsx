@@ -138,22 +138,22 @@ export function Nav() {
           <BorderGlow
             className="w-full !border-white/10"
             edgeSensitivity={20}
-            glowColor="152 52 48"
-            backgroundColor="rgba(10, 11, 16, 0.82)"
+            glowColor="38 70 60"
+            backgroundColor="rgba(7, 7, 8, 0.86)"
             borderRadius={999}
             glowRadius={22}
             glowIntensity={0.85}
             coneSpread={28}
             animated={false}
-            colors={["#34d399", "#6ee7b7", "#38bdf8", "#64748b"]}
+            colors={["#e0b15e", "#f0c98a", "#c2415a", "#64748b"]}
             fillOpacity={0.32}
           >
             <div className="min-h-0 overflow-hidden rounded-[inherit] px-2 py-1.5 sm:px-3 sm:py-2">
               <PillNav
                 logo="/logo.svg"
-                logoAlt="Showdown"
+                logoAlt="Noir"
                 logoHref="/"
-                brandTitle="Showdown"
+                brandTitle="Noir"
                 items={navItems}
                 activePath={path}
               />

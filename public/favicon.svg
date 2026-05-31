@@ -1,18 +1,16 @@
-<svg width="64" height="64" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Noir">
   <defs>
-    <linearGradient id="ga" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#34d399"/>
-      <stop offset="100%" stop-color="#0f3d2e"/>
+    <linearGradient id="nr-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#17171b"/>
+      <stop offset="100%" stop-color="#050506"/>
     </linearGradient>
-    <linearGradient id="gb" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0%" stop-color="#fbbf24"/>
-      <stop offset="100%" stop-color="#7c2d12"/>
+    <linearGradient id="nr-mk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6f6f8"/>
+      <stop offset="100%" stop-color="#c2c2cb"/>
     </linearGradient>
   </defs>
-  <rect width="48" height="48" rx="10" fill="#06070a"/>
-  <g transform="translate(24 24)">
-    <rect x="-11" y="-15" width="22" height="30" rx="3" transform="rotate(-18)" fill="url(#ga)" stroke="rgba(255,255,255,0.18)" stroke-width="1.2"/>
-    <rect x="-11" y="-15" width="22" height="30" rx="3" transform="rotate(18) translate(4 0)" fill="url(#gb)" stroke="rgba(255,255,255,0.2)" stroke-width="1.2"/>
-    <text x="3" y="2" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" fill="#fff7ed" transform="rotate(18)" font-family="ui-sans-serif,system-ui">A</text>
-  </g>
+  <rect width="48" height="48" rx="12" fill="url(#nr-bg)"/>
+  <rect x="0.75" y="0.75" width="46.5" height="46.5" rx="11.25" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1.5"/>
+  <path d="M24 9.5s-11 8.4-11 16.2c0 4.2 3.2 6.6 6.6 5.9-.6 2.9-2.3 4.7-4.1 5.9h17c-1.8-1.2-3.5-3-4.1-5.9 3.4.7 6.6-1.7 6.6-5.9C35 17.9 24 9.5 24 9.5Z" fill="url(#nr-mk)"/>
+  <path d="M11 30.5c4.2-2.4 7.4 2.2 11.6.2 4.2-2 7.2 1.8 9.4.2" stroke="#e0b15e" stroke-width="2.1" fill="none" stroke-linecap="round" opacity="0.9"/>
 </svg>

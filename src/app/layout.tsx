@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Showdown — Poker multi-dispositivo",
+  title: "Noir — Poker multi-dispositivo",
   description:
-    "Plataforma de Texas Hold'em multi-dispositivo. Modo presencial, sala normal y torneos.",
+    "Plataforma premium de Texas Hold'em multi-dispositivo. Mesas públicas y privadas, modo presencial, sala normal y torneos.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
