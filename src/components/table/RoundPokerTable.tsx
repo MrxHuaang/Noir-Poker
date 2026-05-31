@@ -459,11 +459,15 @@ export function RoundPokerTable({
         const bx = pos.x + (dx_center / dist) * betDist + (dy_center / dist) * betTangential;
         const by = pos.y + (dy_center / dist) * (betDist * 0.75) - (dx_center / dist) * betTangential;
 
-        // Dealer button position — moved more tangentially so it doesn't overlap cards
-        const dDist = 10;
-        const tangential = 7;
-        const dbx = pos.x + (dx_center / dist) * dDist + (dy_center / dist) * tangential;
-        const dby = pos.y + (dy_center / dist) * dDist - (dx_center / dist) * tangential;
+        // Dealer button position — pushed onto the felt at the same radial depth
+        // as the bet chips but mirrored to the OPPOSITE tangential side, so the
+        // button never sits over the seat info box (stack/name) nor over the bet
+        // chip stack. (Negating the tangential term flips it across the radial
+        // axis relative to the bet chips above.)
+        const dDist = 13;
+        const dTang = 10;
+        const dbx = pos.x + (dx_center / dist) * dDist - (dy_center / dist) * dTang;
+        const dby = pos.y + (dy_center / dist) * (dDist * 0.75) + (dx_center / dist) * dTang;
 
         const isDealt =
           (seat.status === "active" || seat.status === "all-in" || seat.status === "folded") &&
@@ -659,10 +663,10 @@ export function RoundPokerTable({
               </div>
             )}
 
-            {/* Dealer Button — z-50 */}
+            {/* Dealer Button — z-30 (above felt + bet chips, below the active seat) */}
             {isDealer && (
               <div
-                className="absolute z-50 animate-in fade-in duration-500"
+                className="absolute z-30 animate-in fade-in duration-500"
                 style={{ left: `${dbx}%`, top: `${dby}%`, transform: "translate(-50%, -50%)" }}
               >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white shadow-lg ring-2 ring-zinc-400 flex items-center justify-center">
