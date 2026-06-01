@@ -8,7 +8,6 @@ import {
   Globe,
   Lock,
   Loader2,
-  Spade,
   ArrowRight,
   Copy,
   Check,
@@ -270,13 +269,9 @@ export default function CreateRoom() {
             type="button"
             onClick={handleCreate}
             disabled={loading || !uid || creating}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 disabled:opacity-40 transition btn-press shadow-lg"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-100 disabled:opacity-40 transition btn-press shadow-[0_2px_24px_rgba(255,255,255,0.12)]"
           >
-            {creating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Spade className="w-4 h-4 fill-current" />
-            )}
+            {creating && <Loader2 className="w-4 h-4 animate-spin" />}
             {creating ? "Creando…" : "Crear mesa"}
           </button>
         </>
