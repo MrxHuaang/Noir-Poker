@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import {
   Tv,
   Coins,
@@ -15,11 +17,43 @@ import { PresencialTutorial } from "@/components/home/PresencialTutorial";
 
 export default function Home() {
   const [showTutorial, setShowTutorial] = useState(false);
+  const scope = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    // Hero: fade+slide up
+    gsap.from(".home-hero", {
+      opacity: 0,
+      y: 20,
+      duration: 0.55,
+      ease: "power3.out",
+      clearProps: "all",
+    });
+    // Mode cards: staggered entrance (40ms apart per skill recommendation)
+    gsap.from(".mode-card", {
+      opacity: 0,
+      y: 28,
+      duration: 0.5,
+      ease: "power3.out",
+      stagger: 0.08,
+      delay: 0.15,
+      clearProps: "all",
+    });
+    // Quick links: fade in after cards
+    gsap.from(".quick-link", {
+      opacity: 0,
+      y: 16,
+      duration: 0.4,
+      ease: "power3.out",
+      stagger: 0.06,
+      delay: 0.38,
+      clearProps: "all",
+    });
+  }, { scope, dependencies: [] });
 
   return (
-    <div className="relative isolate min-h-full w-full">
+    <div ref={scope} className="relative isolate min-h-full w-full">
       <div className="relative z-[2] w-full max-w-5xl mx-auto px-4 py-12 sm:py-16 flex flex-col items-center gap-12">
-        <header className="flex flex-col items-center gap-4 text-center">
+        <header className="home-hero flex flex-col items-center gap-4 text-center">
           <img
             src="/logo.png"
             alt="Noir Poker"
@@ -27,7 +61,7 @@ export default function Home() {
             className="object-contain select-none pointer-events-none"
             style={{ height: "180px", width: "auto", mixBlendMode: "screen" }}
           />
-          <p className="text-sm sm:text-base text-zinc-300 max-w-xl">
+          <p className="text-sm sm:text-base text-secondary max-w-xl">
             Texas Hold&apos;em multi-dispositivo. Mesas públicas y privadas,
             modo presencial, sala online con fichas o torneo administrado.
           </p>
@@ -38,6 +72,7 @@ export default function Home() {
             href="/host"
             icon={<Tv className="w-5 h-5" />}
             tier="one"
+            className="mode-card"
             title="Presencial"
             subtitle="Sin apuestas · Para mesa real"
             description="Host abre la mesa en pantalla grande. Cada jugador ve sus cartas privadas en su teléfono. La mesa reparte, avanza calles y resuelve el showdown automáticamente."
@@ -49,6 +84,7 @@ export default function Home() {
             href="/create"
             icon={<Coins className="w-5 h-5" />}
             tier="two"
+            className="mode-card"
             title="Online"
             subtitle="Apuestas virtuales · Lobby"
             description="Sala con fichas virtuales, ciegas y apuestas reales. Crea pública o privada, configura las reglas dentro de la sala y el lobby la lista en tiempo real."
@@ -59,6 +95,7 @@ export default function Home() {
             href="/host/torneo"
             icon={<Trophy className="w-5 h-5" />}
             tier="three"
+            className="mode-card"
             title="Torneo"
             subtitle="Ciegas escalonadas · Admin"
             description="Estructura con niveles de ciegas, antes y timer automático. El admin controla el torneo: pausa, avanza niveles y ve el ranking de eliminados en vivo."
@@ -73,12 +110,14 @@ export default function Home() {
             icon={<LayoutGrid className="w-4 h-4" />}
             title="Ver mesas abiertas"
             sub="Lobby de salas en vivo"
+            className="quick-link"
           />
           <QuickLink
             href="/join"
             icon={<KeyRound className="w-4 h-4" />}
             title="Unirme con código"
             sub="Tengo un código o QR"
+            className="quick-link"
           />
         </section>
 
@@ -123,6 +162,7 @@ function ModeCard({
   features,
   cta,
   onInfo,
+  className = "",
 }: {
   href: string;
   icon: React.ReactNode;
@@ -133,15 +173,16 @@ function ModeCard({
   features: string[];
   cta: string;
   onInfo?: () => void;
+  className?: string;
 }) {
   const t = TIERS[tier];
   return (
-    <Link href={href} className="group block h-full btn-press">
+    <Link href={href} className={`group block h-full btn-press ${className}`}>
       <BorderGlow
-        className="h-full w-full"
+        className="h-full w-full lg-blur"
         edgeSensitivity={26}
         glowColor={t.glow}
-        backgroundColor={t.bg}
+        backgroundColor="var(--lg-bg)"
         borderRadius={24}
         glowRadius={36}
         glowIntensity={1.05}
@@ -155,15 +196,15 @@ function ModeCard({
             <div className="p-2.5 rounded-xl ring-1 bg-white/[0.06] text-zinc-200 ring-white/15">
               {icon}
             </div>
-            <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full ring-1 bg-white/[0.05] text-zinc-300 ring-white/15">
+            <span className="text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full ring-1 bg-white/[0.05] text-secondary ring-white/12">
               Disponible
             </span>
           </div>
           <div>
-            <h3 className="text-xl text-zinc-50 font-semibold tracking-tight">{title}</h3>
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400 mt-1">{subtitle}</p>
+            <h3 className="text-xl text-primary font-semibold tracking-tight">{title}</h3>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted mt-1">{subtitle}</p>
           </div>
-          <p className="text-sm text-zinc-300/90">{description}</p>
+          <p className="text-sm text-secondary">{description}</p>
           <ul className="flex flex-col gap-1.5">
             {features.map((f) => (
               <li key={f} className="flex items-center gap-2 text-xs text-zinc-400">
@@ -271,24 +312,27 @@ function QuickLink({
   icon,
   title,
   sub,
+  className = "",
 }: {
   href: string;
   icon: React.ReactNode;
   title: string;
   sub: string;
+  className?: string;
 }) {
   return (
     <Link
       href={href}
-      className="group flex items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-950/80 ring-1 ring-white/[0.1] hover:ring-white/[0.18] hover:bg-zinc-900/80 transition-all duration-200 btn-press shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+      className={`group flex items-center justify-between gap-4 p-5 rounded-2xl bg-zinc-950/80 ring-1 ring-white/[0.1] hover:ring-white/[0.18] hover:bg-zinc-900/80 lg-blur transition-all btn-press shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${className}`}
+      style={{ transitionDuration: "var(--duration-standard)" }}
     >
       <div className="flex items-center gap-4">
         <div className="p-2.5 rounded-xl bg-white/[0.07] ring-1 ring-white/[0.1] text-zinc-200 group-hover:bg-white/[0.1] transition">
           {icon}
         </div>
         <div>
-          <div className="text-sm font-semibold text-zinc-100">{title}</div>
-          <p className="text-xs text-zinc-400 mt-0.5">{sub}</p>
+          <div className="text-sm font-semibold text-primary">{title}</div>
+          <p className="text-xs text-muted mt-0.5">{sub}</p>
         </div>
       </div>
       <div className="w-7 h-7 rounded-full bg-white/5 ring-1 ring-white/10 flex items-center justify-center group-hover:bg-white/[0.1] group-hover:ring-white/20 transition">
