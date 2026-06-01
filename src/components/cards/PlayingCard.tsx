@@ -168,6 +168,7 @@ function CardFront({ card, face }: { card?: Card; face?: CardFaceId }) {
   if (face === "dark") return <CardFrontDark card={card} />;
   if (face === "neon") return <CardFrontNeon card={card} />;
   if (face === "noir") return <CardFrontShowdown card={card} />;
+  if (face === "balatro") return <CardFrontBalatro card={card} />;
   return <CardFrontClassic card={card} />;
 }
 
@@ -288,6 +289,66 @@ function CardFrontNeon({ card }: { card: Card }) {
         <span className="tracking-tight">{rankLabel(card.rank)}</span>
         <span className="text-[0.72em]">{suitGlyph(card.suit)}</span>
       </div>
+    </div>
+  );
+}
+
+const BALATRO_SUIT: Record<string, { clr: string; glow: string; border: string }> = {
+  S: { clr: "#6ab0f5", glow: "rgba(106,176,245,0.32)", border: "rgba(106,176,245,0.28)" },
+  H: { clr: "#f45454", glow: "rgba(244,84,84,0.32)",   border: "rgba(244,84,84,0.28)"   },
+  D: { clr: "#f5a332", glow: "rgba(245,163,50,0.32)",  border: "rgba(245,163,50,0.28)"  },
+  C: { clr: "#5ecb7e", glow: "rgba(94,203,126,0.32)",  border: "rgba(94,203,126,0.28)"  },
+};
+
+function CardFrontBalatro({ card }: { card: Card }) {
+  const s = BALATRO_SUIT[card.suit] ?? BALATRO_SUIT.S;
+  const textGlow = `0 0 6px ${s.glow}, 0 0 18px ${s.glow}`;
+  return (
+    <div
+      className="absolute inset-0 rounded-xl overflow-hidden"
+      style={{
+        ...FACE_BACK_STYLE,
+        background: "#0e0e16",
+        border: `1px solid ${s.border}`,
+        boxShadow: `inset 0 0 28px ${s.glow}, 0 12px 32px -10px rgba(0,0,0,0.9)`,
+      }}
+    >
+      {/* corner — top left */}
+      <div
+        className="absolute flex flex-col items-center leading-none font-black"
+        style={{ top: "0.32em", left: "0.36em", color: s.clr, textShadow: textGlow }}
+      >
+        <span className="text-[1em] tracking-tight">{rankLabel(card.rank)}</span>
+        <span className="text-[0.7em]">{suitGlyph(card.suit)}</span>
+      </div>
+      {/* center suit */}
+      <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
+        <div
+          className="absolute w-16 h-16 rounded-full"
+          style={{ background: `radial-gradient(circle, ${s.glow} 0%, transparent 65%)` }}
+        />
+        <span
+          className="relative text-[2.6em] leading-none"
+          style={{ color: s.clr, textShadow: textGlow }}
+        >
+          {suitGlyph(card.suit)}
+        </span>
+      </div>
+      {/* corner — bottom right */}
+      <div
+        className="absolute flex flex-col items-center leading-none font-black rotate-180"
+        style={{ bottom: "0.32em", right: "0.36em", color: s.clr, textShadow: textGlow }}
+      >
+        <span className="text-[1em] tracking-tight">{rankLabel(card.rank)}</span>
+        <span className="text-[0.7em]">{suitGlyph(card.suit)}</span>
+      </div>
+      {/* scanline overlay for texture */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px)",
+        }}
+      />
     </div>
   );
 }

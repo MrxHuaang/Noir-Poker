@@ -39,11 +39,18 @@ const PREVIEW_CONFIGS: Record<
     glowColor: "rgba(255,255,255,0.20)",
     label: "A",
   },
+  balatro: {
+    bg: "#0e0e16",
+    border: "rgba(106,176,245,0.30)",
+    rankColor: "#6ab0f5",
+    glowColor: "rgba(106,176,245,0.28)",
+    label: "A",
+  },
 };
 
 export function CardFacePicker({ value, onChange }: Props) {
   return (
-    <ul className="grid grid-cols-4 gap-2">
+    <ul className="grid grid-cols-5 gap-2">
       {CARD_FACE_LIST.map((face) => {
         const selected = face.id === value;
         const cfg = PREVIEW_CONFIGS[face.id];
