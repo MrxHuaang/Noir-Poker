@@ -199,10 +199,10 @@ export default function CreateRoom() {
         <>
           {/* Room name */}
           <BorderGlow
-            className="w-full"
+            className="w-full lg-blur"
             glowColor={GLOW}
             colors={GLOW_COLORS}
-            backgroundColor="rgba(10,10,12,0.85)"
+            backgroundColor="var(--lg-bg)"
             borderRadius={18}
             glowRadius={26}
             glowIntensity={0.75}
@@ -296,13 +296,13 @@ function VisToggle({
   return (
     <button type="button" onClick={onClick} className="block text-left btn-press">
       <BorderGlow
-        className="w-full"
+        className="w-full lg-blur"
         glowColor={GLOW}
         colors={GLOW_COLORS}
-        backgroundColor={active ? "rgba(24,24,27,0.9)" : "rgba(10,10,12,0.85)"}
+        backgroundColor={active ? "var(--lg-bg-active)" : "var(--lg-bg)"}
         borderRadius={18}
         glowRadius={26}
-        glowIntensity={active ? 1.1 : 0.7}
+        glowIntensity={active ? 1.2 : 0.8}
         coneSpread={24}
         fillOpacity={0.4}
         animated={active}
