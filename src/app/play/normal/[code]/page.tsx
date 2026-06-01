@@ -87,7 +87,7 @@ export default function PlayNormalPage() {
   const settledRef = useRef(false);
   // Snapshot del estado vivo para el cleanup de desmontaje (navegacion SPA).
   // Un effect con deps vacias captura valores stale, por eso leemos un ref.
-  const liveRef = useRef({ inLobby: false, spectating: false, finalChips: 0, escrow: 0 });
+  const liveRef = useRef({ inLobby: false, spectating: false, finalChips: 0, escrow: 0, isCasual: false });
 
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
@@ -135,6 +135,8 @@ export default function PlayNormalPage() {
   }, [isMyTurn]);
   const theme: TableThemeId = (room?.theme as TableThemeId) ?? "noir";
   const locked = room?.locked ?? false;
+  // Modo casual: stacks libres del host, sin tocar wallet/monedas/XP.
+  const isCasual = (room?.economy ?? "coins") === "casual";
 
   const inLobby = uid ? lobby.some((p) => p.uid === uid) : false;
   const maxPlayers = room?.maxPlayers ?? 9;
@@ -149,6 +151,7 @@ export default function PlayNormalPage() {
     spectating,
     finalChips: mySeat?.chips ?? myLobbyEntry?.chips ?? 0,
     escrow: (code && profile?.escrows?.[code]) || 0,
+    isCasual,
   };
 
   // Publish our public key into the lobby so the host can encrypt our hole
@@ -192,6 +195,8 @@ export default function PlayNormalPage() {
       }
       if (settledRef.current) return;
       settledRef.current = true;
+      // Casual: sin wallet ni XP — solo la salida del lobby (la maneja el host/heartbeat).
+      if (s.isCasual) return;
       if (s.inLobby) {
         cashOut(uid, code, s.finalChips).catch(() => {});
         const handsPlayed = handsPlayedRef.current;
@@ -237,14 +242,17 @@ export default function PlayNormalPage() {
   async function handleJoinRequest(name: string, stack: number, seed: string) {
     if (!uid || !code) return;
     mySeedRef.current = seed; // persist the picked avatar seed
-    // Descontar monedas del wallet (escrow) ANTES de pedir el asiento.
-    try {
-      await buyIn(uid, code, stack);
-      boughtInRef.current += stack;
-      settledRef.current = false;
-    } catch {
-      alert("No tienes monedas suficientes para esa entrada.");
-      return;
+    // Modo casual: no se toca el wallet — el host define/aprueba el stack libre.
+    if (!isCasual) {
+      // Descontar monedas del wallet (escrow) ANTES de pedir el asiento.
+      try {
+        await buyIn(uid, code, stack);
+        boughtInRef.current += stack;
+        settledRef.current = false;
+      } catch {
+        alert("No tienes monedas suficientes para esa entrada.");
+        return;
+      }
     }
     try {
       await submitStackRequest(code, {
@@ -256,21 +264,25 @@ export default function PlayNormalPage() {
         ts: Date.now(),
       });
     } catch (err) {
-      // Revertir el escrow si no se pudo crear la solicitud.
-      await refundBuyIn(uid, code, stack).catch(() => {});
-      boughtInRef.current -= stack;
+      // Revertir el escrow si no se pudo crear la solicitud (solo modo monedas).
+      if (!isCasual) {
+        await refundBuyIn(uid, code, stack).catch(() => {});
+        boughtInRef.current -= stack;
+      }
       throw err;
     }
   }
 
   async function handleRebuyRequest(stack: number) {
     if (!uid || !code || !myLobbyEntry) return;
-    try {
-      await buyIn(uid, code, stack);
-      boughtInRef.current += stack;
-    } catch {
-      alert("No tienes monedas suficientes para ese rebuy.");
-      return;
+    if (!isCasual) {
+      try {
+        await buyIn(uid, code, stack);
+        boughtInRef.current += stack;
+      } catch {
+        alert("No tienes monedas suficientes para ese rebuy.");
+        return;
+      }
     }
     try {
       await submitStackRequest(code, {
@@ -283,8 +295,10 @@ export default function PlayNormalPage() {
       });
     } catch (err) {
       // Revertir SOLO el rebuy (no borrar el escrow completo del buy-in previo).
-      await refundBuyIn(uid, code, stack).catch(() => {});
-      boughtInRef.current -= stack;
+      if (!isCasual) {
+        await refundBuyIn(uid, code, stack).catch(() => {});
+        boughtInRef.current -= stack;
+      }
       throw err;
     }
   }
@@ -326,21 +340,23 @@ export default function PlayNormalPage() {
     if (myRequest?.status !== "rejected" || myRequest.type !== "rebuy") return;
     const amt = myRequest.requestedStack ?? 0;
     (async () => {
-      if (amt > 0) {
+      // En casual no hay escrow que devolver.
+      if (!isCasual && amt > 0) {
         await refundBuyIn(uid, code, amt).catch(() => {});
         boughtInRef.current = Math.max(0, boughtInRef.current - amt);
       }
       await dismissStackRequest(code, uid).catch(() => {});
       setMyRequest(null);
     })();
-  }, [myRequest?.status, myRequest?.type, myRequest?.requestedStack, uid, code]);
+  }, [myRequest?.status, myRequest?.type, myRequest?.requestedStack, uid, code, isCasual]);
 
   async function handleRetry() {
     if (!uid || !code) return;
     // El host rechazo la solicitud: devolver el escrow comprometido en el buy-in
     // antes de descartar la solicitud (si no, las monedas quedan bloqueadas).
+    // En casual no hay escrow.
     const amt = myRequest?.requestedStack ?? 0;
-    if (amt > 0) {
+    if (!isCasual && amt > 0) {
       await refundBuyIn(uid, code, amt).catch(() => {});
       boughtInRef.current = Math.max(0, boughtInRef.current - amt);
     }
@@ -353,6 +369,8 @@ export default function PlayNormalPage() {
   async function settleSession() {
     if (!uid || !code || settledRef.current) return;
     settledRef.current = true;
+    // Casual: sin wallet ni XP — no hay nada que liquidar.
+    if (isCasual) return;
     const finalChips = mySeat?.chips ?? myLobbyEntry?.chips ?? 0;
     await cashOut(uid, code, finalChips).catch(() => {});
     const handsPlayed = handsPlayedRef.current;
@@ -506,7 +524,7 @@ export default function PlayNormalPage() {
               locked={locked}
               showAvatar
               roomCode={code ?? undefined}
-              maxStack={profile ? availableCoins(profile) : undefined}
+              maxStack={isCasual ? undefined : profile ? availableCoins(profile) : undefined}
               onSubmit={handleJoinRequest}
             />
           </div>
@@ -561,7 +579,7 @@ export default function PlayNormalPage() {
             defaultName={myLobbyEntry?.name ?? ""}
             suggestedStack={config?.startingStack ?? 1000}
             mode="rebuy"
-            maxStack={profile ? availableCoins(profile) : undefined}
+            maxStack={isCasual ? undefined : profile ? availableCoins(profile) : undefined}
             onSubmit={async (_, stack) => handleRebuyRequest(stack) as unknown as Promise<void>}
           />
         )}

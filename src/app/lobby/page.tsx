@@ -4,6 +4,7 @@ import {
   Plus,
   KeyRound,
   Users,
+  Users2,
   Lock,
   Coins,
   Trophy,
@@ -142,6 +143,8 @@ function RoomCard({ room }: { room: OpenRoomSummary }) {
         <div className="p-2 rounded-xl bg-white/[0.06] ring-1 ring-white/10 text-zinc-300">
           {room.mode === "torneo" ? (
             <Trophy className="w-4 h-4" />
+          ) : room.economy === "casual" ? (
+            <Users2 className="w-4 h-4" />
           ) : (
             <Coins className="w-4 h-4" />
           )}
@@ -155,6 +158,11 @@ function RoomCard({ room }: { room: OpenRoomSummary }) {
             {!room.isPublic && <Lock className="w-3 h-3 text-zinc-500 shrink-0" />}
           </div>
           <div className="flex items-center gap-2 text-[11px] text-zinc-500 tabular-nums mt-0.5">
+            {room.economy === "casual" && (
+              <span className="text-[9px] uppercase tracking-widest font-bold text-zinc-400 not-italic">
+                Casual
+              </span>
+            )}
             <span>
               {formatChips(room.smallBlind)}/{formatChips(room.bigBlind)}
             </span>

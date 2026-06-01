@@ -66,6 +66,10 @@ export type NormalRoomDoc = {
   adminUid: string;
   createdAt: number;
   mode: "normal" | "torneo";
+  // Modelo economico de la sala:
+  //  - "coins":  buy-in del wallet, escrow, XP/rangos (cuenta). Por defecto.
+  //  - "casual": stacks libres definidos por el host, sin monedas ni XP.
+  economy?: "coins" | "casual";
   config: RoomConfig;
   state: PublicNormalState | null;
   pendingAction: PendingAction | null;
@@ -98,6 +102,7 @@ export type OpenRoomSummary = {
   code: string;
   roomName: string;
   mode: "normal" | "torneo";
+  economy: "coins" | "casual";
   isPublic: boolean;
   locked: boolean;
   playerCount: number;
@@ -143,6 +148,7 @@ export async function createNormalRoom(
     roomName?: string;
     isPublic?: boolean;
     maxPlayers?: number;
+    economy?: "coins" | "casual";
   } = {},
 ): Promise<string> {
   const db = getDb();
@@ -159,6 +165,7 @@ export async function createNormalRoom(
       adminUid: hostUid,
       createdAt: serverTimestamp(),
       mode: config.mode,
+      economy: meta.economy ?? "coins",
       config,
       state: null,
       pendingAction: null,
@@ -238,6 +245,7 @@ export function subscribeOpenRooms(
             code: r.code,
             roomName: r.roomName ?? `Mesa ${r.code}`,
             mode: r.mode,
+            economy: r.economy ?? "coins",
             isPublic: r.isPublic ?? true,
             locked: r.locked ?? false,
             playerCount,

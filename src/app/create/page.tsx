@@ -15,6 +15,8 @@ import {
   Share2,
   Link2,
   LayoutGrid,
+  Coins,
+  Users2,
 } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +31,7 @@ export default function CreateRoom() {
   const router = useRouter();
 
   const [isPublic, setIsPublic] = useState(true);
+  const [economy, setEconomy] = useState<"coins" | "casual">("coins");
   const [roomName, setRoomName] = useState("");
   const [creating, setCreating] = useState(false);
   const [code, setCode] = useState<string | null>(null);
@@ -67,7 +70,7 @@ export default function CreateRoom() {
       const c = await createNormalRoom(
         uid,
         { ...DEFAULT_CONFIG, mode: "normal" },
-        { isPublic, maxPlayers: 9, roomName: roomName.trim() || undefined },
+        { isPublic, economy, maxPlayers: 9, roomName: roomName.trim() || undefined },
       );
       setCode(c);
     } catch {
@@ -222,6 +225,24 @@ export default function CreateRoom() {
               />
             </label>
           </BorderGlow>
+
+          {/* Economy mode choice */}
+          <div className="grid grid-cols-2 gap-3">
+            <VisToggle
+              active={economy === "coins"}
+              onClick={() => setEconomy("coins")}
+              icon={<Coins className="w-5 h-5" />}
+              title="Con monedas"
+              sub="Buy-in del wallet · XP"
+            />
+            <VisToggle
+              active={economy === "casual"}
+              onClick={() => setEconomy("casual")}
+              icon={<Users2 className="w-5 h-5" />}
+              title="Casual"
+              sub="Stacks libres · sin cuenta"
+            />
+          </div>
 
           {/* Visibility choice */}
           <div className="grid grid-cols-2 gap-3">
