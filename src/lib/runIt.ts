@@ -33,7 +33,9 @@ export type RunItResolution = {
   category: Category;
 };
 
-export const RUN_IT_OPTIONS = [1, 2, 3, 5] as const;
+// Hard cap at 3: 1x normal, 2x, 3x. No higher options ever offered.
+export const RUN_IT_OPTIONS = [1, 2, 3] as const;
+export const MAX_RUN_IT = 3;
 
 export function cardsNeededForRunout(street: NormalGameState["street"]): number {
   if (street === "preflop") return 8; // burn + flop, burn + turn, burn + river
@@ -45,14 +47,14 @@ export function cardsNeededForRunout(street: NormalGameState["street"]): number 
 export function maxRunCountForState(state: Pick<NormalGameState, "street" | "deck">): number {
   const perRun = cardsNeededForRunout(state.street);
   if (perRun === 0) return 1;
-  return Math.max(1, Math.floor(state.deck.length / perRun));
+  // Never exceed MAX_RUN_IT regardless of deck size.
+  return Math.min(MAX_RUN_IT, Math.max(1, Math.floor(state.deck.length / perRun)));
 }
 
 export function runOptionsForState(state: Pick<NormalGameState, "street" | "deck">): number[] {
   const max = maxRunCountForState(state);
-  const options: number[] = RUN_IT_OPTIONS.filter((n) => n <= max);
-  if (!options.includes(max) && max > 1) options.push(max);
-  return [...new Set(options)].sort((a, b) => a - b);
+  // Only offer options up to max (which is already capped at MAX_RUN_IT).
+  return (RUN_IT_OPTIONS as readonly number[]).filter((n) => n <= max);
 }
 
 export function clampRunCount(requested: number, state: Pick<NormalGameState, "street" | "deck">): number {

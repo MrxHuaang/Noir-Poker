@@ -118,6 +118,11 @@ export function useNormalGame(
   const allInTriggeredHandRef = useRef<number>(-1);
   // Tracks which hand's all-in run was already started, prevents finalize re-entry.
   const allInRanHandRef = useRef<number>(-1);
+  // Tracks which hand was fully resolved via run-it-N.
+  // Prevents the auto-resolve-showdown effect from firing before room?.result
+  // arrives from Firestore (race condition: isProcessing=false but Firestore
+  // snapshot not yet delivered → resolveShowdown() would overwrite run result).
+  const runItNResolvedHandRef = useRef<number>(-1);
 
   const dismissRuns = useCallback(() => setRuns(null), []);
 
@@ -505,11 +510,16 @@ export function useNormalGame(
     }, 0);
   }, [room?.pendingAction, code, gameState, room?.config, room?.revealedHoles]);
 
-  // Admin: auto-resolve when phase reaches showdown
+  // Admin: auto-resolve when phase reaches showdown.
+  // Guard: skip if this hand was resolved via run-it-N — Firestore snapshot with
+  // the result may not have arrived yet, so room?.result is momentarily null even
+  // though the result was already written.  Without this guard, resolveShowdown()
+  // fires and overwrites the run-it-N result (race condition).
   useEffect(() => {
     if (!isAdminRef.current || !gameState || !code || isProcessing) return;
     if (gameState.phase !== "showdown") return;
     if (room?.result) return;
+    if (runItNResolvedHandRef.current === gameState.betting.handNum) return;
     const t = setTimeout(() => {
       void resolveShowdown();
     }, 1500);
@@ -682,6 +692,11 @@ export function useNormalGame(
             runResults: resolution.runs,
           });
 
+          // Mark this hand as resolved via run-it-N BEFORE releasing isProcessing.
+          // This prevents the auto-resolve-showdown effect from racing in while
+          // the Firestore snapshot with room?.result hasn't arrived yet.
+          runItNResolvedHandRef.current = thisHand;
+
           writeHandRecord(code, {
             handNum: gameState.betting.handNum,
             winners: winnerInfo,
@@ -691,6 +706,7 @@ export function useNormalGame(
           }).catch(() => {});
         } catch {
           allInRanHandRef.current = -1;
+          runItNResolvedHandRef.current = -1;
         } finally {
           setIsProcessing(false);
         }
