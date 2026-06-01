@@ -37,7 +37,7 @@ export function RunResults({
       >
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Crown className="w-5 h-5 text-amber-300" />
+            <Crown className="w-5 h-5 text-accent-300" />
             <h2 className="text-lg tracking-tight text-zinc-100">
               Resultados de {runs.length} run{runs.length === 1 ? "" : "s"}
             </h2>
@@ -63,7 +63,7 @@ export function RunResults({
                   key={player!.id}
                   className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ring-1 ${
                     i === 0
-                      ? "bg-amber-300/10 ring-amber-300/40 text-amber-100"
+                      ? "bg-accent-300/10 ring-accent-300/40 text-accent-100"
                       : "bg-white/[0.03] ring-white/10 text-zinc-100"
                   }`}
                 >
@@ -98,7 +98,7 @@ export function RunResults({
                   ))}
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col">
-                  <span className="text-sm text-amber-100">
+                  <span className="text-sm text-accent-100">
                     {winners.length > 1 ? "Empate: " : "Gana "}
                     <span className="font-medium">{winners.join(" · ")}</span>
                   </span>
@@ -115,7 +115,7 @@ export function RunResults({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-full bg-amber-700/70 hover:bg-amber-600/75 text-amber-100 font-medium text-sm transition"
+            className="px-5 py-2 rounded-full bg-accent-700/70 hover:bg-accent-600/75 text-accent-100 font-medium text-sm transition"
           >
             Cerrar
           </button>

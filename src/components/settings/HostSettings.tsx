@@ -23,18 +23,16 @@ import { NormalConfigPanel } from "@/components/betting/NormalConfigPanel";
 import { TournamentConfigPanel } from "@/components/betting/TournamentConfigPanel";
 import { TableThemePicker } from "@/components/themes/TableThemePicker";
 import { CardBackPicker } from "@/components/themes/CardBackPicker";
-import { CardFacePicker } from "@/components/themes/CardFacePicker";
 import { RoomBgPicker } from "@/components/themes/RoomBgPicker";
 import {
   setNormalRoomTheme,
   setNormalRoomCardBack,
-  setNormalRoomCardFace,
   setNormalRoomBg,
 } from "@/lib/normalRooms";
 import type { NormalLobbyPlayer } from "@/lib/normalRooms";
 import type { StackRequest } from "@/lib/stackRequests";
 import type { NormalSeat, RoomConfig } from "@/lib/betting";
-import type { TableThemeId, CardBackId, CardFaceId } from "@/lib/themes";
+import type { TableThemeId, CardBackId } from "@/lib/themes";
 import { SettingsOverlay, type SettingsTab } from "./SettingsOverlay";
 import { AudioVideoSettings } from "./AudioVideoSettings";
 
@@ -60,7 +58,6 @@ type Props = {
   onMaxPlayersChange?: (n: number) => void;
   theme: TableThemeId;
   cardBack: CardBackId;
-  cardFace?: CardFaceId;
   roomBg?: string;
   lobby: NormalLobbyPlayer[];
   requests: StackRequest[];
@@ -252,12 +249,6 @@ export function HostSettings(props: Props) {
             <TableThemePicker
               value={props.theme}
               onChange={(id) => code && setNormalRoomTheme(code, id).catch(() => {})}
-            />
-          </Section>
-          <Section title="Diseño de carta">
-            <CardFacePicker
-              value={props.cardFace ?? "classic"}
-              onChange={(id) => code && setNormalRoomCardFace(code, id).catch(() => {})}
             />
           </Section>
           <Section title="Reverso de cartas">

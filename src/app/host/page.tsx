@@ -9,8 +9,7 @@ import { createRoom, setRoomTheme, setRoomCardStyle } from "@/lib/rooms";
 import { PokerTable } from "@/components/table/PokerTable";
 import { TableThemePicker } from "@/components/themes/TableThemePicker";
 import { CardBackPicker } from "@/components/themes/CardBackPicker";
-import { CardFacePicker } from "@/components/themes/CardFacePicker";
-import type { TableThemeId, CardBackId, CardFaceId } from "@/lib/themes";
+import type { TableThemeId, CardBackId } from "@/lib/themes";
 import type { Player } from "@/lib/poker";
 
 export default function HostPage() {
@@ -103,8 +102,6 @@ export default function HostPage() {
 
   const theme = (room?.theme as TableThemeId | undefined) ?? "noir";
   const cardBack = (room?.cardBack as CardBackId | undefined) ?? "classic-blue";
-  const cardFace = (room?.cardFace as CardFaceId | undefined) ?? "classic";
-
   function onThemeChange(id: TableThemeId) {
     if (!code) return;
     setRoomTheme(code, id).catch(() => {});
@@ -112,12 +109,7 @@ export default function HostPage() {
 
   function onCardBackChange(id: CardBackId) {
     if (!code) return;
-    setRoomCardStyle(code, id, cardFace).catch(() => {});
-  }
-
-  function onCardFaceChange(id: CardFaceId) {
-    if (!code) return;
-    setRoomCardStyle(code, cardBack, id).catch(() => {});
+    setRoomCardStyle(code, id, "classic").catch(() => {});
   }
 
   if (loading || !code) {
@@ -145,7 +137,7 @@ export default function HostPage() {
         >
           {code}
           {copied ? (
-            <Check className="w-3.5 h-3.5 text-amber-300" />
+            <Check className="w-3.5 h-3.5 text-accent-300" />
           ) : (
             <Copy className="w-3.5 h-3.5 text-zinc-400" />
           )}
@@ -216,12 +208,6 @@ export default function HostPage() {
                 <TableThemePicker value={theme} onChange={onThemeChange} />
               </div>
 
-              {/* Card face design */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">Diseño de carta</span>
-                <CardFacePicker value={cardFace} onChange={onCardFaceChange} />
-              </div>
-
               {/* Card back */}
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">Reverso</span>
@@ -253,7 +239,7 @@ export default function HostPage() {
             playersOverride={lobbyAsPlayers}
             theme={theme}
             cardBack={cardBack}
-            cardFace={cardFace}
+            cardFace="classic"
           />
         </div>
       </div>

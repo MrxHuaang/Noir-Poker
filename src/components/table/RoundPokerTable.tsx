@@ -74,7 +74,7 @@ function SeatTimer({
   const normalPct = (remainingNormal / turnTime) * 100;
   let normalColor = "bg-accent";
   if (normalPct < 25) normalColor = "bg-rose-400";
-  else if (normalPct < 50) normalColor = "bg-amber-400";
+  else if (normalPct < 50) normalColor = "bg-accent-400";
 
   // Bank phase: always fully red bar, drains
   const bankPct = inBank && timeBank > 0 ? (remainingBank / timeBank) * 100 : 0;
@@ -651,7 +651,7 @@ export function RoundPokerTable({
                       className="absolute w-6 h-6 rounded-full border-2 border-white/30 shadow-inner"
                       style={{
                         bottom: `${offset * 2}px`,
-                        background: seat.bet > 200 ? "#d97706" : seat.bet > 50 ? "#d4bf94" : "#71717a",
+                        background: seat.bet > 200 ? "#c4b5fd" : seat.bet > 50 ? "#a78bfa" : "#71717a",
                         opacity: offset === 0 ? 1 : 0.6 + offset * 0.1,
                       }}
                     />

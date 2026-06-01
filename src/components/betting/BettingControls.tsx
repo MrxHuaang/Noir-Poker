@@ -120,7 +120,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={handleBetRaise}
-            className="flex-[2] rounded-xl bg-accent/85 hover:bg-accent text-accent-contrast text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-950/25"
+            className="flex-[2] rounded-xl bg-accent/85 hover:bg-accent text-accent-contrast text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-accent-950/25"
           >
             {raiseOpt ? "Raise" : "Bet"}
           </button>

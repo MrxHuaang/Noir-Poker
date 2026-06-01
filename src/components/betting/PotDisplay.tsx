@@ -16,7 +16,7 @@ export function PotDisplay({
       <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
         Bote
       </span>
-      <span className="text-2xl font-semibold text-amber-200 tabular-nums">
+      <span className="text-2xl font-semibold text-accent-200 tabular-nums">
         {formatChips(pot)}
       </span>
       {sidePots.length > 1 && (

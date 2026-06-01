@@ -227,7 +227,7 @@ export default function HostNormalPage() {
                 startNewHand();
                 setDockOpen(false);
               }}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-amber-700 hover:bg-amber-600 disabled:opacity-30 text-amber-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-amber-700/25 btn-press animate-in zoom-in fade-in duration-500"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-accent-700 hover:bg-accent-600 disabled:opacity-30 text-accent-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-accent-700/25 btn-press animate-in zoom-in fade-in duration-500"
             >
               <Play className="w-5 h-5 fill-current" /> Repartir
             </button>
@@ -246,12 +246,12 @@ export default function HostNormalPage() {
 
       {result && gameState && (
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500">
-          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-amber-400/50 shadow-[0_20px_80px_-20px_rgba(251,191,36,0.5)] flex flex-col items-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-1">
+          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-accent-400/50 shadow-[0_20px_80px_-20px_rgba(167,139,250,0.5)] flex flex-col items-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent-400 mb-1">
               Mano terminada
             </span>
             <h4 className="text-xl font-black text-white flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-amber-400" />
+              <Trophy className="w-5 h-5 text-accent-400" />
               {result.winners
                 .map((id) => gameState.seats.find((s) => s.id === id)?.name ?? id)
                 .join(" & ")}
@@ -280,7 +280,7 @@ export default function HostNormalPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={cardBack}
-        cardFace={cardFace}
+        cardFace="classic"
         roomBg={roomBg}
         lastAction={gameState?.lastAction}
         timeBankByUid={timeBankByUid}
@@ -359,7 +359,6 @@ export default function HostNormalPage() {
           }}
           theme={theme}
           cardBack={cardBack}
-          cardFace={cardFace}
           roomBg={roomBg}
           lobby={lobby}
           requests={requests}

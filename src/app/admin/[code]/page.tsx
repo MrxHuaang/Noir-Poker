@@ -172,7 +172,7 @@ export default function AdminTorneoPage() {
               {!tournament.paused ? (
                 <LevelCountdown levelDeadline={levelDeadline} />
               ) : (
-                <span className="tabular-nums font-semibold text-2xl text-amber-300">
+                <span className="tabular-nums font-semibold text-2xl text-accent-300">
                   {formatDuration(levelMs)}
                 </span>
               )}
@@ -254,7 +254,7 @@ export default function AdminTorneoPage() {
                     key={seat.id}
                     className={`flex items-center gap-3 p-3 rounded-2xl ring-1 transition ${
                       gs.betting.toActId === seat.id
-                        ? "bg-amber-500/8 ring-amber-400/40"
+                        ? "bg-accent-500/8 ring-accent-400/40"
                         : seat.status === "folded"
                           ? "glass ring-white/5 opacity-50"
                           : seat.status === "out"
@@ -269,12 +269,12 @@ export default function AdminTorneoPage() {
                           {seat.name}
                         </span>
                         {gs.betting.toActId === seat.id && (
-                          <span className="text-[9px] uppercase tracking-widest text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[9px] uppercase tracking-widest text-accent-300 bg-accent-400/10 px-1.5 py-0.5 rounded-full">
                             Turno
                           </span>
                         )}
                         {seat.status === "all-in" && (
-                          <span className="text-[9px] uppercase tracking-widest text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[9px] uppercase tracking-widest text-accent-300 bg-accent-400/10 px-1.5 py-0.5 rounded-full">
                             All-in
                           </span>
                         )}
@@ -346,7 +346,7 @@ export default function AdminTorneoPage() {
                       key={i}
                       className={`border-b border-white/5 ${
                         i === currentLevelIdx
-                          ? "bg-amber-500/8 text-zinc-100"
+                          ? "bg-accent-500/8 text-zinc-100"
                           : i < currentLevelIdx
                             ? "opacity-40"
                             : ""
@@ -396,9 +396,9 @@ export default function AdminTorneoPage() {
                     {seat.name}
                   </span>
                   {i === 0 && (
-                    <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                    <Crown className="w-3.5 h-3.5 text-accent-300 shrink-0" />
                   )}
-                  <span className="tabular-nums font-medium text-amber-300">
+                  <span className="tabular-nums font-medium text-accent-300">
                     {formatChips(seat.chips)}
                   </span>
                 </li>
@@ -444,16 +444,16 @@ export default function AdminTorneoPage() {
                   return (
                     <li
                       key={id}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl glass ring-1 ring-amber-400/10 text-xs"
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl glass ring-1 ring-accent-400/10 text-xs"
                     >
                       <span
                         className={`w-5 text-center font-semibold tabular-nums ${
                           i === 0
-                            ? "text-amber-300"
+                            ? "text-accent-300"
                             : i === 1
                               ? "text-zinc-300"
                               : i === 2
-                                ? "text-amber-600"
+                                ? "text-accent-600"
                                 : "text-zinc-500"
                         }`}
                       >

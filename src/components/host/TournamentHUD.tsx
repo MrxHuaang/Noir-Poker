@@ -52,7 +52,7 @@ export function TournamentHUD({
         <span className="text-[9px] uppercase tracking-[0.25em] text-zinc-500 font-black">
           Ciegas
         </span>
-        <span className="text-lg font-black text-amber-400 tabular-nums leading-tight">
+        <span className="text-lg font-black text-accent-400 tabular-nums leading-tight">
           {formatChips(level.sb)}/{formatChips(level.bb)}
         </span>
         {level.ante > 0 && (
@@ -65,10 +65,10 @@ export function TournamentHUD({
       <div className="h-8 w-px bg-white/10" />
 
       <div className="flex items-center gap-1.5 px-2">
-        <Timer className={`w-4 h-4 ${tournament.paused ? "text-amber-400" : "text-zinc-400"}`} />
+        <Timer className={`w-4 h-4 ${tournament.paused ? "text-accent-400" : "text-zinc-400"}`} />
         <span
           className={`text-lg font-black tabular-nums leading-tight ${
-            tournament.paused ? "text-amber-300" : "text-white"
+            tournament.paused ? "text-accent-300" : "text-white"
           }`}
         >
           {formatDuration(remaining)}

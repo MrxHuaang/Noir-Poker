@@ -106,12 +106,12 @@ function CardBackView({ variant }: { variant?: CardBackId }) {
           <svg viewBox="0 0 48 48" className="w-2/3 h-2/3 opacity-90">
             <defs>
               <linearGradient id="cba" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#34d399" />
-                <stop offset="100%" stopColor="#0a2a20" />
+                <stop offset="0%" stopColor="#a78bfa" />
+                <stop offset="100%" stopColor="#261747" />
               </linearGradient>
               <linearGradient id="cbb" x1="0" y1="1" x2="1" y2="0">
-                <stop offset="0%" stopColor="#fbbf24" />
-                <stop offset="100%" stopColor="#7c2d12" />
+                <stop offset="0%" stopColor="#c4b5fd" />
+                <stop offset="100%" stopColor="#3d2a6b" />
               </linearGradient>
             </defs>
             <g transform="translate(24 24)">

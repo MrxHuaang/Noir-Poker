@@ -9,6 +9,7 @@ import { useHistory } from "@/hooks/useHistory";
 import { PlayerForm } from "@/components/players/PlayerForm";
 import { PlayerList } from "@/components/players/PlayerList";
 import { BorderGlow } from "@/components/ui/BorderGlow";
+import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 
 export default function PlayersPage() {
   const { players, add, update, remove, hydrated } = usePlayers();
@@ -40,17 +41,17 @@ export default function PlayersPage() {
           <Link href="/host" className="group block">
             <BorderGlow
               edgeSensitivity={32}
-              glowColor="38 65 68"
-              backgroundColor="rgba(14,12,8,0.85)"
+              glowColor={ACCENT_GLOW_HSL}
+              backgroundColor="rgba(9,7,16,0.85)"
               borderRadius={999}
               glowRadius={18}
               glowIntensity={1}
               coneSpread={28}
               animated={false}
-              colors={["#d4bf94", "#b8994e", "#7a6030"]}
+              colors={ACCENT_GLOW_COLORS}
               fillOpacity={0.42}
             >
-              <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-200 transition group-hover:text-white">
+              <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent-200 transition group-hover:text-white">
                 Ir a la mesa
                 <ArrowRight className="w-4 h-4" />
               </span>
@@ -61,14 +62,14 @@ export default function PlayersPage() {
       <BorderGlow
         className="w-full"
         edgeSensitivity={24}
-        glowColor="210 50 48"
-        backgroundColor="rgba(10, 11, 16, 0.88)"
+        glowColor={ACCENT_GLOW_HSL}
+        backgroundColor="rgba(9, 7, 16, 0.88)"
         borderRadius={18}
         glowRadius={26}
         glowIntensity={0.92}
         coneSpread={26}
         animated={false}
-        colors={["#34d399", "#60a5fa", "#94a3b8"]}
+        colors={ACCENT_GLOW_COLORS}
         fillOpacity={0.38}
       >
         <PlayerForm
@@ -95,17 +96,17 @@ export default function PlayersPage() {
               <Link href="/host" className="group block">
                 <BorderGlow
                   edgeSensitivity={32}
-                  glowColor="152 62 50"
-                  backgroundColor="rgba(6, 52, 40, 0.82)"
+                  glowColor={ACCENT_GLOW_HSL}
+                  backgroundColor="rgba(9, 7, 16, 0.82)"
                   borderRadius={999}
                   glowRadius={18}
                   glowIntensity={1}
                   coneSpread={28}
                   animated={false}
-                  colors={["#d4bf94", "#b8994e", "#7a6030"]}
+                  colors={ACCENT_GLOW_COLORS}
                   fillOpacity={0.42}
                 >
-                  <span className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-amber-200 transition group-hover:text-white">
+                  <span className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-accent-200 transition group-hover:text-white">
                     Ir a la mesa ({players.length} jugadores)
                     <ArrowRight className="w-4 h-4" />
                   </span>

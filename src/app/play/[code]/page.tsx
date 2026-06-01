@@ -11,6 +11,7 @@ import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import { CardBackPicker } from "@/components/themes/CardBackPicker";
 import { BorderGlow } from "@/components/ui/BorderGlow";
+import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 import { describeHand } from "@/lib/handLabel";
 import type { Card } from "@/lib/poker";
 
@@ -114,14 +115,14 @@ function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
       <BorderGlow
         className="w-full"
         edgeSensitivity={26}
-        glowColor="152 68 48"
-        backgroundColor="rgba(8, 10, 16, 0.9)"
+        glowColor={ACCENT_GLOW_HSL}
+        backgroundColor="rgba(9, 7, 16, 0.9)"
         borderRadius={20}
         glowRadius={30}
         glowIntensity={1}
         coneSpread={24}
         animated={false}
-        colors={["#34d399", "#38bdf8", "#c4b5fd"]}
+        colors={ACCENT_GLOW_COLORS}
         fillOpacity={0.45}
       >
         <div className="flex flex-col gap-6 p-5">
@@ -144,13 +145,13 @@ function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
             placeholder="Tu apodo"
             maxLength={20}
             autoFocus
-            className="rounded-2xl bg-black/40 px-5 py-4 text-center text-lg text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-amber-500/40"
+            className="rounded-2xl bg-black/40 px-5 py-4 text-center text-lg text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-accent-500/40"
           />
 
           <button
             type="submit"
             disabled={!name.trim() || submitting}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-700/70 px-5 py-3 font-medium text-amber-100 transition hover:bg-amber-600/75 disabled:cursor-not-allowed disabled:opacity-30 btn-press"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent-700/70 px-5 py-3 font-medium text-accent-100 transition hover:bg-accent-600/75 disabled:cursor-not-allowed disabled:opacity-30 btn-press"
           >
             Entrar a la mesa
           </button>
@@ -253,8 +254,8 @@ function PhoneGameView({
       </header>
 
       {room.result ? (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-amber-300/10 ring-1 ring-amber-300/40 text-amber-100">
-          <Crown className="w-4 h-4 text-amber-300" />
+        <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-accent-300/10 ring-1 ring-accent-300/40 text-accent-100">
+          <Crown className="w-4 h-4 text-accent-300" />
           <span className="text-sm">
             {isWinner
               ? "¡Ganas esta mano!"
@@ -269,9 +270,9 @@ function PhoneGameView({
       {/* Hand strength label — PokerStars style */}
       {label && hole && !mySeat.folded && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/12 to-amber-700/8 ring-1 ring-amber-400/25 shadow-[0_0_20px_-4px_rgba(180,130,40,0.2)]">
-            <span className="text-[11px] uppercase tracking-[0.25em] text-amber-400/60 font-bold">Tu mano</span>
-            <span className="text-sm font-semibold text-amber-100">{label}</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-accent-500/12 to-accent-700/8 ring-1 ring-accent-400/25 shadow-[0_0_20px_-4px_rgba(167,139,250,0.2)]">
+            <span className="text-[11px] uppercase tracking-[0.25em] text-accent-400/60 font-bold">Tu mano</span>
+            <span className="text-sm font-semibold text-accent-100">{label}</span>
           </div>
         </div>
       )}
@@ -367,7 +368,7 @@ function PhoneGameView({
               onClick={() => onRevealCard(0)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ring-1 text-xs font-medium transition btn-press ${
                 mySeat.revealedCards[0]
-                  ? "bg-amber-500/15 ring-amber-400/40 text-amber-200"
+                  ? "bg-accent-500/15 ring-accent-400/40 text-accent-200"
                   : "bg-white/5 ring-white/10 text-zinc-300 hover:bg-white/10"
               }`}
             >
@@ -378,7 +379,7 @@ function PhoneGameView({
               onClick={() => onRevealCard(1)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ring-1 text-xs font-medium transition btn-press ${
                 mySeat.revealedCards[1]
-                  ? "bg-amber-500/15 ring-amber-400/40 text-amber-200"
+                  ? "bg-accent-500/15 ring-accent-400/40 text-accent-200"
                   : "bg-white/5 ring-white/10 text-zinc-300 hover:bg-white/10"
               }`}
             >
@@ -424,7 +425,7 @@ function PhoneGameView({
                 key={s.id}
                 className={`flex items-center gap-3 p-2 rounded-xl ring-1 ${
                   winners.includes(s.id)
-                    ? "bg-amber-300/10 ring-amber-300/40"
+                    ? "bg-accent-300/10 ring-accent-300/40"
                     : s.folded
                       ? "bg-white/[0.01] ring-white/5 opacity-50"
                       : "bg-white/[0.02] ring-white/10"
@@ -439,7 +440,7 @@ function PhoneGameView({
                     Fold
                   </span>
                 ) : winners.includes(s.id) ? (
-                  <Crown className="w-4 h-4 text-amber-300" />
+                  <Crown className="w-4 h-4 text-accent-300" />
                 ) : null}
               </li>
             ))}

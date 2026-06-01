@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AlertCircle, ArrowRight, Loader2, Shuffle } from "lucide-react";
 import { Avatar } from "@/components/players/Avatar";
 import { BorderGlow } from "@/components/ui/BorderGlow";
+import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 import { randomSeed } from "@/lib/dicebear";
 
 type Props = {
@@ -83,7 +84,7 @@ export function JoinWithStack({
             maxLength={20}
             autoFocus={!isRebuy}
             disabled={loading || locked}
-            className={`px-4 py-3 rounded-2xl bg-black/40 ring-1 text-zinc-100 text-center text-lg outline-none disabled:opacity-40 ${nameError ? "ring-rose-400/60" : "ring-white/10 focus:ring-amber-500/40"}`}
+            className={`px-4 py-3 rounded-2xl bg-black/40 ring-1 text-zinc-100 text-center text-lg outline-none disabled:opacity-40 ${nameError ? "ring-rose-400/60" : "ring-white/10 focus:ring-accent-500/40"}`}
           />
           {nameError && (
             <span className="flex items-center gap-1 text-[11px] text-rose-400">
@@ -107,7 +108,7 @@ export function JoinWithStack({
               setStack(val === "" ? 0 : Number(val));
             }}
             disabled={loading || locked}
-            className="flex-1 px-4 py-3 rounded-2xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-center text-lg outline-none focus:ring-amber-500/40 tabular-nums disabled:opacity-40"
+            className="flex-1 px-4 py-3 rounded-2xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-center text-lg outline-none focus:ring-accent-500/40 tabular-nums disabled:opacity-40"
             placeholder="Fichas…"
           />
           {suggestedStack > 0 && (
@@ -167,7 +168,7 @@ export function JoinWithStack({
       <button
         type="submit"
         disabled={!name.trim() || stack <= 0 || loading || locked || overCap || broke}
-        className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-amber-700/70 hover:bg-amber-600/75 disabled:opacity-30 text-amber-100 font-medium btn-press transition"
+        className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-accent-700/70 hover:bg-accent-600/75 disabled:opacity-30 text-accent-100 font-medium btn-press transition"
       >
         {loading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -197,14 +198,14 @@ export function JoinWithStack({
         <BorderGlow
           className="w-full"
           edgeSensitivity={26}
-          glowColor="152 68 48"
-          backgroundColor="rgba(8, 10, 16, 0.9)"
+          glowColor={ACCENT_GLOW_HSL}
+          backgroundColor="rgba(9, 7, 16, 0.9)"
           borderRadius={20}
           glowRadius={30}
           glowIntensity={1}
           coneSpread={24}
           animated={false}
-          colors={["#34d399", "#38bdf8", "#c4b5fd"]}
+          colors={ACCENT_GLOW_COLORS}
           fillOpacity={0.45}
         >
           <div className="p-5">{fields}</div>

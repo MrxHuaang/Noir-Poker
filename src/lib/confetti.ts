@@ -8,7 +8,7 @@ export function fireConfetti(): void {
     ticks: 120,
     gravity: 1,
     decay: 0.92,
-    colors: ["#fcd34d", "#34d399", "#f4f4f5", "#0f3d2e"],
+    colors: ["#a78bfa", "#c4b5fd", "#f4f4f5", "#3d2a6b"],
     disableForReducedMotion: true,
   };
   confetti({ ...opts, particleCount: 80, origin: { x: 0.2, y: 0.4 } });

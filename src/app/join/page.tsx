@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Smartphone } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
+import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 import { doc, getDoc } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 
@@ -42,14 +43,14 @@ function JoinInner() {
       <BorderGlow
         className="w-full"
         edgeSensitivity={26}
-        glowColor="152 70 46"
-        backgroundColor="rgba(14, 12, 9, 0.92)"
+        glowColor={ACCENT_GLOW_HSL}
+        backgroundColor="rgba(9, 7, 16, 0.92)"
         borderRadius={22}
         glowRadius={32}
         glowIntensity={1}
         coneSpread={24}
         animated={false}
-        colors={["#d4bf94", "#9a8459", "#5f5138"]}
+        colors={ACCENT_GLOW_COLORS}
         fillOpacity={0.48}
       >
         <form onSubmit={submit} className="flex w-full flex-col gap-3 p-5">
@@ -62,12 +63,12 @@ function JoinInner() {
             placeholder="ABCD2"
             maxLength={6}
             autoFocus
-            className="w-full rounded-2xl bg-black/45 px-5 py-4 text-center text-2xl uppercase tracking-[0.4em] text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-amber-500/40"
+            className="w-full rounded-2xl bg-black/45 px-5 py-4 text-center text-2xl uppercase tracking-[0.4em] text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-accent-500/40"
           />
           <button
             type="submit"
             disabled={code.length < 4}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-700/70 px-5 py-3 font-medium text-amber-100 transition hover:bg-amber-600/75 disabled:cursor-not-allowed disabled:opacity-30"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent-700/70 px-5 py-3 font-medium text-accent-100 transition hover:bg-accent-600/75 disabled:cursor-not-allowed disabled:opacity-30"
           >
             Entrar
             <ArrowRight className="w-4 h-4" />
