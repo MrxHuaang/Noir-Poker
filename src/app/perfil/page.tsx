@@ -12,7 +12,6 @@ import {
   Pencil,
   RefreshCw,
   Sparkles,
-  Trophy,
   X,
 } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
@@ -24,7 +23,7 @@ import {
   updateProfileFields,
   type HistoryRecord,
 } from "@/lib/users";
-import { levelProgress, MAX_LEVEL } from "@/lib/progression";
+import { levelProgress, rankForLevel, MAX_LEVEL } from "@/lib/progression";
 import {
   availableCoins,
   dailyBonusReady,
@@ -44,6 +43,7 @@ export default function PerfilPage() {
 
   const uid = user?.uid ?? null;
   const prog = profile ? levelProgress(profile.xp) : null;
+  const rank = prog ? rankForLevel(prog.level) : null;
 
   useEffect(() => {
     if (!uid || isGuest) return;
@@ -245,10 +245,13 @@ export default function PerfilPage() {
               <p className="text-xs text-zinc-500 mt-1">
                 {profile.email ?? "Cuenta de invitado"} · desde {memberSince}
               </p>
-              <span className="inline-flex items-center gap-1.5 mt-2 text-[10px] uppercase tracking-[0.2em] px-2.5 py-1 rounded-full ring-1 bg-white/[0.05] text-zinc-300 ring-white/15">
-                <Trophy className="w-3 h-3" />
-                {profile.title}
-              </span>
+              {rank && (
+                <span className="inline-flex items-center gap-2 mt-2 text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full ring-1 bg-white/[0.05] text-zinc-300 ring-white/15">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={rank.emblem} alt={rank.name} className="w-5 h-5 object-contain" />
+                  {rank.name}
+                </span>
+              )}
             </div>
 
             <button
@@ -263,44 +266,50 @@ export default function PerfilPage() {
         </BorderGlow>
 
         {/* Rango / XP */}
-        {prog && (
+        {prog && rank && (
           <Card>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/[0.06] ring-1 ring-white/15">
-                  <span className="text-lg font-bold text-zinc-50">
-                    {prog.level}
+            <div className="flex items-center gap-5 mb-5">
+              {/* Escudo del rango */}
+              <div className="relative shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={rank.emblem}
+                  alt={rank.name}
+                  className="w-20 h-20 object-contain drop-shadow-[0_0_18px_rgba(167,139,250,0.35)]"
+                />
+                <span className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full bg-zinc-900 ring-2 ring-zinc-950 text-[10px] font-black text-zinc-100 flex items-center justify-center tabular-nums">
+                  {prog.level}
+                </span>
+              </div>
+
+              {/* Info del rango */}
+              <div className="flex-1 min-w-0">
+                <div className="text-xl font-bold tracking-tight text-zinc-50">
+                  {rank.name}
+                </div>
+                <div className="text-xs text-zinc-500 mt-0.5">
+                  Nivel {prog.level}{prog.level >= MAX_LEVEL ? " · Máximo" : ""}
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-sm font-semibold text-zinc-200 tabular-nums">
+                    {formatChips(profile.xp)} XP
                   </span>
+                  {!prog.isMax && (
+                    <span className="text-[11px] text-zinc-500">
+                      {formatChips(prog.span - prog.xpIntoLevel)} para nivel {prog.level + 1}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <div className="text-sm font-semibold text-zinc-100">
-                    Nivel {prog.level}
-                    {prog.level >= MAX_LEVEL ? " · Maximo" : ""}
-                  </div>
-                  <div className="text-xs text-zinc-500">{prog.title}</div>
+                <div className="mt-2 h-2 rounded-full bg-white/[0.06] overflow-hidden ring-1 ring-white/10">
+                  <div
+                    className="xp-fill h-full rounded-full bg-gradient-to-r from-violet-400 to-violet-200 shadow-[0_0_12px_rgba(167,139,250,0.5)]"
+                    style={{ width: `${prog.ratio * 100}%` }}
+                  />
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm font-semibold text-zinc-200">
-                  {formatChips(profile.xp)} XP
-                </div>
-                {!prog.isMax && (
-                  <div className="text-[11px] text-zinc-500">
-                    {formatChips(prog.span - prog.xpIntoLevel)} para nivel{" "}
-                    {prog.level + 1}
-                  </div>
-                )}
-              </div>
             </div>
-            <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden ring-1 ring-white/10">
-              <div
-                className="xp-fill h-full rounded-full bg-gradient-to-r from-zinc-300 to-white shadow-[0_0_18px_rgba(255,255,255,0.4)]"
-                style={{ width: `${prog.ratio * 100}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-zinc-600 mt-2">
-              Ganas experiencia por jugar manos y completar partidas. Cuanto mas
-              juegas, mas subes.
+            <p className="text-[11px] text-zinc-600">
+              Ganas experiencia por jugar manos y completar partidas. Cuanto mas juegas, mas subes.
             </p>
           </Card>
         )}

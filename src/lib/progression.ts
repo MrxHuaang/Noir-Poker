@@ -10,20 +10,28 @@ export const XP_PER_HAND = 10;
 export const XP_PER_SESSION = 50;
 export const XP_WIN_BONUS = 5;
 
-export type Title = { level: number; name: string };
+export type Title = { level: number; name: string; emblem: string };
 
 // Titulos desbloqueables por umbral de nivel (ordenados ascendente).
 export const TITLES: Title[] = [
-  { level: 1, name: "Novato" },
-  { level: 5, name: "Aficionado" },
-  { level: 10, name: "Apostador" },
-  { level: 20, name: "Regular" },
-  { level: 35, name: "Tiburon" },
-  { level: 50, name: "Profesional" },
-  { level: 70, name: "Veterano" },
-  { level: 85, name: "Maestro" },
-  { level: 100, name: "Leyenda" },
+  { level: 1,  name: "Peon",     emblem: "/ranks/peon.png"     },
+  { level: 10, name: "Fullero",  emblem: "/ranks/fullero.png"  },
+  { level: 20, name: "Sicario",  emblem: "/ranks/sicario.png"  },
+  { level: 35, name: "Capo",     emblem: "/ranks/capo.png"     },
+  { level: 50, name: "Verdugo",  emblem: "/ranks/verdugo.png"  },
+  { level: 70, name: "Espectro", emblem: "/ranks/espectro.png" },
+  { level: 90, name: "Noir",     emblem: "/ranks/noir.png"     },
 ];
+
+export function rankForLevel(level: number): Title {
+  const lvl = Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
+  let rank = TITLES[0];
+  for (const t of TITLES) {
+    if (t.level <= lvl) rank = t;
+    else break;
+  }
+  return rank;
+}
 
 // XP total acumulado necesario para ALCANZAR un nivel dado.
 // Nivel 1 = 0 XP. Curva creciente: 100 * (n-1)^1.6.
@@ -46,13 +54,7 @@ export function levelFromXp(xp: number): number {
 
 // Titulo desbloqueado para un nivel (el de mayor umbral <= nivel).
 export function titleForLevel(level: number): string {
-  const lvl = Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
-  let name = TITLES[0].name;
-  for (const t of TITLES) {
-    if (t.level <= lvl) name = t.name;
-    else break;
-  }
-  return name;
+  return rankForLevel(level).name;
 }
 
 export type LevelProgress = {
