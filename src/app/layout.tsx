@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
+import { GlobalBackground } from "@/components/ui/GlobalBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,8 +38,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#06070a] text-zinc-100">
+        <GlobalBackground />
         <Nav />
-        <main className="flex-1 flex flex-col">{children}</main>
+        <main className="relative z-[2] flex-1 flex flex-col">{children}</main>
       </body>
     </html>
   );
