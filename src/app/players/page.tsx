@@ -60,10 +60,10 @@ export default function PlayersPage() {
         ) : null}
       </header>
       <BorderGlow
-        className="w-full"
+        className="w-full lg-blur"
         edgeSensitivity={24}
         glowColor={ACCENT_GLOW_HSL}
-        backgroundColor="rgba(9, 7, 16, 0.88)"
+        backgroundColor="var(--lg-bg)"
         borderRadius={18}
         glowRadius={26}
         glowIntensity={0.92}

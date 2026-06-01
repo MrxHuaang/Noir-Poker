@@ -68,10 +68,10 @@ export default function LoginPage() {
     <div className="relative isolate min-h-full w-full flex items-center justify-center px-4 py-12">
       <div className="relative z-[2] w-full max-w-md">
         <BorderGlow
-          className="w-full"
+          className="w-full lg-blur"
           edgeSensitivity={26}
           glowColor="0 0 82"
-          backgroundColor="rgba(9,9,11,0.9)"
+          backgroundColor="var(--lg-bg)"
           borderRadius={24}
           glowRadius={36}
           glowIntensity={1.05}

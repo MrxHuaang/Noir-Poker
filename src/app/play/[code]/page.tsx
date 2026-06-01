@@ -113,10 +113,10 @@ function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
       </header>
 
       <BorderGlow
-        className="w-full"
+        className="w-full lg-blur"
         edgeSensitivity={26}
         glowColor={ACCENT_GLOW_HSL}
-        backgroundColor="rgba(9, 7, 16, 0.9)"
+        backgroundColor="var(--lg-bg)"
         borderRadius={20}
         glowRadius={30}
         glowIntensity={1}

@@ -41,10 +41,10 @@ function JoinInner() {
         Ingresa el código que aparece en la pantalla grande.
       </p>
       <BorderGlow
-        className="w-full"
+        className="w-full lg-blur"
         edgeSensitivity={26}
         glowColor={ACCENT_GLOW_HSL}
-        backgroundColor="rgba(9, 7, 16, 0.92)"
+        backgroundColor="var(--lg-bg)"
         borderRadius={22}
         glowRadius={32}
         glowIntensity={1}

@@ -101,10 +101,10 @@ export default function CreateRoom() {
       {code ? (
         /* Success: show the generated code */
         <BorderGlow
-          className="w-full"
+          className="w-full lg-blur"
           glowColor={GLOW}
           colors={GLOW_COLORS}
-          backgroundColor="rgba(11,11,13,0.85)"
+          backgroundColor="var(--lg-bg)"
           borderRadius={22}
           glowRadius={34}
           glowIntensity={1.05}
