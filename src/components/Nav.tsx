@@ -173,7 +173,7 @@ function UserPill() {
               {isGuest ? "Invitado" : profile.nickname}
             </div>
             {!isGuest && (
-              <div className="text-[11px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
+              <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 mt-0.5">
                 <Trophy className="w-3 h-3" />
                 Nivel {profile.level} · {profile.title}
               </div>

@@ -76,7 +76,7 @@ export function JoinWithStack({
 
       {!isRebuy && (
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-500">Tu nombre</span>
+          <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-400">Tu nombre</span>
           <input
             value={name}
             onChange={(e) => { setName(e.target.value); }}
@@ -95,7 +95,7 @@ export function JoinWithStack({
       )}
 
       <div className="flex flex-col gap-1">
-        <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-500">
+        <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-400">
           {isRebuy ? "Cantidad de fichas" : "Stack de entrada"}
         </span>
         <div className="flex items-center gap-2">
@@ -133,7 +133,7 @@ export function JoinWithStack({
           )}
         </div>
         {cap !== undefined && (
-          <p className="text-[11px] text-zinc-500 tabular-nums">
+          <p className="text-[11px] text-zinc-400 tabular-nums">
             Saldo disponible: {cap.toLocaleString("es")} monedas
           </p>
         )}

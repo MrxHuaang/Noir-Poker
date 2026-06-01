@@ -27,7 +27,7 @@ export default function Home() {
             className="object-contain select-none pointer-events-none"
             style={{ height: "180px", width: "auto", mixBlendMode: "screen" }}
           />
-          <p className="text-sm sm:text-base text-zinc-400 max-w-xl">
+          <p className="text-sm sm:text-base text-zinc-300 max-w-xl">
             Texas Hold&apos;em multi-dispositivo. Mesas públicas y privadas,
             modo presencial, sala online con fichas o torneo administrado.
           </p>
@@ -161,7 +161,7 @@ function ModeCard({
           </div>
           <div>
             <h3 className="text-xl text-zinc-50 font-semibold tracking-tight">{title}</h3>
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 mt-1">{subtitle}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400 mt-1">{subtitle}</p>
           </div>
           <p className="text-sm text-zinc-300/90">{description}</p>
           <ul className="flex flex-col gap-1.5">
@@ -288,7 +288,7 @@ function QuickLink({
         </div>
         <div>
           <div className="text-sm font-semibold text-zinc-100">{title}</div>
-          <p className="text-xs text-zinc-500 mt-0.5">{sub}</p>
+          <p className="text-xs text-zinc-400 mt-0.5">{sub}</p>
         </div>
       </div>
       <div className="w-7 h-7 rounded-full bg-white/5 ring-1 ring-white/10 flex items-center justify-center group-hover:bg-white/[0.1] group-hover:ring-white/20 transition">
