@@ -38,7 +38,7 @@ function JoinInner() {
       <Smartphone className="w-10 h-10 text-zinc-400" />
       <h1 className="text-2xl tracking-tight text-zinc-100">Unirse a sala</h1>
       <p className="text-sm text-muted text-center">
-        Ingresa el código que aparece en la pantalla grande.
+        Ingresa el código de sala que te compartieron.
       </p>
       <BorderGlow
         className="w-full lg-blur"
