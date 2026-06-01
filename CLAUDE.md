@@ -19,6 +19,28 @@ Multi-device Texas Hold'em simulator. Big screen runs the table, phones see priv
 - Hooks live under `src/hooks/`.
 - Firestore helpers in `src/lib/rooms.ts`. Don't sprinkle direct `getFirestore()` calls in components.
 
+## Color system (brand accent)
+
+The brand accent is **violet (hue ~290)**. There is ONE knob per layer — never
+hardcode amber/gold/green/blue chrome again.
+
+- **Tailwind classes** → use `accent-*` utilities ONLY: `text-accent-300`,
+  `bg-accent-500/10`, `ring-accent-400/40`, `shadow-accent-700/20`, etc. The
+  full `--color-accent-50…950` scale lives in `globals.css` (`@theme inline`).
+  Do NOT use `amber-*`, `emerald-*` (for chrome), `yellow-*`, or raw hue values.
+- **JS / canvas / inline styles** (BorderGlow `colors`/`glowColor`, Grainient,
+  confetti, card-back gradients) → import from `src/lib/brand.ts`
+  (`ACCENT`, `ACCENT_GLOW_COLORS`, `ACCENT_GLOW_HSL`, `accentAlpha()`). Never
+  inline a hex/rgba/HSL accent literal in a component.
+- **To re-skin the whole app**: change the oklch hue in `globals.css` `@theme`
+  AND the hex ramp in `src/lib/brand.ts`. Those two files are the single source
+  of truth and MUST stay in sync.
+- **Deliberately exempt** (do not force to violet): per-suit card faces
+  (`neon`/`noir`/`balatro` are opt-in cosmetic styles), selectable table felt
+  themes (`emerald`/`amber`/`ruby`/`sapphire` in `themes.ts`), and
+  profit/loss semantics (`text-emerald-400` gain / `text-rose-400` loss).
+- **Audit before shipping a color change**: `grep -rn "amber-\|emerald-\|#fbbf24\|#34d399\|rgba(251,191,36\|rgba(180,130,40" src` should return only the exempt cases above.
+
 ## Critical files
 
 | File                                          | What it owns                                                  |
@@ -28,6 +50,7 @@ Multi-device Texas Hold'em simulator. Big screen runs the table, phones see priv
 | `src/lib/handLabel.ts`                        | Spanish hand descriptions (e.g. "Par de ases", "Escalera al rey") |
 | `src/lib/rooms.ts`                            | Firestore room CRUD, lobby subcollection, hole subcollection  |
 | `src/lib/firebase.ts`                         | Lazy app/auth/firestore singletons (client-only)              |
+| `src/lib/brand.ts`                            | Canonical accent palette for JS/canvas/inline styles. Mirrors the `accent-*` scale in `globals.css`. |
 | `src/workers/equity.worker.ts`                | Exact + MC equity, multi-run dealer                           |
 | `src/components/table/PokerTable.tsx`         | Orchestrator. Accepts `sync` + `playersOverride` for host mode |
 | `src/components/table/RoundPokerTable.tsx`    | Betting-mode table. Seats use 10 fixed positions. Rotation via `rotationOffset` state. |
