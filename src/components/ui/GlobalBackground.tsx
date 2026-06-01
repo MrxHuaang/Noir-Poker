@@ -26,9 +26,9 @@ export function GlobalBackground() {
     >
       <div className="absolute inset-0">
         <Grainient
-          color1="#5c2e9a"
-          color2="#0e0e22"
-          color3="#2e1e60"
+          color1="#a78bfa"
+          color2="#0d0a12"
+          color3="#3d2a6b"
           timeSpeed={0.22}
           colorBalance={0.05}
           warpStrength={0.9}
@@ -44,7 +44,7 @@ export function GlobalBackground() {
           grainAnimated={false}
           contrast={1.4}
           gamma={0.9}
-          saturation={0.72}
+          saturation={0.55}
           centerX={0}
           centerY={0}
           zoom={0.88}
@@ -54,7 +54,7 @@ export function GlobalBackground() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 100% 72% at 50% 44%, transparent 0%, rgba(7,7,8,0.5) 58%, rgba(7,7,8,0.88) 100%), linear-gradient(180deg, rgba(7,7,8,0.5) 0%, transparent 22%, transparent 78%, rgba(7,7,8,0.6) 100%)",
+            "radial-gradient(ellipse 100% 72% at 50% 44%, transparent 0%, rgba(8,6,14,0.58) 58%, rgba(6,5,11,0.9) 100%), linear-gradient(180deg, rgba(6,5,11,0.56) 0%, transparent 22%, transparent 78%, rgba(6,5,11,0.64) 100%)",
         }}
       />
     </div>

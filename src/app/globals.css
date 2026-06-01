@@ -1,15 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #070708;
-  --foreground: #ece8e0;
-  --surface: rgba(255, 220, 140, 0.022);
-  --surface-strong: rgba(255, 220, 140, 0.045);
-  --border-soft: rgba(255, 210, 110, 0.07);
-  /* Noir brand accent — warm parchment + aged brass on near-black. */
-  --accent: #d4bf94;
-  --accent-soft: rgba(212, 191, 148, 0.12);
-  --accent-2: #7a6e58;
+  --background: oklch(0.105 0.012 292);
+  --foreground: oklch(0.925 0.012 290);
+  --surface: oklch(0.165 0.014 290 / 0.72);
+  --surface-strong: oklch(0.205 0.018 288 / 0.82);
+  --border-soft: oklch(0.72 0.14 290 / 0.12);
+  /* Noir brand accent — violet on near-black. */
+  --accent: oklch(0.72 0.19 290);
+  --accent-soft: oklch(0.72 0.19 290 / 0.14);
+  --accent-2: oklch(0.52 0.14 290);
+  --accent-contrast: oklch(0.155 0.022 292);
+  --shadow-warm: oklch(0.62 0.18 290 / 0.28);
 }
 
 /* stylelint-disable-next-line at-rule-no-unknown */
@@ -19,8 +21,10 @@
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
   --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-contrast: var(--accent-contrast);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
 }
 
 html,
@@ -38,33 +42,33 @@ body {
 
 body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
   background-image:
     radial-gradient(
-      ellipse at 80% -10%,
-      rgba(255, 255, 255, 0.06) 0%,
+      ellipse at 76% -10%,
+      oklch(0.72 0.19 290 / 0.08) 0%,
       transparent 50%
     ),
     radial-gradient(
-      ellipse at 0% 110%,
-      rgba(255, 255, 255, 0.035) 0%,
+      ellipse at 8% 112%,
+      oklch(0.62 0.14 290 / 0.055) 0%,
       transparent 50%
     );
   background-attachment: fixed;
 }
 
 .glass {
-  background: rgba(255, 220, 140, 0.022);
+  background: var(--surface);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 210, 110, 0.07);
+  border: 1px solid var(--border-soft);
 }
 
 .glass-strong {
-  background: rgba(255, 220, 140, 0.045);
+  background: var(--surface-strong);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 210, 110, 0.09);
+  border: 1px solid oklch(0.72 0.18 290 / 0.16);
 }
 
 /* Mobile: drop expensive backdrop-filter — fall back to opaque bg */
@@ -121,11 +125,11 @@ body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.2);
+  background: oklch(0.78 0.095 80 / 0.22);
   border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.4);
+  background: oklch(0.78 0.095 80 / 0.42);
 }
 
 .elevate {

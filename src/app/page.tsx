@@ -98,18 +98,18 @@ const TIERS: Record<
 > = {
   one: {
     glow: "0 0 82",
-    colors: ["#ededf2", "#a0a0a8", "#52525b"],
-    bg: "rgba(9,9,11,0.88)",
+    colors: ["#a78bfa", "#7c5cbf", "#3d2a6b"],
+    bg: "rgba(10,8,18,0.9)",
   },
   two: {
     glow: "0 0 75",
-    colors: ["#d4d4d8", "#8a8a93", "#3f3f46"],
-    bg: "rgba(9,9,11,0.88)",
+    colors: ["#9b7ff5", "#7356af", "#2e1f55"],
+    bg: "rgba(9,7,16,0.9)",
   },
   three: {
     glow: "0 0 60",
-    colors: ["#c0c0c8", "#6a6a73", "#3a3a42"],
-    bg: "rgba(9,9,11,0.88)",
+    colors: ["#8b6fe8", "#6548a0", "#261747"],
+    bg: "rgba(8,6,14,0.9)",
   },
 };
 
