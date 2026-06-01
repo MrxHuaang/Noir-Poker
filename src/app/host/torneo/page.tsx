@@ -50,8 +50,6 @@ import { TournamentHUD } from "@/components/host/TournamentHUD";
 import { TournamentPodium } from "@/components/host/TournamentPodium";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
-// AllInVoteModal removed — run-it-N pending reimplementation
-import { postPlayerVote } from "@/lib/normalRooms";
 
 const DEFAULT_TORNEO_CONFIG: RoomConfig = {
   mode: "torneo",

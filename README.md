@@ -82,7 +82,7 @@ Modo con apuestas completas: ciegas, raises, pots, side pots y timers.
 - Timebank opcional por jugador (toggle "TB ON/OFF" en el dock)
 - Toggle "sentarse fuera": auto-fold en el turno
 - Joins en medio del juego: nuevos jugadores se integran al inicio de la siguiente mano
-- All-in runout automático: revela cartas, deal restante con animación, evalúa ganador (1 run)
+- All-in run-it-N: votación 1/2/3/5 según mazo, timeout automático, revela cartas, reparte todas las calles y distribuye side pots por run
 - Side pots calculados automáticamente
 - Config: SB, BB, ante, stack inicial, tiempo de turno, timebank
 - Hand history en el HostDock (tab Historial)
@@ -524,7 +524,7 @@ Si trabajas con asistentes AI (Cursor, Claude Code, etc.), `CLAUDE.md` en la ra�
 - [x] Toggle TB on/off por jugador
 - [x] Toggle "sentarse fuera" + auto-fold
 - [x] Mid-game joins
-- [x] All-in runout automático (1 run, animado)
+- [x] All-in run-it-N con votación, side pots y playback animado
 - [x] Hand history en HostDock
 - [x] Chat + reactions
 - [x] Admin: ajustar chips, set-all, kick
@@ -558,7 +558,6 @@ Resumen:
 
 | Prioridad | Feature |
 |-----------|---------|
-| Alta | Run-it-N times (reimplementar sin bloquear) |
 | Alta | Stats por sala en Firestore |
 | Alta | Transferir host |
 | Media | Torneo: pantalla de podio + payouts |

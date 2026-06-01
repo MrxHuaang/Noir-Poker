@@ -17,7 +17,7 @@ export function AllInVoteChip({ gameState, selfUid, onClick }: Props) {
 
   const involved = neg.playerIds.includes(selfUid ?? "");
   const myVote = selfUid ? neg.votes[selfUid] : null;
-  const totalVoted = Object.keys(neg.votes).length;
+  const totalVoted = neg.playerIds.filter((id) => typeof neg.votes[id] === "number").length;
   const total = neg.playerIds.length;
   const pct = total > 0 ? (totalVoted / total) * 100 : 0;
 
@@ -36,9 +36,11 @@ export function AllInVoteChip({ gameState, selfUid, onClick }: Props) {
       </div>
       <span className="text-[9px] font-bold text-zinc-400 leading-none">
         {involved
-          ? myVote != null
-            ? `Tu voto: ${myVote}×`
-            : "Toca para votar"
+          ? neg.agreedN != null
+            ? `Runs: ${neg.agreedN}x`
+            : myVote != null
+              ? `Tu voto: ${myVote}x`
+              : "Toca para votar"
           : "Esperando votos"}
       </span>
       <div className="w-16 h-1 bg-zinc-800 rounded-full overflow-hidden mt-0.5">

@@ -45,6 +45,7 @@ import { formatChips } from "@/lib/betting";
 import type {
   BettingAction,
   BettingRound,
+  NormalGameState,
   NormalSeat,
 } from "@/lib/betting";
 import type { TableThemeId } from "@/lib/themes";
@@ -53,7 +54,9 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
 import { OptionsMenu } from "@/components/settings/OptionsMenu";
 import { PlayerSettings } from "@/components/settings/PlayerSettings";
-// AllInVoteModal + AllInVoteChip removed — run-it-N pending reimplementation
+import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
+import { AllInVoteChip } from "@/components/betting/AllInVoteChip";
+import { RunResults } from "@/components/table/RunResults";
 
 const EMPTY_BETTING: BettingRound = {
   pot: 0,
@@ -90,6 +93,8 @@ export default function PlayNormalPage() {
   const liveRef = useRef({ inLobby: false, spectating: false, finalChips: 0, escrow: 0, isCasual: false });
 
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [closedAllInVoteHand, setClosedAllInVoteHand] = useState<number | null>(null);
+  const [closedRunResultsHand, setClosedRunResultsHand] = useState<number | null>(null);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
     undefined,
   );
@@ -144,6 +149,11 @@ export default function PlayNormalPage() {
   const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
   const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
   const result = room?.result ?? null;
+  const currentHandNum = gs?.betting.handNum ?? EMPTY_BETTING.handNum;
+  const visibleRunResults =
+    closedRunResultsHand === currentHandNum ? null : (room?.runResults ?? null);
+  const allInVoteOpen =
+    gs?.phase === "all-in-negotiation" ? closedAllInVoteHand !== currentHandNum : true;
 
   // Mantener el snapshot al dia para el cleanup de desmontaje.
   liveRef.current = {
@@ -306,6 +316,11 @@ export default function PlayNormalPage() {
   async function handleAction(action: BettingAction, amount?: number) {
     if (!uid || !code) return;
     await postPlayerAction(code, uid, action, amount);
+  }
+
+  async function handleRunVote(n: number) {
+    if (!uid || !code) return;
+    await postPlayerVote(code, uid, n).catch(() => {});
   }
 
   async function handleToggleSitOut() {
@@ -551,7 +566,7 @@ export default function PlayNormalPage() {
         disabled={hasRevealedLeft}
         className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedLeft ? "bg-accent-500/10 text-accent-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
       >
-        Isq
+        Izq
       </button>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 1)}
@@ -734,6 +749,32 @@ export default function PlayNormalPage() {
           onClose={() => setOptionsOpen(false)}
         />
       )}
+      <AllInVoteModal
+        gameState={gs as NormalGameState | null}
+        selfUid={uid}
+        onVote={handleRunVote}
+        open={allInVoteOpen}
+        onClose={() => setClosedAllInVoteHand(currentHandNum)}
+      />
+      {!allInVoteOpen && (
+        <AllInVoteChip
+          gameState={gs as NormalGameState | null}
+          selfUid={uid}
+          onClick={() => setClosedAllInVoteHand(null)}
+        />
+      )}
+      {visibleRunResults ? (
+        <RunResults
+          runs={visibleRunResults}
+          players={(gs?.seats ?? placeholderSeats).map((s) => ({
+            id: s.id,
+            name: s.name,
+            seed: s.seed,
+            createdAt: 0,
+          }))}
+          onClose={() => setClosedRunResultsHand(currentHandNum)}
+        />
+      ) : null}
     </>
   );
 }

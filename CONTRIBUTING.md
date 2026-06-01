@@ -143,18 +143,26 @@ Si trabajas con asistentes AI (Claude Code, Cursor, etc.), leer `CLAUDE.md` en l
 
 ---
 
-## Estado actual (Mayo 2026)
+## Estado actual (Junio 2026)
 
 El juego es **jugable de punta a punta** en modos Normal y Torneo:
 - Jugadores se unen desde el teléfono, eligen asiento y avatar
 - Apuestas completas (Fold / Check / Call / Bet / Raise / All-in)
-- All-in resuelto automáticamente (deal restante + ganador)
+- All-in run-it-N con votación, timeout automático, side pots y avance de mano
 - Chat de texto + reacciones + canal de voz P2P
 - Sala administrada por el host con controles completos
 
 ---
 
 ## Changelog
+
+### v0.10 — Run-it-N normal (Junio 2026)
+
+#### All-in run-it-N robusto
+- All-in en modo Normal vuelve a abrir negociación 1x/2x/3x/5x, limitada por cartas disponibles en el mazo
+- Los votos se escriben por jugador en `state.allInNegotiation.votes`; el host fusiona solo ese mapa para no perder el mazo local
+- Timeout de 15 s evita bloqueo si alguien no vota; los votos faltantes caen a 1x
+- El motor reparte cada run sin duplicar cartas, divide main/side pots por run y guarda `runResults` para el resumen visual
 
 ### v0.9 — Estabilización y jugabilidad (Mayo 2026)
 
@@ -170,10 +178,9 @@ El juego es **jugable de punta a punta** en modos Normal y Torneo:
 - **BUG-009** Botón "Ir a la mesa" en Roster Local redirigía a `/` — corregido a `/host`
 - **BUG-010** Modal "Elige un modo" se cierra con tecla Escape (WCAG 2.1)
 
-#### All-in simplificado (fase all-in-negotiation eliminada)
-- Eliminada la fase `all-in-negotiation` y el sistema de votación 1x/2x/3x que bloqueaba el juego
-- All-in resuelve automáticamente en 1 run: revela cartas, deal streets con animación (1.2 s/calle), evalúa ganador, continúa
-- Run-it-N queda como feature pendiente de reimplementación robusta
+#### All-in simplificado
+- En v0.9 el all-in se simplificó temporalmente a 1 run para quitar bloqueos de votación
+- En v0.10 se reintrodujo run-it-N con timeout y resolución de side pots por run
 
 #### Seguridad: cifrado de hole cards (RSA-OAEP)
 - Par RSA-2048 por dispositivo generado con Web Crypto API
@@ -225,7 +232,6 @@ El juego es **jugable de punta a punta** en modos Normal y Torneo:
 
 | Feature | Notas |
 |---------|-------|
-| **Run-it-N times** | Reimplementar sin votación bloqueante: acuerdo automático o configuración de sala |
 | **Stats por sala en Firestore** | Migrar `useStats`/`useHistory` de localStorage a `normalRooms/{code}/stats` |
 | **Transferir host** | Botón en HostDock + listener de `hostUid` en Firestore para cuando el host cierra la pestaña |
 
@@ -278,7 +284,7 @@ El juego es **jugable de punta a punta** en modos Normal y Torneo:
 
 | Bug | Causa | Fix |
 |-----|-------|-----|
-| All-in modal bloqueado | Fase `all-in-negotiation` esperaba votos de todos; si uno no votaba se colgaba | Eliminada; runout automatico 1x |
+| All-in modal bloqueado | Fase `all-in-negotiation` esperaba votos de todos; si uno no votaba se colgaba | Timeout de 15 s + default 1x para votos faltantes |
 | Pantalla negra Next.js | `useMemo` despues de `return` condicional — React error #310 | Mover hooks antes de early returns |
 | Jugador no ve juego iniciado | `onSnapshot` error handler llamaba `cb(null)` terminando el listener | Retry con backoff en `useNormalRoom` |
 | Seats clusterizados al fondo | Mapeo consecutivo de seats a slots | `Math.round(i * 9 / n) % 9` |

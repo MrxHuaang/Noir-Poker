@@ -6,7 +6,6 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import type { NormalSeat, BettingRound } from "@/lib/betting";
 import { formatChips } from "@/lib/betting";
-import { calculateEquity, getRemainingDeck } from "@/lib/equity";
 import type { Card } from "@/lib/poker";
 import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
@@ -210,7 +209,6 @@ export function RoundPokerTable({
   winners = [],
   theme = "noir",
   roomCode,
-  isTournament = false,
   selfUid,
   ownHole,
   revealedHoles,
@@ -228,35 +226,9 @@ export function RoundPokerTable({
   const [rotationOffset, setRotationOffset] = useState(0);
   // Track last action per seat for toasts
   const [seatToasts, setSeatToasts] = useState<Record<string, { action: string; amount?: number; key: number }>>({});
-  const [equities, setEquities] = useState<Record<string, number>>({});
   const { muted, toggleMute, play } = useSound();
   const [flyingChips, setFlyingChips] = useState<{ id: number; x: number; y: number }[]>([]);
   const t = getTableTheme(theme);
-
-  // Compute equities if multiple holes are revealed
-  useEffect(() => {
-    setTimeout(() => {
-      if (!revealedHoles) {
-        setEquities({});
-        return;
-      }
-      const holes = Object.entries(revealedHoles).map(([id, cards]) => ({ id, cards }));
-      if (holes.length < 2) {
-        setEquities({});
-        return;
-      }
-      
-      const knownCards = [...community, ...holes.flatMap((h) => h.cards)];
-      const deck = getRemainingDeck(knownCards);
-      const result = calculateEquity(holes, community, deck, 1500); 
-      
-      const newEquities: Record<string, number> = {};
-      result.forEach((r) => {
-        newEquities[r.seatId] = r.equity;
-      });
-      setEquities(newEquities);
-    }, 0);
-  }, [community, revealedHoles]);
 
   // Both normal and tournament rooms live in the `normalRooms` collection and
   // are joined through the mode-agnostic /play/normal route (there is no
@@ -510,11 +482,6 @@ export function RoundPokerTable({
               {/* Hole cards — top of seat group */}
               {isDealt && (
                 <div className={`relative flex gap-0.5 pointer-events-none ${seat.status === "folded" ? "opacity-30 grayscale" : ""}`}>
-                  {equities[seat.id] !== undefined && (
-                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-bold text-accent ring-1 ring-accent/25 whitespace-nowrap">
-                      {equities[seat.id]}%
-                    </div>
-                  )}
                   {faceUpCards ? (
                     faceUpCards.map((c, ci) => (
                       <div key={c.id + ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>

@@ -43,6 +43,11 @@ type Props = {
   locked: boolean;
   hostUid?: string | null;
   selfUid?: string | null;
+  // Modelo economico de la sala. En "coins" mostramos el wallet de cada jugador
+  // y atajos "Máx" al ajustar su stack.
+  economy?: "coins" | "casual";
+  // Monedas disponibles del wallet por uid (solo modo coins).
+  walletByUid?: Record<string, number>;
   onAdjustChips: (uid: string, delta: number) => void;
   onSetAllChips: (amount: number) => void;
   onKick: (uid: string) => Promise<void>;
@@ -182,6 +187,8 @@ function PlayerRow({
   code,
   isHost,
   isSelf,
+  economy = "coins",
+  wallet,
   onAdjust,
   onKick,
 }: {
@@ -190,6 +197,8 @@ function PlayerRow({
   code: string;
   isHost: boolean;
   isSelf: boolean;
+  economy?: "coins" | "casual";
+  wallet?: number;
   onAdjust: (uid: string, delta: number) => void;
   onKick: (uid: string) => Promise<void>;
 }) {
@@ -372,6 +381,26 @@ function PlayerRow({
 
       {stackOpen && !isOut && (
         <div className="px-3 pb-3 flex flex-col gap-2 animate-in slide-in-from-top-1 fade-in duration-200">
+          {economy === "coins" && wallet !== undefined && (
+            <div className="flex items-center justify-between gap-2 text-[10px]">
+              <span className="text-zinc-500">
+                Wallet:{" "}
+                <span className="text-accent-300 font-bold tabular-nums">
+                  {formatChips(wallet)}
+                </span>{" "}
+                disponibles
+              </span>
+              <button
+                type="button"
+                onClick={() => setSetAmount(String(chips + wallet))}
+                disabled={wallet <= 0}
+                className="px-2 py-1 rounded-lg bg-accent-500/10 ring-1 ring-accent-400/25 text-accent-300 text-[10px] font-bold uppercase tracking-widest hover:bg-accent-500/18 disabled:opacity-30 transition"
+                title="Fijar al maximo del wallet (fichas actuales + disponible)"
+              >
+                Máx
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             {[-1000, -500, -100, 100, 500, 1000].map((d) => (
               <button
@@ -421,6 +450,8 @@ export function StackRequestPanel({
   locked,
   hostUid,
   selfUid,
+  economy = "coins",
+  walletByUid,
   onAdjustChips,
   onSetAllChips,
   onKick,
@@ -514,6 +545,8 @@ export function StackRequestPanel({
                     code={code}
                     isHost={!!hostUid && p.uid === hostUid}
                     isSelf={!!selfUid && p.uid === selfUid}
+                    economy={economy}
+                    wallet={walletByUid?.[p.uid]}
                     onAdjust={onAdjustChips}
                     onKick={onKick}
                   />

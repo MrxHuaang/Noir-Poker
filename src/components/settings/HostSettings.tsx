@@ -65,6 +65,8 @@ type Props = {
   locked: boolean;
   hostUid?: string | null;
   selfUid?: string | null;
+  economy?: "coins" | "casual";
+  walletByUid?: Record<string, number>;
   history?: HandRecord[];
   onAdjustChips: (uid: string, delta: number) => void;
   onSetAllChips: (amount: number) => void;
@@ -163,6 +165,8 @@ export function HostSettings(props: Props) {
           locked={props.locked}
           hostUid={props.hostUid ?? null}
           selfUid={props.selfUid ?? null}
+          economy={props.economy}
+          walletByUid={props.walletByUid}
           onAdjustChips={props.onAdjustChips}
           onSetAllChips={props.onSetAllChips}
           onKick={props.onKick}

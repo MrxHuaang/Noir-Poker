@@ -12,13 +12,7 @@ type Props = {
 
 export function BettingControls({ seat, betting, onAction, disabled }: Props) {
   const valid = getValidActions(seat, betting);
-  const hasRaiseOrBet = valid.find(
-    (v) => v.action === "raise" || v.action === "bet",
-  );
   const toCall = Math.max(0, betting.currentBet - seat.bet);
-  const [raiseAmount, setRaiseAmount] = useState<number>(
-    hasRaiseOrBet?.min ?? betting.currentBet + betting.minRaise,
-  );
 
   const canCheck = valid.some((v) => v.action === "check");
   const canCall = valid.some((v) => v.action === "call");
@@ -27,6 +21,31 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
   const betOpt = valid.find((v) => v.action === "bet");
   const raiseOpt = valid.find((v) => v.action === "raise");
   const sliderOpt = betOpt ?? raiseOpt;
+  const pot = betting.pot;
+  const minVal = sliderOpt?.min ?? 0;
+  const maxVal = sliderOpt?.max ?? seat.chips;
+  const clamp = (v: number) => Math.max(minVal, Math.min(maxVal, Math.round(v)));
+  const amountKey = [
+    seat.id,
+    seat.bet,
+    seat.chips,
+    betting.handNum,
+    betting.currentBet,
+    betting.minRaise,
+    sliderOpt?.min ?? 0,
+    sliderOpt?.max ?? 0,
+  ].join(":");
+  const initialRaiseAmount = sliderOpt
+    ? clamp(sliderOpt.min ?? betting.currentBet + betting.minRaise)
+    : 0;
+  const [raiseDraft, setRaiseDraft] = useState<{ key: string; value: number }>(
+    () => ({ key: amountKey, value: initialRaiseAmount }),
+  );
+  const raiseAmount =
+    raiseDraft.key === amountKey ? clamp(raiseDraft.value) : initialRaiseAmount;
+  const setRaiseAmount = (value: number) => {
+    setRaiseDraft({ key: amountKey, value: clamp(value) });
+  };
 
   function handleSlider(e: React.ChangeEvent<HTMLInputElement>) {
     setRaiseAmount(Number(e.target.value));
@@ -38,17 +57,13 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
   }
 
   // Quick bet presets — percentage of pot + Max (all-in)
-  const pot = betting.pot;
-  const minVal = sliderOpt?.min ?? 0;
-  const maxVal = sliderOpt?.max ?? Infinity;
-  const clamp = (v: number) => Math.max(minVal, Math.min(maxVal, Math.round(v)));
   const presets = sliderOpt
     ? [
         { label: "33%", value: clamp(pot * 0.33) },
         { label: "½", value: clamp(pot * 0.5) },
         { label: "75%", value: clamp(pot * 0.75) },
         { label: "Bote", value: clamp(pot) },
-        { label: "Max", value: clamp(maxVal === Infinity ? seat.chips : maxVal) },
+        { label: "Max", value: clamp(maxVal) },
       ].filter((p, i, arr) => p.value > 0 && arr.findIndex((q) => q.value === p.value) === i)
     : [];
 
@@ -62,7 +77,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
               <button
                 key={p.label}
                 type="button"
-                onClick={() => setRaiseAmount(Math.min(p.value, sliderOpt.max ?? p.value))}
+                onClick={() => setRaiseAmount(Math.min(p.value, maxVal))}
                 className="flex-1 px-1 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-[9px] font-bold text-zinc-300 transition border border-white/5"
               >
                 {p.label}

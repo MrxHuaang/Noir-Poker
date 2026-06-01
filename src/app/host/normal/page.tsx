@@ -25,10 +25,13 @@ import {
   setHostHeartbeat,
   leaveQueue,
   setNormalRoomMaxPlayers,
+  postPlayerVote,
 } from "@/lib/normalRooms";
 import { DEFAULT_CONFIG } from "@/lib/betting";
 import type { BettingAction, BettingRound, NormalSeat, RoomConfig } from "@/lib/betting";
 import type { TableThemeId, CardBackId } from "@/lib/themes";
+import { getUserProfile } from "@/lib/users";
+import { availableCoins } from "@/lib/economy";
 import type { Card } from "@/lib/poker";
 import { randomSeed } from "@/lib/dicebear";
 import { TableShell } from "@/components/table/TableShell";
@@ -37,8 +40,9 @@ import { HostSettings } from "@/components/settings/HostSettings";
 import { HostNotifications } from "@/components/host/HostNotifications";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
-// AllInVoteModal + AllInVoteChip removed — run-it-N pending reimplementation
-import { postPlayerVote } from "@/lib/normalRooms";
+import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
+import { AllInVoteChip } from "@/components/betting/AllInVoteChip";
+import { RunResults } from "@/components/table/RunResults";
 
 const EMPTY_BETTING: BettingRound = {
   pot: 0,
@@ -79,9 +83,13 @@ export default function HostNormalPage() {
     setAllChips,
     kickPlayer,
     isProcessing,
+    runs,
+    dismissRuns,
   } = useNormalGame(code, room ?? null, lobby, uid, holeCards);
 
   const creatingRef = useRef(false);
+  const [closedAllInVoteHand, setClosedAllInVoteHand] = useState<number | null>(null);
+  const [closedRunResultsHand, setClosedRunResultsHand] = useState<number | null>(null);
   useEffect(() => {
     if (loading || !uid || code || creatingRef.current) return;
     creatingRef.current = true;
@@ -145,8 +153,36 @@ export default function HostNormalPage() {
   const cardBack: CardBackId = (room?.cardBack as CardBackId) ?? "classic-blue";
   const cardFace = (room?.cardFace as never) ?? "classic";
   const roomBg = room?.roomBg ?? "onyx";
+  const economy = (room?.economy ?? "coins") as "coins" | "casual";
+
+  // En modo coins, leer el wallet disponible de cada jugador del lobby para que
+  // el host vea saldos y use el atajo "Máx" al ajustar stacks.
+  const [walletByUid, setWalletByUid] = useState<Record<string, number>>({});
+  const lobbyUidsKey = useMemo(
+    () => lobby.map((p) => p.uid).sort().join(","),
+    [lobby],
+  );
+  useEffect(() => {
+    if (economy !== "coins" || !lobbyUidsKey) {
+      setWalletByUid({});
+      return;
+    }
+    const uids = lobbyUidsKey.split(",");
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        uids.map(async (u) => {
+          const p = await getUserProfile(u).catch(() => null);
+          return [u, p ? availableCoins(p) : 0] as const;
+        }),
+      );
+      if (!cancelled) setWalletByUid(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [economy, lobbyUidsKey]);
   const result = room?.result ?? null;
-  const isShowdown = gameState?.phase === "showdown";
   const canDeal = !gameState && lobby.length >= 2 && lobby.length <= 9;
 
   const joinUrl =
@@ -165,10 +201,19 @@ export default function HostNormalPage() {
   const seats = gameState?.seats ?? placeholderSeats;
   const community = gameState?.community ?? [];
   const betting = gameState?.betting ?? EMPTY_BETTING;
+  const visibleRunResults =
+    closedRunResultsHand === betting.handNum ? null : (runs ?? room?.runResults ?? null);
+  const allInVoteOpen =
+    gameState?.phase === "all-in-negotiation" ? closedAllInVoteHand !== betting.handNum : true;
 
   async function handleAction(action: BettingAction, amount?: number) {
     if (!uid || !code) return;
     await postPlayerAction(code, uid, action, amount);
+  }
+
+  async function handleRunVote(n: number) {
+    if (!uid || !code) return;
+    await postPlayerVote(code, uid, n).catch(() => {});
   }
 
   function updateConfig(newConfig: RoomConfig) {
@@ -193,7 +238,6 @@ export default function HostNormalPage() {
   }, [lobby]);
 
   const myUseTimeBank = myLobbyEntry?.useTimeBank !== false;
-
 
   function handleJoinAsHost(slotIndex?: number) {
     if (!uid || !code) return;
@@ -282,7 +326,7 @@ export default function HostNormalPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={cardBack}
-        cardFace="classic"
+        cardFace={cardFace}
         roomBg={roomBg}
         lastAction={gameState?.lastAction}
         timeBankByUid={timeBankByUid}
@@ -368,6 +412,8 @@ export default function HostNormalPage() {
           locked={room?.locked ?? false}
           hostUid={room?.hostUid}
           selfUid={uid}
+          economy={economy}
+          walletByUid={walletByUid}
           history={history}
           onAdjustChips={adjustPlayerChips}
           onSetAllChips={setAllChips}
@@ -380,6 +426,35 @@ export default function HostNormalPage() {
         result={result}
         onClickRequest={() => setDockOpen(true)}
       />
+      <AllInVoteModal
+        gameState={gameState}
+        selfUid={uid}
+        onVote={handleRunVote}
+        open={allInVoteOpen}
+        onClose={() => setClosedAllInVoteHand(betting.handNum)}
+      />
+      {!allInVoteOpen && (
+        <AllInVoteChip
+          gameState={gameState}
+          selfUid={uid}
+          onClick={() => setClosedAllInVoteHand(null)}
+        />
+      )}
+      {visibleRunResults ? (
+        <RunResults
+          runs={visibleRunResults!}
+          players={seats.map((s) => ({
+            id: s.id,
+            name: s.name,
+            seed: s.seed,
+            createdAt: 0,
+          }))}
+          onClose={() => {
+            dismissRuns();
+            setClosedRunResultsHand(betting.handNum);
+          }}
+        />
+      ) : null}
     </>
   );
 }

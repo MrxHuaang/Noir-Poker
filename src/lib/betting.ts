@@ -76,6 +76,8 @@ export type NormalGameState = {
     playerIds: string[];
     votes: Record<string, number>; // uid -> number of runs requested
     agreedN?: number;
+    options?: number[];
+    createdAt?: number;
   };
   lastAction?: {
     seatId: string;

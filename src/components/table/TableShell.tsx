@@ -71,6 +71,9 @@ export function TableShell({
   isSpectator,
 }: Props) {
   const bg = getRoomBg(roomBg);
+  const hasTopChrome = Boolean(topLeft || topCenter || topRight || isSpectator);
+  const hasBottomChrome = Boolean(bottomLeft || bottomRight);
+
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden select-none" style={{ background: bg.gradient }}>
       {isSpectator && (
@@ -80,7 +83,13 @@ export function TableShell({
         </div>
       )}
       {/* Mesa */}
-      <main className="relative flex-1 flex items-center justify-center p-2 sm:p-4">
+      <main
+        className={`relative flex-1 flex items-center justify-center p-2 sm:p-4 ${
+          hasTopChrome ? "pt-[calc(env(safe-area-inset-top)+3.75rem)] sm:pt-4" : ""
+        } ${
+          hasBottomChrome ? "pb-[calc(env(safe-area-inset-bottom)+9rem)] sm:pb-4" : ""
+        }`}
+      >
         <div className="w-full h-full max-h-[88vh] flex items-center justify-center">
           <RoundPokerTable
             seats={seats}
@@ -130,12 +139,12 @@ export function TableShell({
         </div>
       )}
       {bottomLeft && (
-        <div className="fixed bottom-4 left-4 z-[60] flex items-end gap-2">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-3 z-[60] flex max-w-[calc(100vw-1.5rem)] flex-wrap items-end gap-2 sm:bottom-4 sm:left-4">
           {bottomLeft}
         </div>
       )}
       {bottomRight && (
-        <div className="fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2 max-w-[min(420px,92vw)]">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-3 z-[60] flex max-w-[min(420px,92vw)] flex-col items-end gap-2 sm:bottom-4 sm:right-4">
           {bottomRight}
         </div>
       )}

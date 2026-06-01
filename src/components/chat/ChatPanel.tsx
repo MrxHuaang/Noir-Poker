@@ -60,7 +60,7 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
   }
 
   return (
-    <div className="w-80 h-72 flex flex-col bg-zinc-900/95 backdrop-blur-xl ring-1 ring-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
+    <div className="h-72 w-[min(20rem,calc(100vw-1.5rem))] flex flex-col bg-zinc-900/95 backdrop-blur-xl ring-1 ring-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-300">
           <MessageSquare className="w-3.5 h-3.5 text-zinc-300" /> Chat

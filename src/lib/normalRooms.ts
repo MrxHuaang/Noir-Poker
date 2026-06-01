@@ -23,6 +23,7 @@ import type {
 } from "./betting";
 import type { TournamentState } from "./tournament";
 import type { Showdown } from "./handEval";
+import type { RunItRun } from "./runIt";
 import { generateCode } from "./rooms";
 import { encryptCardsTo } from "./holeCrypto";
 
@@ -74,6 +75,7 @@ export type NormalRoomDoc = {
   state: PublicNormalState | null;
   pendingAction: PendingAction | null;
   result: (Showdown & { chips: Record<string, number> }) | null;
+  runResults?: RunItRun[] | null;
   revealedHoles?: Record<string, [Card, Card]> | null;
   theme: string;
   cardBack?: string;
@@ -481,6 +483,7 @@ export async function writeNormalDealt(
   batch.update(doc(db, "normalRooms", code), {
     state: toPublicState(gs),
     result: null,
+    runResults: null,
     pendingAction: null,
     revealedHoles: null,
   });
@@ -519,8 +522,6 @@ export async function postPlayerVote(
   const ref = doc(db, "normalRooms", code);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
-  const room = snap.data() as NormalRoomDoc;
-  const currentVotes = room.state?.allInNegotiation?.votes ?? {};
   await updateDoc(ref, {
     [`state.allInNegotiation.votes.${uid}`]: vote,
   });

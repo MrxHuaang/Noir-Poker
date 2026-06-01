@@ -18,7 +18,8 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClos
 
   const myVote = selfUid ? neg.votes[selfUid] : null;
   const involved = neg.playerIds.includes(selfUid ?? "");
-  const totalVoted = Object.keys(neg.votes).length;
+  const options = neg.options?.length ? neg.options : [1, 2, 3];
+  const totalVoted = neg.playerIds.filter((id) => typeof neg.votes[id] === "number").length;
   const total = neg.playerIds.length;
 
   return (
@@ -50,7 +51,7 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClos
 
         {involved ? (
           <div className="flex items-center gap-2 justify-center">
-            {[1, 2, 3].map((n) => (
+            {options.map((n) => (
               <button
                 key={n}
                 type="button"
@@ -78,11 +79,11 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClos
           <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-accent-400 transition-all"
-              style={{ width: `${(totalVoted / total) * 100}%` }}
+              style={{ width: `${total > 0 ? (totalVoted / total) * 100 : 0}%` }}
             />
           </div>
           <span className="text-[10px] tabular-nums font-bold text-zinc-500">
-            {totalVoted}/{total}
+            {neg.agreedN ? `${neg.agreedN}x` : `${totalVoted}/${total}`}
           </span>
         </div>
       </div>
