@@ -254,7 +254,7 @@ export function Nav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 backdrop-blur-xl">
+      <header className="sticky top-0 z-30">
         <div className="mx-auto max-w-6xl px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3">
           <BorderGlow
             className="flex-1 min-w-0 !border-white/10"
