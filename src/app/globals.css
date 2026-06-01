@@ -13,6 +13,42 @@
   --accent-contrast: oklch(0.155 0.022 292);
   --shadow-warm: oklch(0.62 0.18 290 / 0.28);
 
+  /* ── Motion tokens ──────────────────────────────────────────────────
+     Shared easing + duration scale. Use in CSS transitions and pass
+     to GSAP via gsap.defaults() or inline ease strings.
+     --ease-out:      expo-out — snappy enter, smooth settle (UI enter)
+     --ease-in:       accelerate — exit animations
+     --ease-standard: material standard — generic state transitions
+     --duration-micro:    hover/press feedback
+     --duration-standard: modal open, card reveal
+     --duration-dramatic: page-level or sequential reveals            */
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-micro:    150ms;
+  --duration-standard: 280ms;
+  --duration-dramatic: 480ms;
+
+  /* ── Radius scale ────────────────────────────────────────────────────
+     Pass these to BorderGlow borderRadius prop and Tailwind utilities.
+     --radius-sm:   inputs, tags
+     --radius-md:   cards, panels
+     --radius-lg:   modals, large cards
+     --radius-pill: nav pills, badges                                  */
+  --radius-sm:   12px;
+  --radius-md:   18px;
+  --radius-lg:   24px;
+  --radius-pill: 999px;
+
+  /* ── Semantic text tokens ────────────────────────────────────────────
+     Use these instead of raw zinc-* in body copy.
+     text-primary   → headings, main content
+     text-secondary → subtitles, descriptions
+     text-muted     → labels, metadata, placeholder prose             */
+  --text-primary:   oklch(0.935 0.010 290);
+  --text-secondary: oklch(0.780 0.010 290);
+  --text-muted:     oklch(0.610 0.008 290);
+
   /* ── Liquid glass surface tokens ────────────────────────────────────
      Change these two vars to restyle every glass card in the app.
      --lg-bg:        base card fill (semi-transparent for blur to show through)
@@ -181,14 +217,20 @@ body {
     0 20px 60px -25px rgba(0, 0, 0, 0.7);
 }
 
+/* Semantic text utilities — map to --text-* tokens above */
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+
+/* Press feedback: scale(0.97) with expo-out feels more physical than translateY */
 .btn-press {
   transition:
-    transform 120ms ease,
-    box-shadow 120ms ease,
-    background 120ms ease;
+    transform var(--duration-micro) var(--ease-out),
+    box-shadow var(--duration-micro) var(--ease-out),
+    background var(--duration-standard) var(--ease-out);
 }
 .btn-press:active {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 /* Keep 3D transforms crisp on Safari */
