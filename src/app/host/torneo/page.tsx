@@ -81,7 +81,7 @@ const EMPTY_BETTING: BettingRound = {
 };
 
 export default function HostTorneoPage() {
-  const { uid, loading } = useAuth();
+  const { uid, loading, profile } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
@@ -215,7 +215,9 @@ export default function HostTorneoPage() {
 
   function handleJoinAsHost(slotIndex?: number) {
     if (!uid || !code) return;
-    approveJoin(code, uid, "Host", randomSeed(), config.startingStack, slotIndex).catch(() => {});
+    const hostName = profile?.nickname?.trim() || "Host";
+    const hostSeed = profile?.avatarSeed || randomSeed();
+    approveJoin(code, uid, hostName, hostSeed, config.startingStack, slotIndex).catch(() => {});
   }
 
   function togglePause() {
@@ -324,7 +326,7 @@ export default function HostTorneoPage() {
         presenceMap={presenceMap}
         topLeft={
           <OptionsMenu
-            name={myLobbyEntry?.name ?? "Host"}
+            name={myLobbyEntry?.name ?? profile?.nickname ?? "Host"}
             seed={myLobbyEntry?.seed}
             onOpenSettings={() => setDockOpen(true)}
             onLeave={() => {
@@ -358,7 +360,7 @@ export default function HostTorneoPage() {
             <ChatPanel
               code={code}
               uid={uid}
-              name={myLobbyEntry?.name ?? "Host"}
+              name={myLobbyEntry?.name ?? profile?.nickname ?? "Host"}
               seed={myLobbyEntry?.seed ?? ""}
               messages={chatMessages}
             />

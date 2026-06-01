@@ -34,7 +34,7 @@ export default function LobbyPage() {
         <h1 className="text-2xl sm:text-3xl tracking-tight text-zinc-50 font-semibold">
           Lobby
         </h1>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-zinc-400">
           Mesas abiertas ahora mismo. Entra o crea la tuya.
         </p>
       </header>

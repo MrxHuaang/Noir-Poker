@@ -56,7 +56,7 @@ const EMPTY_BETTING: BettingRound = {
 };
 
 export default function HostNormalPage() {
-  const { uid, loading } = useAuth();
+  const { uid, loading, profile } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
   const [dockOpen, setDockOpen] = useState(false);
@@ -200,7 +200,9 @@ export default function HostNormalPage() {
     // Convert visual slot to physical slot (remove current rotationOffset — host page
     // doesn't track rotationOffset so we use slotIndex as physical directly, and
     // the RoundPokerTable rotate button will shift the view as needed).
-    approveJoin(code, uid, "Host", randomSeed(), config.startingStack, slotIndex).catch(() => {});
+    const hostName = profile?.nickname?.trim() || "Host";
+    const hostSeed = profile?.avatarSeed || randomSeed();
+    approveJoin(code, uid, hostName, hostSeed, config.startingStack, slotIndex).catch(() => {});
   }
 
   if (loading || !code) {
@@ -291,7 +293,7 @@ export default function HostNormalPage() {
         presenceMap={presenceMap}
         topLeft={
           <OptionsMenu
-            name={myLobbyEntry?.name ?? "Host"}
+            name={myLobbyEntry?.name ?? profile?.nickname ?? "Host"}
             seed={myLobbyEntry?.seed}
             onOpenSettings={() => setDockOpen(true)}
             away={myLobbyEntry?.sittingOut === true}
@@ -318,7 +320,7 @@ export default function HostNormalPage() {
             <ChatPanel
               code={code}
               uid={uid}
-              name={myLobbyEntry?.name ?? "Host"}
+              name={myLobbyEntry?.name ?? profile?.nickname ?? "Host"}
               seed={myLobbyEntry?.seed ?? ""}
               messages={chatMessages}
             />

@@ -35,24 +35,24 @@ describe("progression", () => {
   });
 
   it("titles unlock by threshold", () => {
-    expect(titleForLevel(1)).toBe("Novato");
-    expect(titleForLevel(10)).toBe("Apostador");
-    expect(titleForLevel(49)).toBe("Tiburon");
-    expect(titleForLevel(50)).toBe("Profesional");
-    expect(titleForLevel(100)).toBe("Leyenda");
+    expect(titleForLevel(1)).toBe("Peon");
+    expect(titleForLevel(10)).toBe("Timador");
+    expect(titleForLevel(49)).toBe("Capo");
+    expect(titleForLevel(50)).toBe("Verdugo");
+    expect(titleForLevel(100)).toBe("Noir");
   });
 
   it("addXp recomputes level and title", () => {
-    const base = { xp: 0, level: 1, title: "Novato" };
+    const base = { xp: 0, level: 1, title: "Peon" };
     const big = totalXpForLevel(10);
     const r = addXp(base, big);
     expect(r.level).toBe(10);
-    expect(r.title).toBe("Apostador");
+    expect(r.title).toBe("Timador");
     expect(r.xp).toBe(big);
   });
 
   it("addXp never decreases xp on negative amount", () => {
-    const r = addXp({ xp: 500, level: 1, title: "Novato" }, -100);
+    const r = addXp({ xp: 500, level: 1, title: "Peon" }, -100);
     expect(r.xp).toBe(500);
   });
 

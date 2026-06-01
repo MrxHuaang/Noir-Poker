@@ -105,7 +105,7 @@ export default function PlayNormalPage() {
   // Register/unregister spectator presence while watching.
   useEffect(() => {
     if (!code || !uid || !spectating) return;
-    joinSpectators(code, uid, "Espectador", mySeedRef.current).catch(() => {});
+    joinSpectators(code, uid, profile?.nickname ?? "Espectador", mySeedRef.current).catch(() => {});
     return () => {
       leaveSpectators(code, uid).catch(() => {});
     };
@@ -429,6 +429,7 @@ export default function PlayNormalPage() {
         ) : (
           <div className="fixed inset-0 bg-[#0b0b0b] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             <JoinWithStack
+              defaultName={profile?.nickname ?? ""}
               suggestedStack={config?.startingStack ?? 1000}
               locked={locked}
               showAvatar
