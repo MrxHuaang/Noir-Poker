@@ -78,10 +78,10 @@ export default function PerfilPage() {
       <div className="relative isolate min-h-full w-full flex items-center justify-center px-4 py-12">
         <div className="relative z-[2] w-full max-w-md">
           <BorderGlow
-            className="w-full lg-blur"
+            className="w-full"
             edgeSensitivity={26}
             glowColor="0 0 82"
-            backgroundColor="var(--lg-bg)"
+            backgroundColor="rgba(9,9,11,0.9)"
             borderRadius={24}
             glowRadius={36}
             glowIntensity={1.05}
@@ -161,10 +161,10 @@ export default function PerfilPage() {
       <div className="relative z-[2] w-full max-w-3xl mx-auto px-4 py-10 sm:py-14 flex flex-col gap-5">
         {/* Cabecera de identidad */}
         <BorderGlow
-          className="w-full lg-blur"
+          className="w-full"
           edgeSensitivity={24}
           glowColor="0 0 82"
-          backgroundColor="var(--lg-bg)"
+          backgroundColor="rgba(9,9,11,0.9)"
           borderRadius={24}
           glowRadius={34}
           glowIntensity={1}
@@ -245,7 +245,7 @@ export default function PerfilPage() {
                   </button>
                 </div>
               )}
-              <p className="text-xs text-zinc-500 mt-1">
+              <p className="text-xs text-zinc-400 mt-1">
                 {profile.email ?? "Cuenta de invitado"} · desde {memberSince}
               </p>
               {rank && (
