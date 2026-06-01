@@ -65,10 +65,10 @@ function ModeCard({
   return (
     <Link href={href} className="group block h-full btn-press" onClick={onNavigate}>
       <BorderGlow
-        className="h-full w-full"
+        className="h-full w-full lg-blur"
         edgeSensitivity={26}
         glowColor={a.glow}
-        backgroundColor={a.bg}
+        backgroundColor="var(--lg-bg)"
         borderRadius={24}
         glowRadius={36}
         glowIntensity={1.05}
@@ -86,7 +86,7 @@ function ModeCard({
           </div>
           <div>
             <h3 className="text-xl text-zinc-50 font-semibold tracking-tight">{title}</h3>
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 mt-1">{subtitle}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400 mt-1">{subtitle}</p>
           </div>
           <p className="text-sm text-zinc-300/90">{description}</p>
           <ul className="flex flex-col gap-1.5">
@@ -254,7 +254,7 @@ export function Nav() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-white/[0.06] backdrop-blur-xl">
+      <header className="sticky top-0 z-30 backdrop-blur-xl">
         <div className="mx-auto max-w-6xl px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3">
           <BorderGlow
             className="flex-1 min-w-0 !border-white/10"
@@ -285,7 +285,7 @@ export function Nav() {
 
       {showModal ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-start sm:items-center overflow-y-auto bg-black/75 backdrop-blur-sm p-4"
           role="dialog"
           aria-modal="true"
           aria-label="Crear sala"
@@ -293,7 +293,7 @@ export function Nav() {
             if (e.target === e.currentTarget) setShowModal(false);
           }}
         >
-          <div className="w-full max-w-4xl flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-4xl mx-auto flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200 py-2 sm:py-0">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
                 Elige un modo
