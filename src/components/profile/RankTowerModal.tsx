@@ -161,7 +161,7 @@ export function RankTowerModal({
 
       {/* Panel full-height */}
       <div
-        className="relative z-10 w-full max-w-md flex flex-col my-4 mx-4 rounded-3xl overflow-hidden shadow-2xl"
+        className="relative z-10 w-full max-w-md flex flex-col mt-[68px] mb-4 mx-4 rounded-3xl overflow-hidden shadow-2xl"
         style={{
           background: "linear-gradient(180deg, #0a0418 0%, #07030f 40%, #050210 100%)",
           border: "1px solid rgba(167,139,250,0.18)",
