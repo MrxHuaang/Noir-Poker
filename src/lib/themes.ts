@@ -20,10 +20,10 @@ export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
     id: "noir",
     label: "Noir",
     feltGradient:
-      "radial-gradient(ellipse at center, #1e1b14 0%, #0f0d09 55%, #050504 100%)",
-    ringColor: "rgba(212,191,148,0.18)",
-    accent: "#d4bf94",
-    accentSoft: "rgba(212,191,148,0.10)",
+      "radial-gradient(ellipse at center, #18152a 0%, #0e0b18 55%, #060410 100%)",
+    ringColor: "rgba(167,139,250,0.18)",
+    accent: "#a78bfa",
+    accentSoft: "rgba(167,139,250,0.10)",
   },
   emerald: {
     id: "emerald",
@@ -56,10 +56,10 @@ export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
     id: "midnight",
     label: "Medianoche",
     feltGradient:
-      "radial-gradient(ellipse at center, #1c1c2e 0%, #0d0d18 55%, #050508 100%)",
-    ringColor: "rgba(168,162,212,0.18)",
-    accent: "#a78bfa",
-    accentSoft: "rgba(167,139,250,0.12)",
+      "radial-gradient(ellipse at center, #141220 0%, #0a091a 55%, #040310 100%)",
+    ringColor: "rgba(139,111,232,0.16)",
+    accent: "#8b6fe8",
+    accentSoft: "rgba(139,111,232,0.10)",
   },
   amber: {
     id: "amber",
@@ -146,12 +146,12 @@ export const CARD_BACK_LIST: CardBack[] = Object.values(CARD_BACKS);
 
 export function getCardBack(id?: string | null): CardBack {
   if (id && id in CARD_BACKS) return CARD_BACKS[id as CardBackId];
-  return CARD_BACKS["classic-blue"];
+  return CARD_BACKS["logo"];
 }
 
 /* ── Card Face designs ─────────────────────────────────────────────── */
 
-export type CardFaceId = "classic" | "dark" | "neon" | "noir";
+export type CardFaceId = "classic" | "dark" | "neon" | "noir" | "balatro";
 
 export type CardFace = {
   id: CardFaceId;
@@ -179,6 +179,11 @@ export const CARD_FACES: Record<CardFaceId, CardFace> = {
     id: "noir",
     label: "Noir",
     description: "Estilo de marca blanco y negro",
+  },
+  balatro: {
+    id: "balatro",
+    label: "Balatro",
+    description: "Color por palo, estilo arcade oscuro",
   },
 };
 
