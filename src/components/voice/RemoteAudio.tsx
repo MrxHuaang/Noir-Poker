@@ -17,7 +17,8 @@ export function RemoteAudio({
     if (!el) return;
     if (stream) {
       el.srcObject = stream;
-      el.volume = muted ? 0 : volume;
+      el.muted = muted;
+      el.volume = volume;
       el.play().catch((err) => {
         console.warn("No se pudo reproducir audio remoto:", err);
       });
