@@ -323,7 +323,7 @@ function PlayerRow({
             </span>
             {lobbyPlayer.sittingOut && (
               <span className="text-[9px] uppercase tracking-widest text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded-full font-bold">
-                Away
+                Ausente
               </span>
             )}
             {seat?.status === "all-in" && (

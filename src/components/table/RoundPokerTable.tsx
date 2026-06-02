@@ -536,7 +536,7 @@ export function RoundPokerTable({
                   }`}
                   title={amSittingOut ? "Volver a jugar" : "Ausentarme"}
                 >
-                  {amSittingOut ? "Back" : "Away"}
+                  {amSittingOut ? "Volver" : "Pausa"}
                 </button>
               )}
 
@@ -585,7 +585,7 @@ export function RoundPokerTable({
                 {/* Away overlay */}
                 {seat.status === "sitting-out" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Away</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Ausente</span>
                   </div>
                 )}
               </div>

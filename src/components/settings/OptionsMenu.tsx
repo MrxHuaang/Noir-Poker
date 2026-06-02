@@ -4,8 +4,8 @@ import { Menu, Settings, LogOut, UserMinus, UserCheck } from "lucide-react";
 import { Avatar } from "@/components/players/Avatar";
 
 // PokerNow-style compact options popover opened from a hamburger button. Hosts
-// the entry points: Configuraciones (full-screen settings), Away (sit out) and
-// Leave seat. Mounts in TableShell's topLeft slot.
+// the entry points: Configuraciones, ausentarse and leaving the seat. Mounts in
+// TableShell's topLeft slot.
 export function OptionsMenu({
   name,
   seed,
