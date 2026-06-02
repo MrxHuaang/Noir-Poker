@@ -215,7 +215,7 @@ function CardFrontDark({ card }: { card: Card }) {
         ...FACE_BACK_STYLE,
         background: "#0b0d14",
         border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: "0 12px_32px_-10px rgba(0,0,0,0.8)",
+        boxShadow: "0 12px 32px -10px rgba(0,0,0,0.8)",
       }}
     >
       <div
