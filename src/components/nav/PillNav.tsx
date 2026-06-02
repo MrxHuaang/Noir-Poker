@@ -50,6 +50,8 @@ export function PillNav({
   onMobileMenuClick,
 }: PillNavProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [menuTop, setMenuTop] = useState(0);
+  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
   const logoImgRef = useRef<HTMLImageElement | null>(null);
   const logoTweenRef = useRef<gsap.core.Tween | null>(null);
   const logoRef = useRef<HTMLAnchorElement | null>(null);
@@ -80,6 +82,10 @@ export function PillNav({
   };
 
   const toggleMobileMenu = () => {
+    if (hamburgerRef.current) {
+      const rect = hamburgerRef.current.getBoundingClientRect();
+      setMenuTop(rect.bottom + 8);
+    }
     setIsMobileMenuOpen((v) => !v);
     onMobileMenuClick?.();
   };
@@ -202,6 +208,7 @@ export function PillNav({
         </div>
 
         <button
+          ref={hamburgerRef}
           type="button"
           onClick={toggleMobileMenu}
           aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
@@ -226,11 +233,12 @@ export function PillNav({
       </nav>
 
       <div
-        className={`absolute left-0 right-0 top-[54px] z-[998] mx-1 origin-top rounded-2xl border border-white/[0.08] bg-[rgb(12,14,18)]/95 p-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-md transition-[opacity,transform,visibility] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] md:hidden ${
+        className={`fixed left-2 right-2 z-[998] origin-top rounded-2xl border border-white/[0.08] bg-[rgb(12,14,18)]/95 p-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-md transition-[opacity,transform,visibility] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] md:hidden ${
           isMobileMenuOpen
             ? "visible translate-y-0 opacity-100"
             : "invisible pointer-events-none -translate-y-1 opacity-0"
         }`}
+        style={{ top: menuTop }}
       >
         <ul className="m-0 flex list-none flex-col gap-1 p-0">
           {items.map((item) => {

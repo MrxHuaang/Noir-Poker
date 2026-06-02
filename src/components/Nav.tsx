@@ -269,7 +269,7 @@ export function Nav() {
             colors={["#a78bfa", "#7c5cbf", "#4a3580", "#261747"]}
             fillOpacity={0.3}
           >
-            <div className="min-h-0 overflow-hidden rounded-[inherit] px-2 py-1.5 sm:px-3 sm:py-2">
+            <div className="min-h-0 rounded-[inherit] px-2 py-1.5 sm:px-3 sm:py-2">
               <PillNav
                 logo="/logonav.png"
                 logoAlt="Noir Poker"
