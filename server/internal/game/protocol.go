@@ -1,0 +1,46 @@
+// Package game holds the authoritative game core: the server owns the deck,
+// deals, and produces per-client messages. The privacy invariant — a client
+// ever only sees its OWN hole cards, never the deck or opponents' holes — lives
+// here, enforced by construction (private holes are a separate per-seat message).
+package game
+
+import "encoding/json"
+
+// ServerMsg is the envelope sent server -> client. Payload shape depends on Type.
+type ServerMsg struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload,omitempty"`
+}
+
+// ClientMsg is the envelope client -> server (used once the action protocol lands).
+type ClientMsg struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload,omitempty"`
+}
+
+func encode(typ string, payload any) (ServerMsg, error) {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return ServerMsg{}, err
+	}
+	return ServerMsg{Type: typ, Payload: b}, nil
+}
+
+// PublicState is broadcast to everyone in the room. It carries the board and
+// seat metadata but NEVER hole cards.
+type PublicState struct {
+	HandNum int          `json:"handNum"`
+	Street  string       `json:"street"`
+	Board   []string     `json:"board"` // community card ids
+	Seats   []PublicSeat `json:"seats"`
+}
+
+type PublicSeat struct {
+	ID       string `json:"id"`
+	HasCards bool   `json:"hasCards"`
+}
+
+// PrivateHole is sent ONLY to the owning seat.
+type PrivateHole struct {
+	Cards []string `json:"cards"` // exactly 2 card ids
+}
