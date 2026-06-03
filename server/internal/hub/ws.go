@@ -12,12 +12,11 @@ import (
 // authenticator the handler rejects connections without a valid token.
 type Authenticator func(ctx context.Context, token string) (uid string, err error)
 
-// Handler upgrades GET /ws?room=CODE to a WebSocket and relays messages within
-// the room. If auth is non-nil, ?token=<firebase-id-token> is required and the
-// client id is the verified uid (the ?id query is ignored). If auth is nil
-// (dev), ?id=UID is used as-is. Game protocol comes next; for now any text
-// frame is rebroadcast to the rest of the room.
-func (h *Hub) Handler(auth Authenticator) http.HandlerFunc {
+// Handler upgrades GET /ws?room=CODE to a WebSocket. If auth is non-nil,
+// ?token=<firebase-id-token> is required and the client id is the verified uid.
+// Each inbound frame is dispatched to onMessage(client, data); when onMessage is
+// nil the frame is rebroadcast to the rest of the room (dev/relay fallback).
+func (h *Hub) Handler(auth Authenticator, onMessage func(c *Client, data []byte)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		room := r.URL.Query().Get("room")
 		if room == "" {
@@ -70,7 +69,11 @@ func (h *Hub) Handler(auth Authenticator) http.HandlerFunc {
 				}
 				return
 			}
-			h.Broadcast(room, data, client)
+			if onMessage != nil {
+				onMessage(client, data)
+			} else {
+				h.Broadcast(room, data, client)
+			}
 		}
 	}
 }

@@ -31,6 +31,12 @@ func (r *Room) Seats() []string {
 	return append([]string(nil), r.seatIDs...)
 }
 
+// SetSeats replaces the roster (keeps the hand counter). Used to sync seats to
+// the room's currently connected clients before a deal.
+func (r *Room) SetSeats(ids []string) {
+	r.seatIDs = append([]string(nil), ids...)
+}
+
 func (r *Room) HandNum() int { return r.handNum }
 
 // DealResult is what Deal produces: one public broadcast and one private

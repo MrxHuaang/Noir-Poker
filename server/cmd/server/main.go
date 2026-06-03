@@ -15,6 +15,7 @@ import (
 	"github.com/MrxHuaang/poker-sim/server/internal/auth"
 	"github.com/MrxHuaang/poker-sim/server/internal/hub"
 	"github.com/MrxHuaang/poker-sim/server/internal/poker"
+	"github.com/MrxHuaang/poker-sim/server/internal/session"
 )
 
 func main() {
@@ -37,9 +38,11 @@ func main() {
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Real-time room relay. GET /ws?room=CODE&id=UID upgrades to a WebSocket;
-	// frames are rebroadcast within the room. Game protocol + auth come next.
-	mux.HandleFunc("/ws", h.Handler(authFn))
+	// Real-time game socket. GET /ws?room=CODE upgrades to a WebSocket; inbound
+	// messages are dispatched to the session manager, which runs the
+	// authoritative game and fans out public state + per-seat private holes.
+	mgr := session.NewManager(h)
+	mux.HandleFunc("/ws", h.Handler(authFn, mgr.OnMessage))
 
 	// Debug: prove authoritative dealing. Shuffles a fresh deck server-side and
 	// returns the top cards as ids. The real game never exposes the full deck.

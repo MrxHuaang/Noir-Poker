@@ -80,3 +80,30 @@ func (h *Hub) RoomSize(room string) int {
 	defer h.mu.RUnlock()
 	return len(h.rooms[room])
 }
+
+// Clients returns a snapshot of the clients currently in room.
+func (h *Hub) Clients(room string) []*Client {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]*Client, 0, len(h.rooms[room]))
+	for c := range h.rooms[room] {
+		out = append(out, c)
+	}
+	return out
+}
+
+// SendTo delivers msg to a single client (for private, per-seat messages like
+// hole cards). Held under RLock so it can't race Leave closing the queue;
+// drops if the client's queue is full rather than blocking.
+func (h *Hub) SendTo(c *Client, msg []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if set := h.rooms[c.Room]; set != nil {
+		if _, ok := set[c]; ok {
+			select {
+			case c.send <- msg:
+			default:
+			}
+		}
+	}
+}

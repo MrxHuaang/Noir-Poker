@@ -46,7 +46,7 @@ func TestHubLeaveRemovesRoom(t *testing.T) {
 
 func TestWebSocketRelay(t *testing.T) {
 	h := New()
-	srv := httptest.NewServer(h.Handler(nil))
+	srv := httptest.NewServer(h.Handler(nil, nil))
 	defer srv.Close()
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
 
