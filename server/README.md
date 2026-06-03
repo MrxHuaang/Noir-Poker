@@ -14,8 +14,10 @@ Built this phase (stdlib only, no external deps → builds offline):
   authoritative `Shuffle` (cryptographic Fisher-Yates via `crypto/rand` with
   rejection sampling, no modulo bias), and a 7-card evaluator (`Eval5`/`Best7`)
   that mirrors `src/lib/handEval.ts` and the Rust engine so all three agree.
-- `cmd/server`: minimal HTTP server (`/health`, `/debug/deal`) — placeholder for
-  the WebSocket hub.
+- `internal/hub`: real-time room fan-out — thread-safe join/leave/broadcast +
+  a `coder/websocket` handler at `GET /ws?room=CODE&id=UID` that relays frames
+  within a room. Auth + game protocol still to come.
+- `cmd/server`: HTTP server (`/health`, `/debug/deal`, `/ws`).
 - Tests: category ordering, straight-flush > quads, parse round-trip, 52-unique
   deck, shuffle preserves the multiset, `Best7` picks the royal. Green in CI
   (`.github/workflows/server.yml`).

@@ -12,16 +12,22 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/MrxHuaang/poker-sim/server/internal/hub"
 	"github.com/MrxHuaang/poker-sim/server/internal/poker"
 )
 
 func main() {
 	mux := http.NewServeMux()
+	h := hub.New()
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	// Real-time room relay. GET /ws?room=CODE&id=UID upgrades to a WebSocket;
+	// frames are rebroadcast within the room. Game protocol + auth come next.
+	mux.HandleFunc("/ws", h.Handler())
 
 	// Debug: prove authoritative dealing. Shuffles a fresh deck server-side and
 	// returns the top cards as ids. The real game never exposes the full deck.
