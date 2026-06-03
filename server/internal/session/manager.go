@@ -55,6 +55,10 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 
 func (m *Manager) handleStart(code string) {
 	clients := m.hub.Clients(code)
+	ids := make([]string, len(clients))
+	for i, c := range clients {
+		ids[i] = c.ID
+	}
 
 	m.mu.Lock()
 	r := m.games[code]
@@ -62,15 +66,8 @@ func (m *Manager) handleStart(code string) {
 		r = game.NewRoom(defaultSB, defaultBB)
 		m.games[code] = r
 	}
-	seated := map[string]bool{}
-	for _, id := range r.Seats() {
-		seated[id] = true
-	}
-	for _, c := range clients {
-		if !seated[c.ID] {
-			r.AddSeat(c.ID, defaultStack)
-		}
-	}
+	// Seat exactly the connected players (drops anyone who left).
+	r.SyncSeats(ids, defaultStack)
 	err := r.StartHand()
 	pub := r.PublicMsg()
 	holes := r.HoleMsgs()
@@ -84,6 +81,49 @@ func (m *Manager) handleStart(code string) {
 		if h, ok := holes[c.ID]; ok {
 			m.sendTo(c, h)
 		}
+	}
+}
+
+// OnJoin pushes the current public state to a client that just connected (and
+// its hole cards if it's already in the live hand) so joiners/reconnects render
+// immediately.
+func (m *Manager) OnJoin(c *hub.Client) {
+	m.mu.Lock()
+	r := m.games[c.Room]
+	if r == nil {
+		m.mu.Unlock()
+		return
+	}
+	pub := r.PublicMsg()
+	var hole game.ServerMsg
+	hasHole := false
+	if r.InHand(c.ID) {
+		if h, ok := r.HoleMsgs()[c.ID]; ok {
+			hole, hasHole = h, true
+		}
+	}
+	m.mu.Unlock()
+
+	m.sendTo(c, pub)
+	if hasHole {
+		m.sendTo(c, hole)
+	}
+}
+
+// OnLeave folds a player who disconnected mid-hand and rebroadcasts the state.
+func (m *Manager) OnLeave(c *hub.Client) {
+	m.mu.Lock()
+	r := m.games[c.Room]
+	if r == nil {
+		m.mu.Unlock()
+		return
+	}
+	changed := r.LeaveFold(c.ID)
+	pub := r.PublicMsg()
+	m.mu.Unlock()
+
+	if changed {
+		m.broadcast(c.Room, pub)
 	}
 }
 

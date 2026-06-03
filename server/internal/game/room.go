@@ -60,6 +60,41 @@ func (r *Room) AddSeat(id string, chips int) {
 }
 
 func (r *Room) Seats() []string     { return append([]string(nil), r.seatIDs...) }
+
+// SyncSeats sets the active roster to exactly `ids` (the currently connected
+// players). New ids get startStack; returning ids keep their persisted stack;
+// disconnected ids drop from the roster (their stack is retained in case they
+// return). Call before StartHand so left players aren't dealt in.
+func (r *Room) SyncSeats(ids []string, startStack int) {
+	r.seatIDs = nil
+	for _, id := range ids {
+		if _, ok := r.chips[id]; !ok {
+			r.chips[id] = startStack
+		}
+		r.seatIDs = append(r.seatIDs, id)
+	}
+}
+
+// LeaveFold folds a player who left mid-hand and advances the hand. Returns true
+// if there was an active hand the player was in (so the caller rebroadcasts).
+func (r *Room) LeaveFold(id string) bool {
+	if r.betting == nil || r.phase == PhaseIdle || r.phase == PhaseShowdown {
+		return false
+	}
+	if !r.betting.ForceFold(id) {
+		return false
+	}
+	r.maybeAdvance()
+	return true
+}
+
+// InHand reports whether the player currently holds cards in an active hand.
+func (r *Room) InHand(id string) bool {
+	if _, ok := r.holes[id]; !ok {
+		return false
+	}
+	return r.phase != PhaseIdle
+}
 func (r *Room) HandNum() int        { return r.handNum }
 func (r *Room) Phase() Phase        { return r.phase }
 func (r *Room) Winners() []Winner   { return append([]Winner(nil), r.winners...) }

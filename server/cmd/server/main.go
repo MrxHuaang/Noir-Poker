@@ -42,7 +42,7 @@ func main() {
 	// messages are dispatched to the session manager, which runs the
 	// authoritative game and fans out public state + per-seat private holes.
 	mgr := session.NewManager(h)
-	mux.HandleFunc("/ws", h.Handler(authFn, mgr.OnMessage))
+	mux.HandleFunc("/ws", h.Handler(authFn, mgr.OnJoin, mgr.OnLeave, mgr.OnMessage))
 
 	// Debug: prove authoritative dealing. Shuffles a fresh deck server-side and
 	// returns the top cards as ids. The real game never exposes the full deck.
