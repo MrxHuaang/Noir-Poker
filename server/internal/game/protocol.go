@@ -43,6 +43,7 @@ type PublicState struct {
 
 type PublicSeat struct {
 	ID       string `json:"id"`
+	Name     string `json:"name"`
 	Chips    int    `json:"chips"`
 	Bet      int    `json:"bet"`
 	Status   string `json:"status"`

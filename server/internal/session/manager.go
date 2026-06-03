@@ -68,6 +68,9 @@ func (m *Manager) handleStart(code string) {
 	}
 	// Seat exactly the connected players (drops anyone who left).
 	r.SyncSeats(ids, defaultStack)
+	for _, c := range clients {
+		r.SetName(c.ID, c.Name)
+	}
 	err := r.StartHand()
 	pub := r.PublicMsg()
 	holes := r.HoleMsgs()
@@ -94,6 +97,7 @@ func (m *Manager) OnJoin(c *hub.Client) {
 		m.mu.Unlock()
 		return
 	}
+	r.SetName(c.ID, c.Name)
 	pub := r.PublicMsg()
 	var hole game.ServerMsg
 	hasHole := false

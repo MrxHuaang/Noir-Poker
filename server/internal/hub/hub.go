@@ -10,6 +10,7 @@ import "sync"
 // the WebSocket writer goroutine drains it.
 type Client struct {
 	ID   string
+	Name string // display name (from ?name=); ID stays the unique key
 	Room string
 	send chan []byte
 }
@@ -27,8 +28,8 @@ func New() *Hub {
 }
 
 // Join registers a new client in room and returns it.
-func (h *Hub) Join(room, id string) *Client {
-	c := &Client{ID: id, Room: room, send: make(chan []byte, 32)}
+func (h *Hub) Join(room, id, name string) *Client {
+	c := &Client{ID: id, Name: name, Room: room, send: make(chan []byte, 32)}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.rooms[room] == nil {

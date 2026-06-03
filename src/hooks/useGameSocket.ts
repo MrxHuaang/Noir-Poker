@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type PublicSeat = {
   id: string;
+  name: string;
   chips: number;
   bet: number;
   status: string;
@@ -35,7 +36,7 @@ export type GameSocket = {
   action: (action: string, amount?: number) => void;
 };
 
-export function useGameSocket(room: string | null, id: string): GameSocket {
+export function useGameSocket(room: string | null, id: string, name = ""): GameSocket {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<PublicState | null>(null);
@@ -50,7 +51,8 @@ export function useGameSocket(room: string | null, id: string): GameSocket {
     }
     setError(null);
     const wsBase = base.replace(/^http/, "ws").replace(/\/$/, "");
-    const url = `${wsBase}/ws?room=${encodeURIComponent(room)}&id=${encodeURIComponent(id)}`;
+    const nameQ = name ? `&name=${encodeURIComponent(name)}` : "";
+    const url = `${wsBase}/ws?room=${encodeURIComponent(room)}&id=${encodeURIComponent(id)}${nameQ}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
     ws.onopen = () => setConnected(true);
@@ -73,7 +75,7 @@ export function useGameSocket(room: string | null, id: string): GameSocket {
       wsRef.current = null;
       setConnected(false);
     };
-  }, [room, id]);
+  }, [room, id, name]);
 
   const send = useCallback((type: string, payload?: unknown) => {
     const ws = wsRef.current;

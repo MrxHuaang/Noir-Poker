@@ -37,6 +37,7 @@ type Room struct {
 	phase   Phase
 	winners []Winner
 	reveals map[string][2]poker.Card // shown holes at a contested showdown
+	names   map[string]string        // seat id -> display name
 }
 
 func NewRoom(smallBlind, bigBlind int) *Room {
@@ -47,6 +48,14 @@ func NewRoom(smallBlind, bigBlind int) *Room {
 		bb:     bigBlind,
 		phase:  PhaseIdle,
 		holes:  make(map[string][2]poker.Card),
+		names:  make(map[string]string),
+	}
+}
+
+// SetName records a player's display name (shown in PublicSeat).
+func (r *Room) SetName(id, name string) {
+	if name != "" {
+		r.names[id] = name
 	}
 }
 
@@ -295,14 +304,14 @@ func (r *Room) PublicMsg() ServerMsg {
 		seats = make([]PublicSeat, len(r.betting.Seats))
 		for i, s := range r.betting.Seats {
 			seats[i] = PublicSeat{
-				ID: s.ID, Chips: s.Chips, Bet: s.Bet, Status: string(s.Status),
+				ID: s.ID, Name: r.names[s.ID], Chips: s.Chips, Bet: s.Bet, Status: string(s.Status),
 				HasCards: s.Status != StatusFolded && s.Status != StatusOut,
 			}
 		}
 	} else {
 		seats = make([]PublicSeat, len(r.seatIDs))
 		for i, id := range r.seatIDs {
-			seats[i] = PublicSeat{ID: id, Chips: r.chips[id], Status: string(StatusActive)}
+			seats[i] = PublicSeat{ID: id, Name: r.names[id], Chips: r.chips[id], Status: string(StatusActive)}
 		}
 	}
 	pot, toAct := 0, ""

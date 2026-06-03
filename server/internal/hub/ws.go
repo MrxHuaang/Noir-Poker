@@ -53,7 +53,7 @@ func (h *Hub) Handler(
 		defer conn.CloseNow()
 
 		ctx := r.Context()
-		client := h.Join(room, id)
+		client := h.Join(room, id, r.URL.Query().Get("name"))
 		// On disconnect: onLeave (while still registered) then Leave.
 		defer func() {
 			if onLeave != nil {

@@ -12,8 +12,8 @@ import (
 
 func TestHubBroadcastSkipsSender(t *testing.T) {
 	h := New()
-	a := h.Join("R", "a")
-	b := h.Join("R", "b")
+	a := h.Join("R", "a", "a")
+	b := h.Join("R", "b", "b")
 	if got := h.RoomSize("R"); got != 2 {
 		t.Fatalf("RoomSize = %d, want 2", got)
 	}
@@ -37,7 +37,7 @@ func TestHubBroadcastSkipsSender(t *testing.T) {
 
 func TestHubLeaveRemovesRoom(t *testing.T) {
 	h := New()
-	a := h.Join("R", "a")
+	a := h.Join("R", "a", "a")
 	h.Leave(a)
 	if got := h.RoomSize("R"); got != 0 {
 		t.Fatalf("RoomSize after leave = %d, want 0", got)
