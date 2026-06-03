@@ -37,8 +37,15 @@ hardcode amber/gold/green/blue chrome again.
   of truth and MUST stay in sync.
 - **Deliberately exempt** (do not force to violet): per-suit card faces
   (`neon`/`noir`/`balatro` are opt-in cosmetic styles), selectable table felt
-  themes (`emerald`/`amber`/`ruby`/`sapphire` in `themes.ts`), and
-  profit/loss semantics (`text-emerald-400` gain / `text-rose-400` loss).
+  themes (`emerald`/`amber`/`ruby`/`sapphire` in `themes.ts`), profit/loss
+  semantics (`text-emerald-400` gain / `text-rose-400` loss), and the per-rank
+  identity palette in `RankTowerModal.tsx` `RANK_META` (each rank owns a distinct
+  color — zinc/amber/slate/yellow/red/… — like the card faces; this IS the
+  progression visual, not chrome).
+- **Semantic state colors** (warnings, success/confirmation feedback): use the
+  `warn-*` / `success-*` Tailwind scales (defined in `globals.css` `@theme`), NOT
+  `amber-*` / `emerald-*` directly and NOT `accent-*`. They keep warn vs success
+  distinguishable without borrowing felt-theme hues. Chrome is still always `accent-*`.
 - **Audit before shipping a color change**: `grep -rn "amber-\|emerald-\|#fbbf24\|#34d399\|rgba(251,191,36\|rgba(180,130,40" src` should return only the exempt cases above.
 
 ## Critical files

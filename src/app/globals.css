@@ -88,6 +88,20 @@
   --color-accent-900: oklch(0.36 0.11 290);
   --color-accent-950: oklch(0.26 0.09 290);
 
+  /* ── Semantic state scales ──────────────────────────────────────────
+     For NON-brand UI signals only: warnings and success/confirmation
+     feedback (toasts, validation). These are deliberately OUTSIDE the
+     accent system so warn vs success stay distinguishable. Do NOT use
+     these for chrome — chrome is always accent-*. Profit/loss keeps using
+     emerald-400 / rose-400 directly (financial semantics, separate again). */
+  --color-warn-200: oklch(0.90 0.07 85);
+  --color-warn-400: oklch(0.80 0.15 80);
+  --color-warn-500: oklch(0.74 0.16 75);
+
+  --color-success-200: oklch(0.90 0.07 160);
+  --color-success-400: oklch(0.77 0.14 162);
+  --color-success-500: oklch(0.70 0.15 162);
+
   --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
 }

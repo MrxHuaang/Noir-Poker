@@ -196,8 +196,8 @@ export function NormalConfigPanel({
         <p
           className={`rounded-xl px-3 py-2 text-xs ring-1 ${
             feedback.tone === "warn"
-              ? "bg-amber-500/10 text-amber-200 ring-amber-400/25"
-              : "bg-emerald-500/10 text-emerald-200 ring-emerald-400/25"
+              ? "bg-warn-500/10 text-warn-200 ring-warn-400/25"
+              : "bg-success-500/10 text-success-200 ring-success-400/25"
           }`}
           aria-live="polite"
         >
