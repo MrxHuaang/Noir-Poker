@@ -1,0 +1,18 @@
+# Render Blueprint for the Go game server (free, no credit card).
+# Deploy: push to GitHub, then on render.com -> New -> Blueprint -> pick this repo.
+# Free web services sleep after ~15 min idle and wake on the next request
+# (~1 min cold start) — fine for occasional games. WebSockets are supported.
+#
+# To require Firebase-authenticated WS connections, add an env var in the Render
+# dashboard: FIREBASE_PROJECT_ID = poker-sim-69129 (else auth is disabled/open).
+services:
+  - type: web
+    name: poker-sim-server
+    runtime: docker
+    repo: https://github.com/MrxHuaang/poker-sim
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    plan: free
+    region: virginia # closest free region to Colombia
+    healthCheckPath: /health
+    autoDeploy: true

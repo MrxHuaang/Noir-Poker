@@ -41,5 +41,23 @@ cd server
 go test ./...
 go run ./cmd/server   # listens on :8080 (PORT env to override)
 # curl localhost:8080/health
-# curl localhost:8080/debug/deal
 ```
+
+Then point the web app at it and open the demo:
+```
+# .env.local
+NEXT_PUBLIC_GAME_WS_URL=http://localhost:8080
+```
+Open `/server-demo` in two browser tabs (same room code, different names) →
+"Repartir mano" → each tab sees the public state + only its own hole cards.
+
+## Deploy (free, no credit card) — Render
+
+`render.yaml` (repo root) is a Render Blueprint. On render.com: New → Blueprint →
+pick this repo → it builds `server/Dockerfile` on the free plan. Free web services
+sleep after ~15 min idle and wake on the next request (~1 min cold start) — fine
+for occasional games; WebSockets are supported. Then set in Vercel:
+`NEXT_PUBLIC_GAME_WS_URL = https://<your-service>.onrender.com` and redeploy.
+
+Optional auth: set `FIREBASE_PROJECT_ID` in the Render dashboard to require a
+Firebase ID token on the WS handshake (else it's dev-open).
