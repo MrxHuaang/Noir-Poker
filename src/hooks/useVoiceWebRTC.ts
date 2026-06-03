@@ -24,6 +24,19 @@ function buildIceServers(): RTCConfiguration {
   const servers: RTCIceServer[] = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    // Free public TURN relay (Open Relay, static auth, no signup, ~20 GB/mo,
+    // ports 80/443 + TURNS to pass firewalls). Makes cross-network calls work
+    // out of the box. For production reliability/quota, set NEXT_PUBLIC_TURN_*
+    // to your own TURN (e.g. a Metered account) — it's added below and preferred.
+    {
+      urls: [
+        "turn:staticauth.openrelay.metered.ca:80",
+        "turn:staticauth.openrelay.metered.ca:443",
+        "turns:staticauth.openrelay.metered.ca:443",
+      ],
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ];
   const turnUrl = process.env.NEXT_PUBLIC_TURN_URL;
   const turnUrlTls = process.env.NEXT_PUBLIC_TURN_URL_TLS;
@@ -33,10 +46,6 @@ function buildIceServers(): RTCConfiguration {
     const urls = [normalizeTurnUrl(turnUrl, false)];
     if (turnUrlTls) urls.push(normalizeTurnUrl(turnUrlTls, true));
     servers.push({ urls, username, credential });
-  } else {
-    console.warn(
-      "TURN no configurado: las llamadas entre redes restrictivas pueden quedarse sin audio.",
-    );
   }
   return { iceServers: servers };
 }
