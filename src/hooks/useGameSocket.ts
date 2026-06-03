@@ -23,6 +23,7 @@ export type PublicState = {
   toAct: string;
   seats: PublicSeat[];
   winners?: GameWinner[];
+  reveals?: Record<string, string[]>; // seatId -> 2 card ids, at showdown
 };
 
 export type GameSocket = {

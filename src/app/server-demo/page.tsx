@@ -122,6 +122,17 @@ export default function ServerDemoPage() {
             ))}
           </div>
 
+          {state?.reveals && Object.keys(state.reveals).length > 0 && (
+            <div className="flex flex-col gap-1 text-[11px] text-zinc-400">
+              <span className="uppercase tracking-widest font-black text-zinc-500">Showdown</span>
+              {Object.entries(state.reveals).map(([sid, cs]) => (
+                <span key={sid} className="font-mono">
+                  {sid}: {cs.join(" ")}
+                </span>
+              ))}
+            </div>
+          )}
+
           {state?.winners && state.winners.length > 0 && (
             <div className="rounded-xl bg-success-500/10 ring-1 ring-success-400/25 text-success-200 text-xs px-3 py-2">
               Ganador: {state.winners.map((w) => `${w.id} +${w.amount}`).join(" · ")}

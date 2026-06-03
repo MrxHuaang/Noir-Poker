@@ -36,6 +36,7 @@ type Room struct {
 	holes   map[string][2]poker.Card
 	phase   Phase
 	winners []Winner
+	reveals map[string][2]poker.Card // shown holes at a contested showdown
 }
 
 func NewRoom(smallBlind, bigBlind int) *Room {
@@ -90,6 +91,7 @@ func (r *Room) startHandWithDeck(deck []poker.Card) error {
 	r.deck = deck
 	r.board = nil
 	r.winners = nil
+	r.reveals = nil
 	r.holes = make(map[string][2]poker.Card)
 	r.phase = PhasePreflop
 
@@ -233,6 +235,16 @@ func (r *Room) advanceStreet() {
 
 func (r *Room) settleShowdown() {
 	r.winners = Settle(r.betting, r.holes, r.board)
+	// Contested showdown: reveal the holes of everyone still in.
+	r.reveals = make(map[string][2]poker.Card)
+	for _, s := range r.betting.Seats {
+		if s.Status == StatusFolded || s.Status == StatusOut {
+			continue
+		}
+		if h, ok := r.holes[s.ID]; ok {
+			r.reveals[s.ID] = h
+		}
+	}
 	r.applyWinnings()
 	r.phase = PhaseShowdown
 }
@@ -262,9 +274,16 @@ func (r *Room) PublicMsg() ServerMsg {
 	if r.betting != nil {
 		pot, toAct = r.betting.Pot, r.betting.ToAct
 	}
+	var reveals map[string][]string
+	if len(r.reveals) > 0 {
+		reveals = make(map[string][]string, len(r.reveals))
+		for id, h := range r.reveals {
+			reveals[id] = []string{h[0].ID(), h[1].ID()}
+		}
+	}
 	msg, _ := encode("state", PublicState{
 		HandNum: r.handNum, Phase: string(r.phase), Board: board,
-		Pot: pot, ToAct: toAct, Seats: seats, Winners: r.winners,
+		Pot: pot, ToAct: toAct, Seats: seats, Winners: r.winners, Reveals: reveals,
 	})
 	return msg
 }

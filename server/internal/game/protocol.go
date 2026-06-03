@@ -36,6 +36,9 @@ type PublicState struct {
 	ToAct   string       `json:"toAct"`
 	Seats   []PublicSeat `json:"seats"`
 	Winners []Winner     `json:"winners,omitempty"`
+	// Reveals holds the shown hole cards at a contested showdown (seatID -> 2
+	// card ids). Empty otherwise — uncontested (fold-to-one) wins never reveal.
+	Reveals map[string][]string `json:"reveals,omitempty"`
 }
 
 type PublicSeat struct {
