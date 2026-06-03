@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/MrxHuaang/poker-sim/server/internal/auth"
 	"github.com/MrxHuaang/poker-sim/server/internal/hub"
 	"github.com/MrxHuaang/poker-sim/server/internal/poker"
 )
@@ -20,6 +21,17 @@ func main() {
 	mux := http.NewServeMux()
 	h := hub.New()
 
+	// Auth: when a Firebase project id is configured, the WS handshake requires
+	// a valid Firebase ID token (?token=...). Without it (dev), connections are
+	// open and use ?id=UID directly.
+	var authFn hub.Authenticator
+	if projectID := firstNonEmpty(os.Getenv("FIREBASE_PROJECT_ID"), os.Getenv("FIREBASE_ADMIN_PROJECT_ID")); projectID != "" {
+		authFn = auth.NewVerifier(projectID).Verify
+		log.Printf("WS auth enabled for Firebase project %s", projectID)
+	} else {
+		log.Print("WS auth disabled (set FIREBASE_PROJECT_ID to enable)")
+	}
+
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
@@ -27,7 +39,7 @@ func main() {
 
 	// Real-time room relay. GET /ws?room=CODE&id=UID upgrades to a WebSocket;
 	// frames are rebroadcast within the room. Game protocol + auth come next.
-	mux.HandleFunc("/ws", h.Handler())
+	mux.HandleFunc("/ws", h.Handler(authFn))
 
 	// Debug: prove authoritative dealing. Shuffles a fresh deck server-side and
 	// returns the top cards as ids. The real game never exposes the full deck.
@@ -54,4 +66,13 @@ func port() string {
 		return p
 	}
 	return "8080"
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
