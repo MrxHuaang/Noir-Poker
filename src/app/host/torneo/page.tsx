@@ -161,7 +161,7 @@ export default function HostTorneoPage() {
     () => gameState?.seats.find((s) => s.id === uid) ?? null,
     [gameState, uid],
   );
-  const isMyTurn = !!(gameState && gameState.betting.toActId === uid);
+  const isMyTurn = !!(gameState && mySeat && gameState.betting.toActId === mySeat.id);
   const isAdmin = !!(uid && room?.adminUid === uid);
 
   // Build podium ranking: winner first, then knockouts in reverse order (last out = 2nd)
@@ -203,8 +203,9 @@ export default function HostTorneoPage() {
   const betting = gameState?.betting ?? EMPTY_BETTING;
 
   async function handleAction(action: BettingAction, amount?: number) {
-    if (!uid || !code) return;
-    await postPlayerAction(code, uid, action, amount);
+    const seatId = mySeat?.id ?? uid;
+    if (!seatId || !code) return;
+    await postPlayerAction(code, seatId, action, amount);
   }
 
   function updateConfig(newConfig: RoomConfig) {

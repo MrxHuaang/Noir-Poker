@@ -93,7 +93,7 @@ export default function PlayNormalPage() {
   const liveRef = useRef({ inLobby: false, spectating: false, finalChips: 0, escrow: 0, isCasual: false });
 
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [closedAllInVoteHand, setClosedAllInVoteHand] = useState<number | null>(null);
+  const [openAllInVoteHand, setOpenAllInVoteHand] = useState<number | null>(null);
   const [closedRunResultsHand, setClosedRunResultsHand] = useState<number | null>(null);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
     undefined,
@@ -126,9 +126,10 @@ export default function PlayNormalPage() {
 
   const gs = room?.state ?? null;
   const config = room?.config;
+  const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
 
   // Vibrate once when it becomes the player's turn (mobile UX).
-  const isMyTurn = !!(gs && gs.betting.toActId === uid);
+  const isMyTurn = !!(gs && mySeat && gs.betting.toActId === mySeat.id);
   const prevTurnRef = useRef(false);
   useEffect(() => {
     if (isMyTurn && !prevTurnRef.current) {
@@ -147,13 +148,12 @@ export default function PlayNormalPage() {
   const maxPlayers = room?.maxPlayers ?? 9;
   const roomFull = lobby.length >= maxPlayers;
   const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
-  const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
   const result = room?.result ?? null;
   const currentHandNum = gs?.betting.handNum ?? EMPTY_BETTING.handNum;
   const visibleRunResults =
     closedRunResultsHand === currentHandNum ? null : (room?.runResults ?? null);
   const allInVoteOpen =
-    gs?.phase === "all-in-negotiation" && closedAllInVoteHand !== currentHandNum;
+    gs?.phase === "all-in-negotiation" && openAllInVoteHand === currentHandNum;
 
   // Mantener el snapshot al dia para el cleanup de desmontaje.
   liveRef.current = {
@@ -314,13 +314,15 @@ export default function PlayNormalPage() {
   }
 
   async function handleAction(action: BettingAction, amount?: number) {
-    if (!uid || !code) return;
-    await postPlayerAction(code, uid, action, amount);
+    const seatId = mySeat?.id ?? uid;
+    if (!seatId || !code) return;
+    await postPlayerAction(code, seatId, action, amount);
   }
 
   async function handleRunVote(n: number) {
     if (!uid || !code) return;
     await postPlayerVote(code, uid, n).catch(() => {});
+    setOpenAllInVoteHand(null);
   }
 
   async function handleToggleSitOut() {
@@ -754,13 +756,14 @@ export default function PlayNormalPage() {
         selfUid={uid}
         onVote={handleRunVote}
         open={allInVoteOpen}
-        onClose={() => setClosedAllInVoteHand(currentHandNum)}
+        onClose={() => setOpenAllInVoteHand(null)}
       />
       {!allInVoteOpen && (
         <AllInVoteChip
           gameState={gs as NormalGameState | null}
           selfUid={uid}
-          onClick={() => setClosedAllInVoteHand(null)}
+          onClick={() => setOpenAllInVoteHand(currentHandNum)}
+          onVote={handleRunVote}
         />
       )}
       {visibleRunResults ? (

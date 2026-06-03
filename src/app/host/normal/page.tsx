@@ -88,7 +88,7 @@ export default function HostNormalPage() {
   } = useNormalGame(code, room ?? null, lobby, uid, holeCards);
 
   const creatingRef = useRef(false);
-  const [closedAllInVoteHand, setClosedAllInVoteHand] = useState<number | null>(null);
+  const [openAllInVoteHand, setOpenAllInVoteHand] = useState<number | null>(null);
   const [closedRunResultsHand, setClosedRunResultsHand] = useState<number | null>(null);
   useEffect(() => {
     if (loading || !uid || code || creatingRef.current) return;
@@ -146,7 +146,7 @@ export default function HostNormalPage() {
 
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(() => gameState?.seats.find((s) => s.id === uid) ?? null, [gameState, uid]);
-  const isMyTurn = !!(gameState && gameState.betting.toActId === uid);
+  const isMyTurn = !!(gameState && mySeat && gameState.betting.toActId === mySeat.id);
 
   const config: RoomConfig = room?.config ?? DEFAULT_CONFIG;
   const theme: TableThemeId = (room?.theme as TableThemeId) ?? "noir";
@@ -204,16 +204,18 @@ export default function HostNormalPage() {
   const visibleRunResults =
     closedRunResultsHand === betting.handNum ? null : (runs ?? room?.runResults ?? null);
   const allInVoteOpen =
-    gameState?.phase === "all-in-negotiation" && closedAllInVoteHand !== betting.handNum;
+    gameState?.phase === "all-in-negotiation" && openAllInVoteHand === betting.handNum;
 
   async function handleAction(action: BettingAction, amount?: number) {
-    if (!uid || !code) return;
-    await postPlayerAction(code, uid, action, amount);
+    const seatId = mySeat?.id ?? uid;
+    if (!seatId || !code) return;
+    await postPlayerAction(code, seatId, action, amount);
   }
 
   async function handleRunVote(n: number) {
     if (!uid || !code) return;
     await postPlayerVote(code, uid, n).catch(() => {});
+    setOpenAllInVoteHand(null);
   }
 
   function updateConfig(newConfig: RoomConfig) {
@@ -431,13 +433,14 @@ export default function HostNormalPage() {
         selfUid={uid}
         onVote={handleRunVote}
         open={allInVoteOpen}
-        onClose={() => setClosedAllInVoteHand(betting.handNum)}
+        onClose={() => setOpenAllInVoteHand(null)}
       />
       {!allInVoteOpen && (
         <AllInVoteChip
           gameState={gameState}
           selfUid={uid}
-          onClick={() => setClosedAllInVoteHand(null)}
+          onClick={() => setOpenAllInVoteHand(betting.handNum)}
+          onVote={handleRunVote}
         />
       )}
       {visibleRunResults ? (
