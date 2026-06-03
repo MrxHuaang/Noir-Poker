@@ -79,6 +79,7 @@ export type NormalGameState = {
     agreedN?: number;
     options?: number[];
     createdAt?: number;
+    equity?: Record<string, number>;
   };
   lastAction?: {
     seatId: string;

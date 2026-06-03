@@ -14,7 +14,7 @@ import {
   kickFromLobby,
   writeNormalDealt,
 } from "@/lib/normalRooms";
-import { showdown, bestHand, compareScore, categoryFor } from "@/lib/handEval";
+import { showdown, bestHand, compareScore } from "@/lib/handEval";
 import type { Category } from "@/lib/handEval";
 import { writeHandRecord } from "@/lib/handHistory";
 import type { Card } from "@/lib/poker";
@@ -33,7 +33,7 @@ export type RunRecord = {
   category: Category;
 } & Partial<RunItRun>;
 
-const ALL_IN_VOTE_TIMEOUT_MS = 15_000;
+const ALL_IN_VOTE_TIMEOUT_MS = 8_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -42,26 +42,6 @@ function sleep(ms: number): Promise<void> {
 function toPublicState(gs: NormalGameState) {
   const { deck, ...rest } = gs;
   return { ...rest, deckCount: deck.length };
-}
-
-function dealAllInStreet(s: NormalGameState): NormalGameState {
-  const newDeck = [...s.deck];
-  const newBurns = [...s.burns];
-  const newCommunity = [...s.community];
-  newBurns.push(newDeck.shift()!);
-  let newStreet: NormalGameState["street"];
-  let newPhase: NormalGameState["phase"];
-  if (s.street === "preflop") {
-    newCommunity.push(newDeck.shift()!, newDeck.shift()!, newDeck.shift()!);
-    newStreet = "flop"; newPhase = "flop";
-  } else if (s.street === "flop") {
-    newCommunity.push(newDeck.shift()!);
-    newStreet = "turn"; newPhase = "turn";
-  } else {
-    newCommunity.push(newDeck.shift()!);
-    newStreet = "river"; newPhase = "river";
-  }
-  return { ...s, deck: newDeck, burns: newBurns, community: newCommunity, street: newStreet, phase: newPhase };
 }
 
 function withRunoutDeck(
@@ -84,6 +64,60 @@ function withRunoutDeck(
     ...state,
     deck: shuffle(makeDeck()).filter((c) => !known.has(c.id)),
   };
+}
+
+function shuffled<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function estimateAllInEquity(
+  state: NormalGameState,
+  playerIds: string[],
+  holeCards: Record<string, [Card, Card]>,
+  trials = 700,
+): Record<string, number> {
+  const equity: Record<string, number> = {};
+  for (const id of playerIds) equity[id] = 0;
+
+  const knownIds = new Set(state.community.map((c) => c.id));
+  for (const id of playerIds) {
+    const hole = holeCards[id];
+    if (!hole) continue;
+    knownIds.add(hole[0].id);
+    knownIds.add(hole[1].id);
+  }
+
+  const deck = state.deck.filter((c) => !knownIds.has(c.id));
+  const missing = Math.max(0, 5 - state.community.length);
+  const runnableTrials = Math.max(1, trials);
+
+  for (let i = 0; i < runnableTrials; i++) {
+    const board = [...state.community, ...shuffled(deck).slice(0, missing)];
+    const scores: Record<string, number[]> = {};
+    for (const id of playerIds) {
+      const hole = holeCards[id];
+      if (hole) scores[id] = bestHand([...hole, ...board]);
+    }
+    const scored = playerIds.filter((id) => scores[id]);
+    if (scored.length === 0) continue;
+    let best = scores[scored[0]];
+    for (const id of scored) {
+      if (compareScore(scores[id], best) > 0) best = scores[id];
+    }
+    const winners = scored.filter((id) => compareScore(scores[id], best) === 0);
+    const share = 1 / winners.length;
+    for (const id of winners) equity[id] += share;
+  }
+
+  for (const id of playerIds) {
+    equity[id] = Math.round((equity[id] / runnableTrials) * 100);
+  }
+  return equity;
 }
 
 type UseNormalGameReturn = {
@@ -123,11 +157,15 @@ export function useNormalGame(
   // arrives from Firestore (race condition: isProcessing=false but Firestore
   // snapshot not yet delivered → resolveShowdown() would overwrite run result).
   const runItNResolvedHandRef = useRef<number>(-1);
+  const resolvingShowdownHandRef = useRef<number>(-1);
+  const resolvedShowdownHandRef = useRef<number>(-1);
+  const autoStartedAfterResultHandRef = useRef<number>(-1);
 
   const dismissRuns = useCallback(() => setRuns(null), []);
 
   const startNewHand = useCallback(async () => {
     if (!code || !isAdminRef.current) return;
+    setRuns(null);
     const ownersMap: Record<string, string | null> = {};
     const pubKeyByOwner: Record<string, string | undefined> = {};
     for (const p of lobby) {
@@ -215,6 +253,15 @@ export function useNormalGame(
 
   const resolveShowdown = useCallback(async () => {
     if (!gameState || !code) return;
+    const handNum = gameState.betting.handNum;
+    if (
+      resolvingShowdownHandRef.current === handNum ||
+      resolvedShowdownHandRef.current === handNum ||
+      runItNResolvedHandRef.current === handNum
+    ) {
+      return;
+    }
+    resolvingShowdownHandRef.current = handNum;
 
     const activeSeatIds = gameState.seats
       .filter((s) => s.status !== "folded" && s.status !== "out")
@@ -231,7 +278,10 @@ export function useNormalGame(
       .filter(Boolean) as { player: { id: string }; hole: [Card, Card]; folded: boolean }[];
 
     const result = showdown(handShodownSeats, gameState.community);
-    if (!result) return;
+    if (!result) {
+      resolvingShowdownHandRef.current = -1;
+      return;
+    }
 
     // Distribute pots
     const sidePots = computeSidePots(
@@ -292,11 +342,18 @@ export function useNormalGame(
       }
     }
 
-    await patchNormalRoom(code, {
-      state: toPublicState(newState),
-      result: { ...result, chips: newChips },
-      revealedHoles,
-    });
+    try {
+      await patchNormalRoom(code, {
+        state: toPublicState(newState),
+        result: { ...result, chips: newChips },
+        revealedHoles,
+        runResults: null,
+      });
+      resolvedShowdownHandRef.current = handNum;
+    } catch {
+      resolvingShowdownHandRef.current = -1;
+      return;
+    }
 
     // Record hand for history
     const winnerInfo = result.winners.map((id) => {
@@ -537,15 +594,19 @@ export function useNormalGame(
     if (!isAdminRef.current || !code) return;
     if (!room?.result) return;
     if (isProcessing) return;
+    const handNum = room.state?.betting.handNum;
+    if (!handNum || autoStartedAfterResultHandRef.current === handNum) return;
     const remainingPlayers = (room.state?.seats ?? []).filter(
       (s) => s.status !== "out" && s.chips > 0,
     ).length;
     if (remainingPlayers < 2) return;
     const t = setTimeout(() => {
+      if (autoStartedAfterResultHandRef.current === handNum) return;
+      autoStartedAfterResultHandRef.current = handNum;
       void startNewHand();
     }, 5000);
     return () => clearTimeout(t);
-  }, [room?.result, room?.state?.seats, code, isProcessing, startNewHand]);
+  }, [room?.result, room?.state?.seats, room?.state?.betting.handNum, code, isProcessing, startNewHand]);
 
   // Admin: negotiate and execute run-it-N when all remaining players are all-in
   // or no player has further betting action.
@@ -577,6 +638,7 @@ export function useNormalGame(
           votes: {},
           options: runOptionsForState(runState),
           createdAt: Date.now(),
+          equity: estimateAllInEquity(runState, unfolded.map((s) => s.id), allHoles),
         },
       };
       setGameState(next);
@@ -633,15 +695,14 @@ export function useNormalGame(
             revealedHoles,
           });
 
-          await sleep(800);
+          await sleep(1100);
 
           const resolution = resolveRunItN(s, allHoles, runCount);
-          setRuns(resolution.runs);
 
           for (let idx = 0; idx < resolution.runs.length; idx++) {
             const run = resolution.runs[idx];
             for (const step of run.steps) {
-              await sleep(idx === 0 && step.street === "flop" ? 900 : 650);
+              await sleep(step.street === "flop" ? 1100 : 1250);
               s = {
                 ...s,
                 community: step.community,
@@ -651,7 +712,7 @@ export function useNormalGame(
               setGameState(s);
               await patchNormalRoom(code, { state: toPublicState(s) });
             }
-            await sleep(500);
+            await sleep(900);
           }
 
           const newChips: Record<string, number> = {};
@@ -684,6 +745,8 @@ export function useNormalGame(
             phase: "showdown",
             allInNegotiation: undefined,
           };
+          runItNResolvedHandRef.current = thisHand;
+          resolvedShowdownHandRef.current = thisHand;
           setGameState(finalState);
 
           await patchNormalRoom(code, {
@@ -696,11 +759,7 @@ export function useNormalGame(
             },
             runResults: resolution.runs,
           });
-
-          // Mark this hand as resolved via run-it-N BEFORE releasing isProcessing.
-          // This prevents the auto-resolve-showdown effect from racing in while
-          // the Firestore snapshot with room?.result hasn't arrived yet.
-          runItNResolvedHandRef.current = thisHand;
+          setRuns(resolution.runs);
 
           const runParticipated = gameState.seats.filter((s) =>
             s.status === "active" || s.status === "all-in" || s.status === "folded",
@@ -718,6 +777,7 @@ export function useNormalGame(
         } catch {
           allInRanHandRef.current = -1;
           runItNResolvedHandRef.current = -1;
+          resolvedShowdownHandRef.current = -1;
         } finally {
           setIsProcessing(false);
         }
