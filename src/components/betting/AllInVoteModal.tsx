@@ -10,7 +10,7 @@ type Props = {
   onClose?: () => void;
 };
 
-export function AllInVoteModal({ gameState, selfUid, onVote, open = true, onClose }: Props) {
+export function AllInVoteModal({ gameState, selfUid, onVote, open = false, onClose }: Props) {
   if (!open) return null;
   if (!gameState || gameState.phase !== "all-in-negotiation") return null;
   const neg = gameState.allInNegotiation;

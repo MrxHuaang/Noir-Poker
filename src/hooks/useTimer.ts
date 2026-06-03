@@ -21,29 +21,3 @@ export function useCountdown(deadline: number | null): number {
 
   return remaining;
 }
-
-export function useTurnTimer(
-  deadline: number | null,
-  timeBank: number,
-  onExpire: () => void,
-): { remaining: number; bankRemaining: number; inBank: boolean } {
-  const remaining = useCountdown(deadline);
-  const calledRef = useRef(false);
-
-  useEffect(() => {
-    calledRef.current = false;
-  }, [deadline]);
-
-  useEffect(() => {
-    if (deadline !== null && remaining === 0 && !calledRef.current) {
-      calledRef.current = true;
-      onExpire();
-    }
-  }, [remaining, deadline, onExpire]);
-
-  const baseDone = deadline !== null && remaining === 0;
-  const bankRemaining = baseDone ? timeBank : timeBank;
-  const inBank = baseDone && timeBank > 0;
-
-  return { remaining, bankRemaining, inBank };
-}
