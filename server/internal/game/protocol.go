@@ -26,17 +26,23 @@ func encode(typ string, payload any) (ServerMsg, error) {
 	return ServerMsg{Type: typ, Payload: b}, nil
 }
 
-// PublicState is broadcast to everyone in the room. It carries the board and
-// seat metadata but NEVER hole cards.
+// PublicState is broadcast to everyone in the room. It carries the board, pot,
+// phase, whose turn, and per-seat public info — but NEVER hole cards.
 type PublicState struct {
 	HandNum int          `json:"handNum"`
-	Street  string       `json:"street"`
+	Phase   string       `json:"phase"`
 	Board   []string     `json:"board"` // community card ids
+	Pot     int          `json:"pot"`
+	ToAct   string       `json:"toAct"`
 	Seats   []PublicSeat `json:"seats"`
+	Winners []Winner     `json:"winners,omitempty"`
 }
 
 type PublicSeat struct {
 	ID       string `json:"id"`
+	Chips    int    `json:"chips"`
+	Bet      int    `json:"bet"`
+	Status   string `json:"status"`
 	HasCards bool   `json:"hasCards"`
 }
 

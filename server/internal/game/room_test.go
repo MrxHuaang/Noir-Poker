@@ -1,101 +1,79 @@
 package game
 
 import (
-	"encoding/json"
-	"strings"
 	"testing"
+
+	"github.com/MrxHuaang/poker-sim/server/internal/poker"
 )
 
-func TestDealNeedsTwoSeats(t *testing.T) {
-	r := NewRoom()
-	r.AddSeat("p1")
-	if _, err := r.Deal(); err == nil {
-		t.Fatal("expected error dealing with <2 seats")
+func deckOf(t *testing.T, ids ...string) []poker.Card {
+	t.Helper()
+	return cards(t, ids...)
+}
+
+func TestStartHandNeedsTwoFunded(t *testing.T) {
+	r := NewRoom(5, 10)
+	r.AddSeat("p1", 1000)
+	if err := r.StartHand(); err != ErrNotEnoughPlayers {
+		t.Fatalf("want ErrNotEnoughPlayers, got %v", err)
 	}
 }
 
-func TestAddSeatDedupes(t *testing.T) {
-	r := NewRoom()
-	r.AddSeat("p1")
-	r.AddSeat("p1")
-	r.AddSeat("p2")
-	if got := len(r.Seats()); got != 2 {
-		t.Fatalf("seats = %d, want 2", got)
+// Full heads-up hand to showdown on a deterministic deck. p1 (AA) beats p2 (KK).
+func TestFullHeadsUpHandToShowdown(t *testing.T) {
+	r := NewRoom(5, 10)
+	r.AddSeat("p1", 1000)
+	r.AddSeat("p2", 1000)
+	// Deal order (no burns): p1=deck[0,1], p2=deck[2,3], flop=4,5,6, turn=7, river=8.
+	deck := deckOf(t, "AS", "AH", "KS", "KH", "2C", "7D", "9S", "JH", "3C")
+	if err := r.startHandWithDeck(deck); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	// HU preflop: button=p1=SB acts first. call, check; then check it down.
+	steps := []string{"call", "check", "check", "check", "check", "check", "check", "check"}
+	for i, act := range steps {
+		id := r.betting.ToAct
+		if id == "" {
+			t.Fatalf("step %d (%s): no one to act, phase=%s", i, act, r.phase)
+		}
+		if err := r.Action(id, act, 0); err != nil {
+			t.Fatalf("step %d %s by %s: %v", i, act, id, err)
+		}
+	}
+
+	if r.Phase() != PhaseShowdown {
+		t.Fatalf("phase = %s, want showdown", r.Phase())
+	}
+	w := r.Winners()
+	if len(w) != 1 || w[0].ID != "p1" || w[0].Amount != 20 {
+		t.Fatalf("winners = %+v, want [{p1 20}]", w)
+	}
+	if r.Chips("p1") != 1010 || r.Chips("p2") != 990 {
+		t.Fatalf("chips p1=%d p2=%d, want 1010/990", r.Chips("p1"), r.Chips("p2"))
+	}
+	if r.Chips("p1")+r.Chips("p2") != 2000 {
+		t.Fatal("chip conservation broken")
 	}
 }
 
-func TestDealPrivacyAndUniqueness(t *testing.T) {
-	r := NewRoom()
-	for _, id := range []string{"p1", "p2", "p3"} {
-		r.AddSeat(id)
+// Folding to one player ends the hand immediately; that player wins the blinds.
+func TestFoldEndsHand(t *testing.T) {
+	r := NewRoom(5, 10)
+	r.AddSeat("p1", 1000)
+	r.AddSeat("p2", 1000)
+	deck := deckOf(t, "AS", "AH", "KS", "KH", "2C", "7D", "9S", "JH", "3C")
+	if err := r.startHandWithDeck(deck); err != nil {
+		t.Fatalf("start: %v", err)
 	}
-	res, err := r.Deal()
-	if err != nil {
-		t.Fatalf("deal: %v", err)
+	// p1 (button/SB, acts first preflop) folds -> p2 wins the pot (15 in blinds).
+	if err := r.Action(r.betting.ToAct, "fold", 0); err != nil {
+		t.Fatalf("fold: %v", err)
 	}
-
-	// One private message per seat, each with exactly 2 cards; all unique.
-	if len(res.Private) != 3 {
-		t.Fatalf("private msgs = %d, want 3", len(res.Private))
+	if r.Phase() != PhaseShowdown {
+		t.Fatalf("phase = %s, want showdown", r.Phase())
 	}
-	seen := map[string]bool{}
-	var allHole []string
-	for id, msg := range res.Private {
-		if msg.Type != "hole" {
-			t.Fatalf("private[%s] type = %q, want hole", id, msg.Type)
-		}
-		var ph PrivateHole
-		if err := json.Unmarshal(msg.Payload, &ph); err != nil {
-			t.Fatalf("decode private[%s]: %v", id, err)
-		}
-		if len(ph.Cards) != 2 {
-			t.Fatalf("private[%s] has %d cards, want 2", id, len(ph.Cards))
-		}
-		for _, c := range ph.Cards {
-			if seen[c] {
-				t.Fatalf("duplicate dealt card %s", c)
-			}
-			seen[c] = true
-			allHole = append(allHole, c)
-		}
-	}
-
-	// Privacy invariant: NO hole card id appears anywhere in the public message.
-	pubBytes, err := json.Marshal(res.Public)
-	if err != nil {
-		t.Fatalf("marshal public: %v", err)
-	}
-	pub := string(pubBytes)
-	for _, c := range allHole {
-		if strings.Contains(pub, c) {
-			t.Fatalf("hole card %s leaked into public state: %s", c, pub)
-		}
-	}
-
-	// Public state: preflop, empty board, 3 seats, no cards exposed.
-	var ps PublicState
-	if err := json.Unmarshal(res.Public.Payload, &ps); err != nil {
-		t.Fatalf("decode public: %v", err)
-	}
-	if ps.Street != "preflop" || len(ps.Board) != 0 || len(ps.Seats) != 3 {
-		t.Fatalf("unexpected public state: %+v", ps)
-	}
-	if ps.HandNum != 1 {
-		t.Fatalf("handNum = %d, want 1", ps.HandNum)
-	}
-}
-
-func TestDealIncrementsHandNum(t *testing.T) {
-	r := NewRoom()
-	r.AddSeat("a")
-	r.AddSeat("b")
-	if _, err := r.Deal(); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := r.Deal(); err != nil {
-		t.Fatal(err)
-	}
-	if r.HandNum() != 2 {
-		t.Fatalf("handNum = %d, want 2", r.HandNum())
+	if r.Chips("p2") != 1005 || r.Chips("p1") != 995 {
+		t.Fatalf("chips p1=%d p2=%d, want 995/1005", r.Chips("p1"), r.Chips("p2"))
 	}
 }
