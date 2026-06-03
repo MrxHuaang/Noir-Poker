@@ -190,6 +190,23 @@ func (b *Betting) Apply(id, action string, amount int) error {
 	return nil
 }
 
+// ForceFold folds a seat out of the normal turn flow (e.g. on disconnect). If it
+// was that seat's turn, the turn advances. Returns false if the seat can't fold.
+func (b *Betting) ForceFold(id string) bool {
+	s, _ := b.seatByID(id)
+	if s == nil || s.Status == StatusFolded || s.Status == StatusOut {
+		return false
+	}
+	s.Status = StatusFolded
+	if !contains(b.Acted, id) {
+		b.Acted = append(b.Acted, id)
+	}
+	if b.ToAct == id {
+		b.advance()
+	}
+	return true
+}
+
 // actionable = seats that can still act (have chips and aren't folded/out/all-in).
 func (b *Betting) actionable() []*BetSeat {
 	var out []*BetSeat

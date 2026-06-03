@@ -14,9 +14,16 @@ type Authenticator func(ctx context.Context, token string) (uid string, err erro
 
 // Handler upgrades GET /ws?room=CODE to a WebSocket. If auth is non-nil,
 // ?token=<firebase-id-token> is required and the client id is the verified uid.
-// Each inbound frame is dispatched to onMessage(client, data); when onMessage is
-// nil the frame is rebroadcast to the rest of the room (dev/relay fallback).
-func (h *Hub) Handler(auth Authenticator, onMessage func(c *Client, data []byte)) http.HandlerFunc {
+// onJoin (if set) fires once the client is registered (e.g. to push current
+// state); onLeave fires on disconnect while the client is still in the room
+// (e.g. to fold them). Each inbound frame is dispatched to onMessage; when
+// onMessage is nil the frame is rebroadcast to the room (dev/relay fallback).
+func (h *Hub) Handler(
+	auth Authenticator,
+	onJoin func(c *Client),
+	onLeave func(c *Client),
+	onMessage func(c *Client, data []byte),
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		room := r.URL.Query().Get("room")
 		if room == "" {
@@ -47,7 +54,13 @@ func (h *Hub) Handler(auth Authenticator, onMessage func(c *Client, data []byte)
 
 		ctx := r.Context()
 		client := h.Join(room, id)
-		defer h.Leave(client)
+		// On disconnect: onLeave (while still registered) then Leave.
+		defer func() {
+			if onLeave != nil {
+				onLeave(client)
+			}
+			h.Leave(client)
+		}()
 
 		// Writer goroutine: drain the client's queue to the socket. Ends when
 		// Leave closes the queue (on disconnect).
@@ -58,6 +71,10 @@ func (h *Hub) Handler(auth Authenticator, onMessage func(c *Client, data []byte)
 				}
 			}
 		}()
+
+		if onJoin != nil {
+			onJoin(client)
+		}
 
 		// Reader loop: every inbound frame is broadcast to the rest of the room.
 		for {

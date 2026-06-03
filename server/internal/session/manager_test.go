@@ -59,7 +59,7 @@ func hasType(msgs [][]byte, typ string) bool {
 func TestDealFanOutAndPrivacy(t *testing.T) {
 	h := hub.New()
 	mgr := NewManager(h)
-	srv := httptest.NewServer(h.Handler(nil, mgr.OnMessage))
+	srv := httptest.NewServer(h.Handler(nil, mgr.OnJoin, mgr.OnLeave, mgr.OnMessage))
 	defer srv.Close()
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
 	ctx := context.Background()
@@ -115,5 +115,88 @@ func TestDealFanOutAndPrivacy(t *testing.T) {
 				t.Fatalf("alice's card %s leaked to bob: %s", c, raw)
 			}
 		}
+	}
+}
+
+func dial(t *testing.T, wsURL, id string) *websocket.Conn {
+	t.Helper()
+	c, _, err := websocket.Dial(context.Background(), wsURL+"?room=R&id="+id, nil)
+	if err != nil {
+		t.Fatalf("dial %s: %v", id, err)
+	}
+	return c
+}
+
+func waitJoined(t *testing.T, h *hub.Hub, n int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for h.RoomSize("R") < n {
+		if time.Now().After(deadline) {
+			t.Fatalf("only %d/%d joined", h.RoomSize("R"), n)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func TestJoinReceivesCurrentState(t *testing.T) {
+	h := hub.New()
+	mgr := NewManager(h)
+	srv := httptest.NewServer(h.Handler(nil, mgr.OnJoin, mgr.OnLeave, mgr.OnMessage))
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	a := dial(t, wsURL, "alice")
+	defer a.CloseNow()
+	b := dial(t, wsURL, "bob")
+	defer b.CloseNow()
+	waitJoined(t, h, 2)
+
+	a.Write(context.Background(), websocket.MessageText, []byte(`{"type":"start"}`))
+	readMsgs(t, a, 2)
+	readMsgs(t, b, 2)
+
+	// A late joiner gets the current state immediately (no action needed).
+	c := dial(t, wsURL, "carol")
+	defer c.CloseNow()
+	msgs := readMsgs(t, c, 1)
+	if !hasType(msgs, "state") {
+		t.Fatalf("late joiner should receive current state, got %v", msgs)
+	}
+}
+
+func TestDisconnectFoldsAndAwards(t *testing.T) {
+	h := hub.New()
+	mgr := NewManager(h)
+	srv := httptest.NewServer(h.Handler(nil, mgr.OnJoin, mgr.OnLeave, mgr.OnMessage))
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	a := dial(t, wsURL, "alice")
+	defer a.CloseNow()
+	b := dial(t, wsURL, "bob")
+	waitJoined(t, h, 2)
+
+	a.Write(context.Background(), websocket.MessageText, []byte(`{"type":"start"}`))
+	readMsgs(t, a, 2)
+	readMsgs(t, b, 2)
+
+	// bob leaves mid-hand -> server folds him -> alice wins -> showdown.
+	b.CloseNow()
+
+	found := false
+	for i := 0; i < 3 && !found; i++ {
+		for _, raw := range readMsgs(t, a, 1) {
+			var sm game.ServerMsg
+			if json.Unmarshal(raw, &sm) != nil || sm.Type != "state" {
+				continue
+			}
+			var ps game.PublicState
+			if json.Unmarshal(sm.Payload, &ps) == nil && (ps.Phase == "showdown" || len(ps.Winners) > 0) {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatal("alice should receive a showdown/winner state after bob disconnects")
 	}
 }
