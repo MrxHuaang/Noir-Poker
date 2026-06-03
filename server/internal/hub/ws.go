@@ -1,16 +1,23 @@
 package hub
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/coder/websocket"
 )
 
-// Handler upgrades GET /ws?room=CODE&id=UID to a WebSocket and relays messages
-// within the room. Auth (Firebase ID token) and the game protocol come next;
-// for now any text frame is rebroadcast to the rest of the room.
-func (h *Hub) Handler() http.HandlerFunc {
+// Authenticator verifies a token and returns the caller's uid. With a non-nil
+// authenticator the handler rejects connections without a valid token.
+type Authenticator func(ctx context.Context, token string) (uid string, err error)
+
+// Handler upgrades GET /ws?room=CODE to a WebSocket and relays messages within
+// the room. If auth is non-nil, ?token=<firebase-id-token> is required and the
+// client id is the verified uid (the ?id query is ignored). If auth is nil
+// (dev), ?id=UID is used as-is. Game protocol comes next; for now any text
+// frame is rebroadcast to the rest of the room.
+func (h *Hub) Handler(auth Authenticator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		room := r.URL.Query().Get("room")
 		if room == "" {
@@ -18,6 +25,14 @@ func (h *Hub) Handler() http.HandlerFunc {
 			return
 		}
 		id := r.URL.Query().Get("id")
+		if auth != nil {
+			uid, err := auth(r.Context(), r.URL.Query().Get("token"))
+			if err != nil {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			id = uid
+		}
 		if id == "" {
 			id = "anon"
 		}
