@@ -47,9 +47,19 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
                     && request.resource.data.hostUid == request.auth.uid;
+      // The host owns the room doc. A non-host may only patch 'state' (phones
+      // claim a seat / reveal their own cards via state.seats), and only if they
+      // are a participant — i.e. they hold a lobby entry in this room. This shrinks
+      // the surface from "any signed-in user can overwrite any room's state" to
+      // "only someone seated here can". Per-field/array validation isn't expressible
+      // in rules for the seats array; the full fix is moving per-seat writes into a
+      // subcollection (presencial-mode refactor), tracked separately.
       allow update: if isSignedIn() && (
         resource.data.hostUid == request.auth.uid ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
+          && exists(/databases/$(database)/documents/rooms/$(code)/lobby/$(request.auth.uid))
+        )
       );
 
       match /lobby/{uid} {
