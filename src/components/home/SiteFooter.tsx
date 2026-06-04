@@ -42,29 +42,19 @@ export function SiteFooter() {
   const [contributors, setContributors] = useState<Person[]>(FALLBACK);
 
   useEffect(() => {
-    fetch(`https://api.github.com/repos/${OWNER}/${REPO}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (typeof d.stargazers_count === "number") {
-          setStars(d.stargazers_count);
-        }
-      })
-      .catch(() => {});
-
-    fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contributors?per_page=30`)
+    const ac = new AbortController();
+    // Single cached server route instead of two direct, uncached, unauthenticated
+    // hits to api.github.com on every mount.
+    fetch("/api/github-meta", { signal: ac.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((list: { login: string; avatar_url: string; html_url: string; type?: string }[]) => {
-        if (!Array.isArray(list)) return;
-
-        const people = list
-          .filter((c) => c.type !== "Bot" && !c.login.endsWith("[bot]") && c.login !== OWNER)
-          .map((c) => ({ login: c.login, avatarUrl: c.avatar_url, htmlUrl: c.html_url }));
-
-        if (people.length > 0) {
-          setContributors(people);
+      .then((d: { stars: number | null; contributors: Person[] }) => {
+        if (typeof d.stars === "number") setStars(d.stars);
+        if (Array.isArray(d.contributors) && d.contributors.length > 0) {
+          setContributors(d.contributors);
         }
       })
       .catch(() => {});
+    return () => ac.abort();
   }, []);
 
   return (
