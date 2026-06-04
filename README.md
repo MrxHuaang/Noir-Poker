@@ -43,9 +43,28 @@ Simulador multi-dispositivo de Texas Hold'em para partidas en persona. La pantal
 | Animación      | GSAP 3 + `@gsap/react`, transforms CSS 3D                           |
 | Avatares       | Dicebear (estilo `lorelei`)                                         |
 | Sync           | Firebase Firestore + Anonymous Auth                                 |
-| Equity         | Web Worker (enumeración exacta + Monte Carlo)                       |
-| Persistencia   | Firestore (rooms/lobby/holes) + localStorage (stats, history)       |
+| Equity         | Motor **Rust→WASM** (`engine/`) — exacta + Monte Carlo, vía `useEquity` |
+| Servidor juego | **Go autoritativo** (`server/`) — modo online trustless por WebSocket, en Render |
+| Cliente extra  | **CLI** de terminal (`cli/`) que se une a las mismas salas online    |
+| Sync           | Firebase Firestore + Anonymous Auth; Supabase Realtime (voz)        |
+| Persistencia   | Firestore (rooms/lobby/holes, perfiles, historial) + localStorage (presencial) |
 | Iconos         | Lucide únicamente — sin emojis en UI ni código                      |
+
+### Las 4 piezas
+
+```
+┌───────────────────────────── poker-sim ─────────────────────────────┐
+│  Next.js web (src/)         Rust→WASM engine (engine/)               │
+│   - modo presencial/TV       - equity exacta + MC, bundled, en useEquity
+│   - modo Normal (legacy,                                              │
+│     host-authoritative)     Go game server (server/)  ── Render ──    │
+│   - modo Online ───wss──▶    - autoritativo: deal/apuestas/showdown    │
+│  Firebase + Supabase         - el navegador nunca ve mazo/cartas ajenas
+│                             CLI (cli/) ───wss──▶ mismas salas online   │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Detalle de la migración y backlog: [`docs/plan-migracion.md`](docs/plan-migracion.md).
 
 ---
 
@@ -128,7 +147,10 @@ Todo lo de Normal + progresión de ciegas.
 /host/torneo             Host modo torneo
 /join                    Input de código (acepta ?code= query)
 /play/[code]             Vista de teléfono — presencial
-/play/normal/[code]      Vista de teléfono — normal/torneo
+/play/normal/[code]      Vista de teléfono — normal/torneo (legacy host-authoritative)
+/play/online             Crear/unirse a mesa online (server-backed)
+/play/online/[code]      Mesa online — corre en el servidor Go autoritativo
+/server-demo             Demo mínima del servidor de juego (debug)
 /players                 CRUD local de jugadores
 ```
 
@@ -138,8 +160,10 @@ Todo lo de Normal + progresión de ciegas.
 
 ### Prerrequisitos
 
-- Node.js 20+
+- **Node.js 21+** (la web; el CLI usa el `WebSocket` global de Node 21+)
 - Proyecto Firebase con Firestore + Anonymous Auth habilitados
+- Solo para el servidor de juego: **Go 1.23+** (`server/`)
+- Solo para recompilar el motor de equity: **Rust + wasm-pack** (`engine/`; normalmente lo buildea CI)
 
 ### Instalación
 
@@ -153,16 +177,34 @@ Abrir `http://localhost:3000`.
 
 ### Variables de entorno
 
-Crear `.env.local`:
+Crear `.env.local` (plantilla en `.env.example`). `NEXT_PUBLIC_*` van al bundle del
+cliente; el resto son **solo servidor** (route handlers Node) y no deben llevar el prefijo.
 
-```
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
+| Variable | Dónde | Para qué |
+| --- | --- | --- |
+| `NEXT_PUBLIC_FIREBASE_*` (apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId, measurementId) | cliente | Firestore + Anonymous Auth |
+| `FIREBASE_ADMIN_CLIENT_EMAIL` / `FIREBASE_ADMIN_PRIVATE_KEY` / `FIREBASE_ADMIN_PROJECT_ID` | servidor (Next) | autoridad de economía/XP en `/api/economy` (Admin SDK) |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | cliente | Supabase Realtime (canal de voz) |
+| `SUPABASE_SERVICE_ROLE_KEY` | servidor | escrituras durables (si se usan); salta RLS |
+| `NEXT_PUBLIC_TURN_URL` / `_URL_TLS` / `_USERNAME` / `_CREDENTIAL` | cliente | TURN propio para la voz (opcional; hay fallback público) |
+| `NEXT_PUBLIC_GAME_WS_URL` | cliente | URL del servidor de juego Go (modo online). Ej. `https://poker-sim-server.onrender.com` o `http://localhost:8080` |
+| `FIREBASE_PROJECT_ID` | servidor Go (Render) | si se setea, exige idToken Firebase en el handshake WS; sin ella el WS es abierto (dev) |
+
+### Correr cada pieza
+
+```bash
+# Web (Next.js)
+npm run dev                       # http://localhost:3000
+
+# Servidor de juego Go (modo online)
+cd server && go run ./cmd/server  # escucha en :8080 (PORT para cambiar)
+# apuntar la web: NEXT_PUBLIC_GAME_WS_URL=http://localhost:8080 en .env.local
+
+# Cliente de terminal (misma sala online)
+npm run play -- MESA1 Ana         # en otra terminal: npm run play -- MESA1 Beto
+
+# Motor de equity (Rust→WASM) — normalmente lo buildea CI
+cd engine && wasm-pack build --target web --out-dir pkg
 ```
 
 ### Scripts
@@ -331,6 +373,18 @@ normalRooms/{code}/stackRequests/{id}
 ## Estructura del proyecto
 
 ```
+server/                     Servidor de juego Go autoritativo (modo online)
+  cmd/server/main.go        Entry: /health, /ws, /debug/deal
+  internal/poker/           Mazo + shuffle crypto + evaluador 7 cartas
+  internal/game/            Betting, Settle (side pots), Room (mano completa)
+  internal/auth/            Verificación de idToken Firebase (RS256)
+  internal/hub/             WebSocket rooms + SendTo + join/leave
+  internal/session/         Wiring hub↔game, dispatch de mensajes
+  Dockerfile                Build para Render
+engine/                     Motor de equity Rust→WASM (build en CI → src/lib/engine)
+cli/                        Cliente de poker para terminal (npm run play)
+render.yaml                 Blueprint de Render (servidor Go, plan free)
+
 src/
   app/
     layout.tsx
