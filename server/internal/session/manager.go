@@ -2,32 +2,47 @@
 // (game). One game.Room per room code. Inbound messages:
 //   {"type":"start"}                         -> deal a new hand
 //   {"type":"action","payload":{"action":"call","amount":0}} -> betting action
-// Fan-out: public "state" to everyone; private "hole" only to its owner. The
-// privacy invariant is end-to-end — the deck and opponents' holes never leave
-// the server.
+// Fan-out: public "state" to everyone (including spectators); private "hole"
+// only to non-spectator owners. Spectators can observe but cannot act or be
+// dealt in.
 package session
 
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/MrxHuaang/poker-sim/server/internal/game"
 	"github.com/MrxHuaang/poker-sim/server/internal/hub"
 )
 
 const (
-	defaultSB = 5
-	defaultBB = 10
+	defaultSB   = 5
+	defaultBB   = 10
+	turnTimeout = 30 * time.Second
 )
 
+// roomTimer tracks the active turn timer for a room.
+type roomTimer struct {
+	timer  *time.Timer
+	forUID string
+}
+
 type Manager struct {
-	hub   *hub.Hub
-	mu    sync.Mutex
-	games map[string]*game.Room
+	hub    *hub.Hub
+	mu     sync.Mutex
+	games  map[string]*game.Room
+	timers map[string]*roomTimer
+	blinds map[string]*time.Ticker // per-room blind escalation tickers
 }
 
 func NewManager(h *hub.Hub) *Manager {
-	return &Manager{hub: h, games: make(map[string]*game.Room)}
+	return &Manager{
+		hub:    h,
+		games:  make(map[string]*game.Room),
+		timers: make(map[string]*roomTimer),
+		blinds: make(map[string]*time.Ticker),
+	}
 }
 
 type actionPayload struct {
@@ -36,9 +51,11 @@ type actionPayload struct {
 }
 
 type configPayload struct {
-	SB    int `json:"sb"`
-	BB    int `json:"bb"`
-	Stack int `json:"stack"`
+	SB             int `json:"sb"`
+	BB             int `json:"bb"`
+	Stack          int `json:"stack"`
+	RunItN         int `json:"runItN"`
+	BlindLevelSecs int `json:"blindLevelSecs"`
 }
 
 func (m *Manager) OnMessage(c *hub.Client, data []byte) {
@@ -48,14 +65,23 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 	}
 	switch msg.Type {
 	case "start", "deal":
+		if c.Spectator {
+			return // spectators observe only
+		}
 		m.handleStart(c.Room)
 	case "action":
+		if c.Spectator {
+			return
+		}
 		var p actionPayload
 		if err := json.Unmarshal(msg.Payload, &p); err != nil {
 			return
 		}
 		m.handleAction(c.Room, c.ID, p.Action, p.Amount)
 	case "config":
+		if c.Spectator {
+			return
+		}
 		var p configPayload
 		if err := json.Unmarshal(msg.Payload, &p); err != nil {
 			return
@@ -71,7 +97,8 @@ func (m *Manager) handleConfig(code string, p configPayload) {
 		r = game.NewRoom(defaultSB, defaultBB)
 		m.games[code] = r
 	}
-	r.SetConfig(p.SB, p.BB, p.Stack)
+	r.SetConfig(p.SB, p.BB, p.Stack, p.RunItN, p.BlindLevelSecs)
+	m.resetBlindTicker(code, r)
 	pub := r.PublicMsg()
 	m.mu.Unlock()
 	m.broadcast(code, pub)
@@ -79,9 +106,11 @@ func (m *Manager) handleConfig(code string, p configPayload) {
 
 func (m *Manager) handleStart(code string) {
 	clients := m.hub.Clients(code)
-	ids := make([]string, len(clients))
-	for i, c := range clients {
-		ids[i] = c.ID
+	ids := make([]string, 0, len(clients))
+	for _, c := range clients {
+		if !c.Spectator {
+			ids = append(ids, c.ID)
+		}
 	}
 
 	m.mu.Lock()
@@ -90,21 +119,30 @@ func (m *Manager) handleStart(code string) {
 		r = game.NewRoom(defaultSB, defaultBB)
 		m.games[code] = r
 	}
-	// Seat exactly the connected players (drops anyone who left).
+	// Cancel any timer left over from a previous hand.
+	m.cancelTimerLocked(code)
+	// Seat exactly the non-spectator connected players.
 	r.SyncSeats(ids)
 	for _, c := range clients {
-		r.SetName(c.ID, c.Name)
+		if !c.Spectator {
+			r.SetName(c.ID, c.Name)
+		}
 	}
 	err := r.StartHand()
+	if err != nil {
+		m.mu.Unlock()
+		return
+	}
+	m.armTimerLocked(code, r)
 	pub := r.PublicMsg()
 	holes := r.HoleMsgs()
 	m.mu.Unlock()
-	if err != nil {
-		return
-	}
 
 	m.broadcast(code, pub)
 	for _, c := range clients {
+		if c.Spectator {
+			continue
+		}
 		if h, ok := holes[c.ID]; ok {
 			m.sendTo(c, h)
 		}
@@ -112,8 +150,7 @@ func (m *Manager) handleStart(code string) {
 }
 
 // OnJoin pushes the current public state to a client that just connected (and
-// its hole cards if it's already in the live hand) so joiners/reconnects render
-// immediately.
+// its hole cards if it's already in the live hand and is not a spectator).
 func (m *Manager) OnJoin(c *hub.Client) {
 	m.mu.Lock()
 	r := m.games[c.Room]
@@ -121,11 +158,13 @@ func (m *Manager) OnJoin(c *hub.Client) {
 		m.mu.Unlock()
 		return
 	}
-	r.SetName(c.ID, c.Name)
+	if !c.Spectator {
+		r.SetName(c.ID, c.Name)
+	}
 	pub := r.PublicMsg()
 	var hole game.ServerMsg
 	hasHole := false
-	if r.InHand(c.ID) {
+	if !c.Spectator && r.InHand(c.ID) {
 		if h, ok := r.HoleMsgs()[c.ID]; ok {
 			hole, hasHole = h, true
 		}
@@ -139,7 +178,11 @@ func (m *Manager) OnJoin(c *hub.Client) {
 }
 
 // OnLeave folds a player who disconnected mid-hand and rebroadcasts the state.
+// Spectator disconnects require no game action.
 func (m *Manager) OnLeave(c *hub.Client) {
+	if c.Spectator {
+		return
+	}
 	m.mu.Lock()
 	r := m.games[c.Room]
 	if r == nil {
@@ -147,6 +190,10 @@ func (m *Manager) OnLeave(c *hub.Client) {
 		return
 	}
 	changed := r.LeaveFold(c.ID)
+	if changed {
+		m.cancelTimerLocked(c.Room)
+		m.armTimerLocked(c.Room, r)
+	}
 	pub := r.PublicMsg()
 	m.mu.Unlock()
 
@@ -162,13 +209,96 @@ func (m *Manager) handleAction(code, id, action string, amount int) {
 		m.mu.Unlock()
 		return
 	}
+	m.cancelTimerLocked(code)
 	err := r.Action(id, action, amount)
+	if err != nil {
+		m.mu.Unlock()
+		return
+	}
+	m.armTimerLocked(code, r)
 	pub := r.PublicMsg()
 	m.mu.Unlock()
-	if err != nil {
-		return // illegal action: ignore (a future "error" message could notify)
-	}
 	m.broadcast(code, pub)
+}
+
+// cancelTimerLocked stops and removes any active turn timer.
+// Must be called with m.mu held.
+func (m *Manager) cancelTimerLocked(code string) {
+	if rt := m.timers[code]; rt != nil {
+		rt.timer.Stop()
+		m.timers[code] = nil
+	}
+}
+
+// armTimerLocked sets the turn deadline on the room and schedules the
+// auto-action callback if there is an active actor. Must be called with m.mu held.
+func (m *Manager) armTimerLocked(code string, r *game.Room) {
+	toAct := r.ToAct()
+	if toAct == "" {
+		r.SetDeadline(0)
+		return
+	}
+	deadline := time.Now().Add(turnTimeout).UnixMilli()
+	r.SetDeadline(deadline)
+	t := time.AfterFunc(turnTimeout, func() { m.onTimeout(code, toAct) })
+	m.timers[code] = &roomTimer{timer: t, forUID: toAct}
+}
+
+// onTimeout fires when a player's turn timer expires. Auto-checks if possible,
+// otherwise auto-folds, then rebroadcasts.
+func (m *Manager) onTimeout(code, expectedUID string) {
+	m.mu.Lock()
+	r := m.games[code]
+	if r == nil {
+		m.mu.Unlock()
+		return
+	}
+	rt := m.timers[code]
+	if rt == nil || rt.forUID != expectedUID {
+		m.mu.Unlock()
+		return
+	}
+	m.timers[code] = nil
+
+	action := "fold"
+	if r.CanCheck(expectedUID) {
+		action = "check"
+	}
+	_ = r.Action(expectedUID, action, 0)
+
+	m.armTimerLocked(code, r)
+	pub := r.PublicMsg()
+	m.mu.Unlock()
+	m.broadcast(code, pub)
+}
+
+// resetBlindTicker cancels any existing blind ticker for the room and starts a
+// new one if the room's BlindLevelSecs > 0. Must be called with m.mu held.
+func (m *Manager) resetBlindTicker(code string, r *game.Room) {
+	if t := m.blinds[code]; t != nil {
+		t.Stop()
+		m.blinds[code] = nil
+	}
+	secs := r.BlindLevelSecs()
+	if secs <= 0 {
+		return
+	}
+	t := time.NewTicker(time.Duration(secs) * time.Second)
+	m.blinds[code] = t
+	go func() {
+		for range t.C {
+			m.mu.Lock()
+			room := m.games[code]
+			if room == nil {
+				m.mu.Unlock()
+				return
+			}
+			room.EscalateBlinds()
+			pub := room.PublicMsg()
+			m.mu.Unlock()
+			m.broadcast(code, pub)
+		}
+	}()
 }
 
 func (m *Manager) broadcast(code string, msg game.ServerMsg) {

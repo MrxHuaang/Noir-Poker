@@ -38,8 +38,13 @@ type Room struct {
 	phase    Phase
 	winners  []Winner
 	reveals  map[string][2]poker.Card // shown holes at a contested showdown
+	runs     []RunResult              // per-board results for run-it-N (nil for N=1)
 	names    map[string]string        // seat id -> display name
 	deadline int64                    // Unix ms when the active actor's turn expires (0 = none)
+
+	// config
+	runItN         int // how many times to run out the board on all-in (1–3)
+	blindLevelSecs int // >0: escalate blinds this often (tournaments)
 }
 
 const defaultStartStack = 1000
@@ -51,15 +56,16 @@ func NewRoom(smallBlind, bigBlind int) *Room {
 		sb:         smallBlind,
 		bb:         bigBlind,
 		startStack: defaultStartStack,
+		runItN:     1,
 		phase:      PhaseIdle,
 		holes:      make(map[string][2]poker.Card),
 		names:      make(map[string]string),
 	}
 }
 
-// SetConfig sets blinds and starting stack for future hands (ignored fields when
-// <= 0). Takes effect from the next StartHand; an in-progress hand is unaffected.
-func (r *Room) SetConfig(sb, bb, stack int) {
+// SetConfig sets blinds, starting stack, run-it-N count, and blind escalation
+// interval for future hands (fields <= 0 are ignored).
+func (r *Room) SetConfig(sb, bb, stack, runItN, blindLevelSecs int) {
 	if sb > 0 {
 		r.sb = sb
 	}
@@ -69,7 +75,28 @@ func (r *Room) SetConfig(sb, bb, stack int) {
 	if stack > 0 {
 		r.startStack = stack
 	}
+	if runItN >= 1 && runItN <= 3 {
+		r.runItN = runItN
+	}
+	if blindLevelSecs >= 0 {
+		r.blindLevelSecs = blindLevelSecs
+	}
 }
+
+// EscalateBlinds doubles the current blinds (called by the session manager on
+// each tournament blind-level tick). Stops doubling above 800/1600.
+func (r *Room) EscalateBlinds() {
+	if r.sb*2 <= 800 {
+		r.sb *= 2
+		r.bb *= 2
+	}
+}
+
+// BlindLevelSecs returns the blind escalation interval in seconds (0 = disabled).
+func (r *Room) BlindLevelSecs() int { return r.blindLevelSecs }
+
+// Blinds returns the current sb and bb.
+func (r *Room) Blinds() (int, int) { return r.sb, r.bb }
 
 // SetName records a player's display name (shown in PublicSeat).
 func (r *Room) SetName(id, name string) {
@@ -182,6 +209,7 @@ func (r *Room) startHandWithDeck(deck []poker.Card) error {
 	r.board = nil
 	r.winners = nil
 	r.reveals = nil
+	r.runs = nil
 	r.holes = make(map[string][2]poker.Card)
 	r.phase = PhasePreflop
 
@@ -266,13 +294,17 @@ func (r *Room) maybeAdvance() {
 		return
 	}
 
-	// Betting closed for the hand (<=1 can still act): run the board out to the
-	// river, then settle.
+	// Betting closed for the hand (<=1 can still act): run the board out.
 	if len(r.betting.actionable()) <= 1 {
-		for len(r.board) < 5 {
-			r.dealNextStreet()
+		needed := 5 - len(r.board)
+		if r.runItN > 1 && needed > 0 && len(r.deck) >= needed*r.runItN {
+			r.settleRunItN()
+		} else {
+			for len(r.board) < 5 {
+				r.dealNextStreet()
+			}
+			r.settleShowdown()
 		}
-		r.settleShowdown()
 		return
 	}
 
@@ -321,6 +353,35 @@ func (r *Room) advanceStreet() {
 			break
 		}
 	}
+}
+
+// settleRunItN deals the remaining community cards r.runItN times (using
+// different deck slices per run) and settles each run independently, splitting
+// the pot evenly. Called only when actionable == 0 or 1 and the board is
+// incomplete (needed > 0) and the deck has enough cards.
+func (r *Room) settleRunItN() {
+	n := r.runItN
+	needed := 5 - len(r.board)
+	extras := make([][]poker.Card, n)
+	for i := 0; i < n; i++ {
+		extras[i] = r.deck[i*needed : (i+1)*needed]
+	}
+	runs, winners := SettleRunItN(r.betting, r.holes, r.board, extras)
+	r.runs = runs
+	r.winners = winners
+
+	// Reveal all non-folded hands (contested run-it-N is always a showdown).
+	r.reveals = make(map[string][2]poker.Card)
+	for _, s := range r.betting.Seats {
+		if s.Status == StatusFolded || s.Status == StatusOut {
+			continue
+		}
+		if h, ok := r.holes[s.ID]; ok {
+			r.reveals[s.ID] = h
+		}
+	}
+	r.applyWinnings()
+	r.phase = PhaseShowdown
 }
 
 func (r *Room) settleShowdown() {
@@ -373,7 +434,8 @@ func (r *Room) PublicMsg() ServerMsg {
 	}
 	msg, _ := encode("state", PublicState{
 		HandNum: r.handNum, Phase: string(r.phase), Board: board,
-		Pot: pot, ToAct: toAct, Deadline: r.deadline, Seats: seats, Winners: r.winners, Reveals: reveals,
+		Pot: pot, ToAct: toAct, Deadline: r.deadline, Seats: seats,
+		Winners: r.winners, Reveals: reveals, Runs: r.runs,
 	})
 	return msg
 }

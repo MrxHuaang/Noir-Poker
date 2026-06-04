@@ -40,6 +40,9 @@ type PublicState struct {
 	// Reveals holds the shown hole cards at a contested showdown (seatID -> 2
 	// card ids). Empty otherwise — uncontested (fold-to-one) wins never reveal.
 	Reveals map[string][]string `json:"reveals,omitempty"`
+	// Runs is populated for run-it-N all-in outcomes (N > 1). Each entry is one
+	// board's result. Empty for single-run hands.
+	Runs []RunResult `json:"runs,omitempty"`
 }
 
 type PublicSeat struct {
