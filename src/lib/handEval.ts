@@ -82,6 +82,7 @@ export function compareScore(a: Score, b: Score): number {
 }
 
 export function bestHand(cards: Card[]): Score {
+  if (cards.length < 5) throw new Error(`bestHand requires at least 5 cards, got ${cards.length}`);
   let best: Score | null = null;
   for (const c of combos(cards, 5)) {
     const s = eval5(c);
