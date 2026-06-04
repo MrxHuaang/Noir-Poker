@@ -6,33 +6,42 @@ deals, enforces betting rules, and pushes each seat **only its own** private hol
 cards. This is how real platforms (PokerStars/GGPoker) work and is the real
 anti-cheat story — today the host browser is the dealer and holds the deck.
 
-## Status — foundation
+## Status — runs a full hand, live
 
-Built this phase (stdlib only, no external deps → builds offline):
+A complete authoritative hand runs server-side and is **deployed on Render**.
+Layers:
 
 - `internal/poker`: card model (ids match the TS client, e.g. `"AS"`), `NewDeck`,
-  authoritative `Shuffle` (cryptographic Fisher-Yates via `crypto/rand` with
-  rejection sampling, no modulo bias), and a 7-card evaluator (`Eval5`/`Best7`)
-  that mirrors `src/lib/handEval.ts` and the Rust engine so all three agree.
-- `internal/hub`: real-time room fan-out — thread-safe join/leave/broadcast +
-  a `coder/websocket` handler at `GET /ws?room=CODE&id=UID` that relays frames
-  within a room. Auth + game protocol still to come.
-- `cmd/server`: HTTP server (`/health`, `/debug/deal`, `/ws`).
-- Tests: category ordering, straight-flush > quads, parse round-trip, 52-unique
-  deck, shuffle preserves the multiset, `Best7` picks the royal. Green in CI
-  (`.github/workflows/server.yml`).
+  cryptographic `Shuffle` (`crypto/rand` Fisher-Yates, rejection sampling), and a
+  7-card evaluator (`Eval5`/`Best7`) that mirrors `src/lib/handEval.ts` and the Rust
+  engine so all three agree.
+- `internal/game`: the authoritative engine — `Betting` (port of `betting.ts`:
+  fold/check/call/bet/raise/all-in, min-raise, side pots), `Settle` (showdown payout
+  by best hand), and `Room` (blinds, deal, street advance, fold-to-one, all-in
+  run-out, showdown + reveal, multi-hand button rotation, per-room config).
+- `internal/auth`: verifies Firebase ID tokens (RS256 vs Google certs) without the
+  Admin SDK — used to gate the WS handshake when `FIREBASE_PROJECT_ID` is set.
+- `internal/hub`: thread-safe rooms + `coder/websocket` handler; `SendTo` for
+  private frames; `onJoin`/`onLeave` for state-on-connect and fold-on-disconnect.
+- `internal/session`: wires hub ↔ game — one `Room` per code, dispatches messages,
+  fans out public state to all + private holes to each owner.
+- `cmd/server`: HTTP (`/health`, `/debug/deal`, `/ws`).
 
-## Roadmap (next phases)
+Tests green in CI (`.github/workflows/server.yml`); `go test` is CI-only on Windows
+(Smart App Control blocks unsigned local test binaries).
 
-1. **WebSocket hub** — rooms, seats, presence; each connection authenticated with
-   the Firebase ID token (same trust model as `/api/economy`).
-2. **Authoritative game loop** — port `src/lib/betting.ts` server-side; the server
-   advances streets, validates every action, computes side pots and showdown.
-3. **Private state push** — a client receives the public table + only its own hole
-   cards. No deck or opponent holes ever cross the wire (kills client-side cheats).
-4. **Hosting** — containerize; run on Fly.io / Railway / a small VM. The Next app
-   connects over `wss://`. Firestore/Supabase keep durable data; Redis optional for
-   live table state at scale.
+## Message protocol
+
+Client → server (JSON): `{"type":"start"}` (deal next hand), `{"type":"action",
+"payload":{"action":"call","amount":0}}`, `{"type":"config","payload":{"sb":5,
+"bb":10,"stack":1000}}`.
+
+Server → client: `{"type":"state","payload":PublicState}` broadcast (board, pot,
+phase, toAct, seats with name/chips/bet/status, winners, reveals — **never holes**)
+and `{"type":"hole","payload":{"cards":["AS","KH"]}}` sent only to its owner.
+
+Clients: the web app (`src/hooks/useGameSocket.ts` → `/play/online`) and the
+terminal client (`cli/`) speak this same protocol against one server.
 
 ## Run locally
 
