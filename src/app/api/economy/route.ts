@@ -52,7 +52,8 @@ export async function POST(req: Request) {
       }
       case "buy-in": {
         if (!code) return NextResponse.json({ error: "Falta code" }, { status: 400 });
-        const coins = await buyIn(uid, code, amount);
+        const mode = body.mode === "online" ? "online" : "normal";
+        const coins = await buyIn(uid, code, amount, mode);
         return NextResponse.json({ coins });
       }
       case "refund": {

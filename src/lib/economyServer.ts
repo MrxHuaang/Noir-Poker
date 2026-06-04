@@ -38,6 +38,9 @@ export type UserProfile = {
   createdAt: number;
   coins: number;
   escrows: Record<string, number>;
+  // Modo de cada escrow ("normal" | "online"). reconcileEscrows no auto-reembolsa
+  // los online (no tienen lobby en normalRooms; los liquida el cash-out al salir).
+  escrowModes?: Record<string, string>;
   lastDailyBonus: number;
   xp: number;
   level: number;
@@ -176,7 +179,14 @@ export async function claimDailyBonus(uid: string): Promise<number> {
   });
 }
 
-export async function buyIn(uid: string, code: string, amount: number): Promise<number> {
+export type RoomMode = "normal" | "online";
+
+export async function buyIn(
+  uid: string,
+  code: string,
+  amount: number,
+  mode: RoomMode = "normal",
+): Promise<number> {
   const amt = Math.floor(amount);
   if (!(amt > 0) || amt > MAX_BUYIN) throw new Error("Monto invalido");
   const ref = userRef(uid);
@@ -187,13 +197,15 @@ export async function buyIn(uid: string, code: string, amount: number): Promise<
     if (!snap.exists) throw new Error("Perfil inexistente");
     const p = snap.data() as UserProfile;
     const escrows = { ...(p.escrows ?? {}) };
+    const escrowModes = { ...(p.escrowModes ?? {}) };
     if (p.coins < amt) throw new Error("Saldo insuficiente");
     escrows[code] = (escrows[code] ?? 0) + amt;
+    escrowModes[code] = mode; // recordar el modo: reconcile trata online distinto
     const coins = p.coins - amt;
     const ledger = readLedger(lsnap);
     // El buy-in entra al bote de la sala.
     tx.set(lref, { totalIn: ledger.totalIn + amt, totalOut: ledger.totalOut }, { merge: true });
-    tx.update(ref, { coins, escrows });
+    tx.update(ref, { coins, escrows, escrowModes });
     return coins;
   });
 }
@@ -213,15 +225,19 @@ export async function refundBuyIn(uid: string, code: string, amount: number): Pr
     // No devolver mas de lo que realmente esta en escrow para esta sala.
     const give = Math.min(amt, current);
     const remaining = current - give;
+    const escrowModes = { ...(p.escrowModes ?? {}) };
     if (remaining > 0) escrows[code] = remaining;
-    else delete escrows[code];
+    else {
+      delete escrows[code];
+      delete escrowModes[code];
+    }
     // El reembolso saca esas monedas del bote: nunca jugaron. El nuevo totalIn
     // nunca baja de totalOut: lo ya pagado por cash-out es un piso, de lo
     // contrario el tope (totalIn - totalOut) quedaria negativo y se desincroniza.
     const ledger = readLedger(lsnap);
     const newTotalIn = Math.max(ledger.totalOut, ledger.totalIn - give);
     tx.set(lref, { totalIn: newTotalIn }, { merge: true });
-    tx.update(ref, { coins: p.coins + give, escrows });
+    tx.update(ref, { coins: p.coins + give, escrows, escrowModes });
   });
 }
 
@@ -263,9 +279,11 @@ export async function cashOut(uid: string, code: string): Promise<number | null>
       credit = Math.min(Math.max(0, Math.floor(desired)), ownEscrow);
     }
 
+    const escrowModes = { ...(p.escrowModes ?? {}) };
     delete escrows[code];
+    delete escrowModes[code];
     const coins = p.coins + credit;
-    tx.update(ref, { coins, escrows });
+    tx.update(ref, { coins, escrows, escrowModes });
     return coins;
   });
 }
@@ -279,8 +297,14 @@ export async function reconcileEscrows(uid: string): Promise<void> {
   if (!snap.exists) return;
   const p = snap.data() as UserProfile;
   const escrows = p.escrows ?? {};
+  const escrowModes = p.escrowModes ?? {};
   const codes = Object.keys(escrows).filter((c) => (escrows[c] ?? 0) > 0);
   for (const code of codes) {
+    // Los escrows de salas online no tienen lobby en normalRooms; usar la
+    // ausencia de lobby como senal de "huerfano" los reembolsaria por error
+    // mientras el jugador sigue en la mesa (BUG-N1). El cash-out al salir los
+    // liquida; reconcile solo limpia salas normal-mode.
+    if (escrowModes[code] === "online") continue;
     try {
       const lobbySnap = await db
         .collection("normalRooms").doc(code).collection("lobby").doc(uid).get();

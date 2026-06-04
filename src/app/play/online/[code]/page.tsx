@@ -57,7 +57,9 @@ export default function PlayOnlinePage() {
     if (isSpectator || !code || !uid || !token || escrowRef.current) return;
     const amount = Number(search.get("stack")) || 1000;
     escrowRef.current = { code };
-    callEconomy(token, "buy-in", { code, amount }).catch(() => {
+    // mode:"online" so reconcileEscrows never auto-refunds this while in play
+    // (online rooms have no normalRooms lobby). Cash-out on unmount settles it.
+    callEconomy(token, "buy-in", { code, amount, mode: "online" }).catch(() => {
       escrowRef.current = null;
     });
   }, [isSpectator, code, uid, token, search]);
