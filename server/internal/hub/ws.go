@@ -54,6 +54,9 @@ func (h *Hub) Handler(
 
 		ctx := r.Context()
 		client := h.Join(room, id, r.URL.Query().Get("name"))
+		if r.URL.Query().Get("spectator") == "1" {
+			client.Spectator = true
+		}
 		// On disconnect: onLeave (while still registered) then Leave.
 		defer func() {
 			if onLeave != nil {

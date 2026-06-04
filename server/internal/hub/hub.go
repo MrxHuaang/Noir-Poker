@@ -9,10 +9,11 @@ import "sync"
 // Client is one connected participant in a room. send is its outbound queue;
 // the WebSocket writer goroutine drains it.
 type Client struct {
-	ID   string
-	Name string // display name (from ?name=); ID stays the unique key
-	Room string
-	send chan []byte
+	ID        string
+	Name      string // display name (from ?name=); ID stays the unique key
+	Room      string
+	Spectator bool // true: receives state broadcasts but cannot act or be dealt in
+	send      chan []byte
 }
 
 // Outbound is the channel of messages to write to this client's socket.
@@ -89,6 +90,23 @@ func (h *Hub) Clients(room string) []*Client {
 	out := make([]*Client, 0, len(h.rooms[room]))
 	for c := range h.rooms[room] {
 		out = append(out, c)
+	}
+	return out
+}
+
+// RoomInfo is a lightweight snapshot of one room for the /rooms listing.
+type RoomInfo struct {
+	Code    string `json:"code"`
+	Players int    `json:"players"`
+}
+
+// RoomsSnapshot returns all rooms that currently have at least one client.
+func (h *Hub) RoomsSnapshot() []RoomInfo {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]RoomInfo, 0, len(h.rooms))
+	for code, clients := range h.rooms {
+		out = append(out, RoomInfo{Code: code, Players: len(clients)})
 	}
 	return out
 }

@@ -44,6 +44,13 @@ func main() {
 	mgr := session.NewManager(h)
 	mux.HandleFunc("/ws", h.Handler(authFn, mgr.OnJoin, mgr.OnLeave, mgr.OnMessage))
 
+	// Room list: returns all active rooms with player count. Used by the lobby UI.
+	mux.HandleFunc("/rooms", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		_ = json.NewEncoder(w).Encode(h.RoomsSnapshot())
+	})
+
 	// Debug: prove authoritative dealing. Shuffles a fresh deck server-side and
 	// returns the top cards as ids. The real game never exposes the full deck.
 	mux.HandleFunc("/debug/deal", func(w http.ResponseWriter, _ *http.Request) {
