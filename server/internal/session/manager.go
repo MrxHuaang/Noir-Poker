@@ -16,9 +16,8 @@ import (
 )
 
 const (
-	defaultStack = 1000
-	defaultSB    = 5
-	defaultBB    = 10
+	defaultSB = 5
+	defaultBB = 10
 )
 
 type Manager struct {
@@ -36,6 +35,12 @@ type actionPayload struct {
 	Amount int    `json:"amount"`
 }
 
+type configPayload struct {
+	SB    int `json:"sb"`
+	BB    int `json:"bb"`
+	Stack int `json:"stack"`
+}
+
 func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 	var msg game.ClientMsg
 	if err := json.Unmarshal(data, &msg); err != nil {
@@ -50,7 +55,26 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 			return
 		}
 		m.handleAction(c.Room, c.ID, p.Action, p.Amount)
+	case "config":
+		var p configPayload
+		if err := json.Unmarshal(msg.Payload, &p); err != nil {
+			return
+		}
+		m.handleConfig(c.Room, p)
 	}
+}
+
+func (m *Manager) handleConfig(code string, p configPayload) {
+	m.mu.Lock()
+	r := m.games[code]
+	if r == nil {
+		r = game.NewRoom(defaultSB, defaultBB)
+		m.games[code] = r
+	}
+	r.SetConfig(p.SB, p.BB, p.Stack)
+	pub := r.PublicMsg()
+	m.mu.Unlock()
+	m.broadcast(code, pub)
 }
 
 func (m *Manager) handleStart(code string) {
@@ -67,7 +91,7 @@ func (m *Manager) handleStart(code string) {
 		m.games[code] = r
 	}
 	// Seat exactly the connected players (drops anyone who left).
-	r.SyncSeats(ids, defaultStack)
+	r.SyncSeats(ids)
 	for _, c := range clients {
 		r.SetName(c.ID, c.Name)
 	}

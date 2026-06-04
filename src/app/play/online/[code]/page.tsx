@@ -3,7 +3,8 @@
 // server (NEXT_PUBLIC_GAME_WS_URL); this page only renders state + sends
 // actions. Voice + chat are mounted by room code, same as /play/normal. The
 // legacy host-authoritative mode at /play/normal is untouched.
-import { useParams } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useServerGame } from "@/hooks/useServerGame";
 import { ServerTable } from "@/components/online/ServerTable";
@@ -17,9 +18,24 @@ const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
 export default function PlayOnlinePage() {
   const params = useParams<{ code: string }>();
   const code = params.code?.toUpperCase() ?? null;
-  const { connected, state, hole, uid, name, seed, error, start, action } =
+  const { connected, state, hole, uid, name, seed, error, start, action, config } =
     useServerGame(code);
   const chat = useChat(code);
+  const search = useSearchParams();
+  const configSent = useRef(false);
+
+  // The creator's link carries blinds/stack in the query — apply them once on
+  // connect. Plain join links (no query) keep the room defaults.
+  useEffect(() => {
+    if (!connected || configSent.current) return;
+    const sb = Number(search.get("sb"));
+    const bb = Number(search.get("bb"));
+    const stack = Number(search.get("stack"));
+    if (sb > 0 || bb > 0 || stack > 0) {
+      config(sb || 0, bb || 0, stack || 0);
+      configSent.current = true;
+    }
+  }, [connected, search, config]);
 
   return (
     <main className="min-h-screen p-4 sm:p-6 flex flex-col gap-4">

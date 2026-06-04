@@ -26,9 +26,10 @@ const (
 type Room struct {
 	seatIDs []string
 	chips   map[string]int
-	button  int
-	handNum int
-	sb, bb  int
+	button     int
+	handNum    int
+	sb, bb     int
+	startStack int
 
 	betting *Betting
 	deck    []poker.Card
@@ -40,15 +41,32 @@ type Room struct {
 	names   map[string]string        // seat id -> display name
 }
 
+const defaultStartStack = 1000
+
 func NewRoom(smallBlind, bigBlind int) *Room {
 	return &Room{
-		chips:  make(map[string]int),
-		button: -1,
-		sb:     smallBlind,
-		bb:     bigBlind,
-		phase:  PhaseIdle,
-		holes:  make(map[string][2]poker.Card),
-		names:  make(map[string]string),
+		chips:      make(map[string]int),
+		button:     -1,
+		sb:         smallBlind,
+		bb:         bigBlind,
+		startStack: defaultStartStack,
+		phase:      PhaseIdle,
+		holes:      make(map[string][2]poker.Card),
+		names:      make(map[string]string),
+	}
+}
+
+// SetConfig sets blinds and starting stack for future hands (ignored fields when
+// <= 0). Takes effect from the next StartHand; an in-progress hand is unaffected.
+func (r *Room) SetConfig(sb, bb, stack int) {
+	if sb > 0 {
+		r.sb = sb
+	}
+	if bb > 0 {
+		r.bb = bb
+	}
+	if stack > 0 {
+		r.startStack = stack
 	}
 }
 
@@ -74,11 +92,11 @@ func (r *Room) Seats() []string     { return append([]string(nil), r.seatIDs...)
 // players). New ids get startStack; returning ids keep their persisted stack;
 // disconnected ids drop from the roster (their stack is retained in case they
 // return). Call before StartHand so left players aren't dealt in.
-func (r *Room) SyncSeats(ids []string, startStack int) {
+func (r *Room) SyncSeats(ids []string) {
 	r.seatIDs = nil
 	for _, id := range ids {
 		if _, ok := r.chips[id]; !ok {
-			r.chips[id] = startStack
+			r.chips[id] = r.startStack
 		}
 		r.seatIDs = append(r.seatIDs, id)
 	}

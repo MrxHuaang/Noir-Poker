@@ -34,6 +34,7 @@ export type GameSocket = {
   hole: string[] | null;
   start: () => void;
   action: (action: string, amount?: number) => void;
+  config: (sb: number, bb: number, stack: number) => void;
 };
 
 export function useGameSocket(room: string | null, id: string, name = ""): GameSocket {
@@ -88,6 +89,10 @@ export function useGameSocket(room: string | null, id: string, name = ""): GameS
     (a: string, amount = 0) => send("action", { action: a, amount }),
     [send],
   );
+  const config = useCallback(
+    (sb: number, bb: number, stack: number) => send("config", { sb, bb, stack }),
+    [send],
+  );
 
-  return { connected, error, state, hole, start, action };
+  return { connected, error, state, hole, start, action, config };
 }
