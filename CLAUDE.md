@@ -6,7 +6,13 @@ Project-specific guidance for working in this codebase. Read alongside the globa
 
 Multi-device Texas Hold'em simulator. Big screen runs the table, phones see private hole cards. No betting — visual sim with showdown, equity, all-in run-it-N-times, history, stats.
 
-**Stack**: Next.js 16 (App Router, Turbopack), TS, Tailwind v4, GSAP 3, Firebase Firestore + Anonymous Auth, Web Worker for equity.
+**Stack**: Next.js 16 (App Router, Turbopack), TS, Tailwind v4, GSAP 3, Firebase Firestore + Anonymous Auth, Web Worker for equity. **Rust→WASM** equity engine (`engine/`, powers the host equity panel). **Go authoritative game server** (`server/`) for the trustless online mode, deployed on Render.
+
+## Two backends — pick the right one
+
+- **Legacy host-authoritative mode** (`/play/normal`, `/host/normal`, `useNormalGame`): the host browser runs the game and syncs to Firestore. Has the full feature set (economy/escrow, tournaments, queue/spectators, run-it-twice). UNCHANGED — keep it working.
+- **Server-backed online mode** (`/play/online/[code]`, NEW): the game runs on the **Go server** (`server/`). Client connects via `useGameSocket`/`useServerGame` over `NEXT_PUBLIC_GAME_WS_URL`; the server deals, validates, and pushes per-seat private holes. Trustless. Cash game only for now (no economy/tournaments yet). Voice/chat are mounted by room code, same as legacy. A terminal client (`cli/`) speaks the same protocol.
+- When adding online-mode features, port to the Go server (`server/internal/game`) + the WS protocol — do NOT add game logic to the client. The web client only renders state + sends actions.
 
 ## Repo conventions
 
@@ -64,6 +70,11 @@ hardcode amber/gold/green/blue chrome again.
 | `src/components/cards/PlayingCard.tsx`        | 3D flip card. Mount-only deal tween + flip tween on `faceUp`. |
 | `src/app/host/page.tsx`                       | Auto-creates room, subscribes lobby, mounts host PokerTable   |
 | `src/app/play/[code]/page.tsx`                | Phone: lobby form, then private game view                     |
+| `server/`                                     | Go authoritative game server. `internal/game` (Betting/Settle/Room), `internal/hub` (WS), `internal/auth` (Firebase token), `internal/session` (wiring). Deployed on Render; CI in `.github/workflows/server.yml`. |
+| `src/hooks/useGameSocket.ts` / `useServerGame.ts` | Client WS to the Go server (state/hole in, start/action/config out). |
+| `src/components/online/ServerTable.tsx` + `src/app/play/online/`  | Server-backed online table UI + routes (create/join + table).  |
+| `engine/`                                     | Rust→WASM equity engine; built in CI, bundled in `src/lib/engine/`, used by `useEquity`. |
+| `cli/`                                        | Terminal poker client (same WS protocol as the web online mode). `npm run play -- CODE Name`. |
 
 ## Animation rules
 

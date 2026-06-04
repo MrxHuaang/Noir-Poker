@@ -4,6 +4,18 @@ Strategic notes — persistence migration (F2), then the bigger question: is the
 TS + Next + Firebase stack "enough", and what would make this a standout portfolio
 piece. Written to be reviewed and argued with, not executed blindly.
 
+## STATUS UPDATE (done since this was written)
+
+- **Rust→WASM equity engine** (`engine/`): built in CI, wired into `useEquity`. DONE.
+- **Authoritative Go game server** (`server/`): full hand server-side (deal →
+  betting → streets → showdown + side pots + reveal), Firebase-token auth, WS hub,
+  per-room config. **Deployed on Render (free).** DONE + live.
+- **Server-backed online mode** (`/play/online/[code]`): trustless cash game on the
+  Go server; web client + a terminal client (`cli/`) share the protocol. DONE (MVP).
+- Legacy `/play/normal` (host-authoritative, full features) untouched and coexists.
+- Pending on the server path: economy/escrow, tournaments, queue/spectators,
+  run-it-twice (still legacy-only).
+
 ## 0. Where we are today (honest read)
 
 The current architecture is more thoughtful than a "simple front + TS back":

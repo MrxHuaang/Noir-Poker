@@ -51,6 +51,21 @@ Simulador multi-dispositivo de Texas Hold'em para partidas en persona. La pantal
 
 ## Modos de juego
 
+### Online server-backed (`/play/online/[code]`) — trustless
+
+Cash game donde **toda la lógica corre en un servidor Go autoritativo** (`server/`,
+desplegado en Render), no en el navegador. El cliente solo dibuja el estado público
+y manda acciones; el servidor reparte, valida apuestas y empuja a cada asiento **solo
+sus cartas** (el mazo y las cartas ajenas nunca salen del servidor).
+
+- Crear/unirse por código en `/play/online`; ciegas y stack configurables al crear.
+- Conexión WebSocket vía `useGameSocket`/`useServerGame` (`NEXT_PUBLIC_GAME_WS_URL`).
+- Reparto → apuestas (fold/check/call/raise/all-in, side pots) → showdown con reveal,
+  multi-mano con rotación de botón. Estado-al-conectar (reconexión) y fold-al-desconectar.
+- Voz/chat montados por código de sala (igual que el modo Normal).
+- Cliente de terminal en `cli/` (`npm run play -- CODE Nombre`) habla el mismo protocolo.
+- MVP: aún sin economía/torneos (eso vive en el modo Normal legacy).
+
 ### Presencial (`/host`)
 
 Sim visual sin apuestas obligatorias. El host controla la mesa desde una pantalla grande.
@@ -601,12 +616,21 @@ Ver **[CONTRIBUTING.md → Roadmap](CONTRIBUTING.md#roadmap)** para el plan deta
 
 ## Deployment
 
-### Vercel (recomendado)
+### Vercel (recomendado) — web app
 
 1. Push repo a GitHub
 2. Importar en [vercel.com/new](https://vercel.com/new)
-3. Settings → Environment Variables → agregar todas las `NEXT_PUBLIC_FIREBASE_*`
-4. Deploy. Vercel detecta Next.js automáticamente
+3. Settings → Environment Variables → agregar todas las `NEXT_PUBLIC_FIREBASE_*`,
+   `NEXT_PUBLIC_SUPABASE_*` (voz), y `NEXT_PUBLIC_GAME_WS_URL` (URL del server Go).
+4. Deploy. Vercel detecta Next.js automáticamente.
+
+### Render (gratis, sin tarjeta) — servidor de juego Go
+
+`render.yaml` (raíz) es un Blueprint de Render. En render.com → New → Blueprint →
+elegir este repo → buildea `server/Dockerfile` en plan free (duerme inactivo,
+despierta al conectar; WebSockets soportados). Copiar la URL del servicio a
+`NEXT_PUBLIC_GAME_WS_URL` en Vercel y redeploy. Opcional: `FIREBASE_PROJECT_ID` en
+Render para exigir idToken en el handshake WS. Detalle en `server/README.md`.
 
 ### Firebase Hosting (alternativa)
 
