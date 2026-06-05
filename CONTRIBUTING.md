@@ -1,59 +1,97 @@
 <div align="center">
 
-[![General](https://img.shields.io/badge/General-ver-555?style=for-the-badge)](README.md)&nbsp;&nbsp;[![Actualizaciones](https://img.shields.io/badge/Actualizaciones_%26_Roadmap-activo-1a7f5a?style=for-the-badge)](CONTRIBUTING.md)
+<img src="public/logo.png" alt="Noir Poker" width="88" />
+
+# Contribuir a Noir Poker
+
+Guía de trabajo, estándares técnicos y roadmap del proyecto.
+
+[![README](https://img.shields.io/badge/README-ver-555?style=for-the-badge)](README.md)
+[![Roadmap](https://img.shields.io/badge/Roadmap-activo-8b6fe8?style=for-the-badge)](#roadmap)
+[![Go Server](https://img.shields.io/badge/Go_server-migracion-00add8?style=for-the-badge&logo=go&logoColor=white)](server/README.md)
 
 </div>
 
 ---
 
-# Contribuir a Showdown
+![Noir Poker preview](public/hero.png)
 
-Gracias por el interés. Este documento cubre los lineamientos para contribuir al proyecto.
+Este documento resume cómo contribuir sin romper las invariantes de juego, privacidad y sincronización. Para una visión de producto y arquitectura, empieza por [README.md](README.md). Para el plan específico del modo server-backed, revisa [docs/plan-migracion.md](docs/plan-migracion.md).
 
----
+## Estado del proyecto
+
+Noir Poker es jugable de punta a punta en los modos actuales:
+
+| Área | Estado |
+| --- | --- |
+| Presencial | Completo para sala física: host, teléfonos, cartas privadas, reveal, showdown y equity host-only |
+| Online legacy | Completo en features principales: apuestas, side pots, all-in run-it-N, chat, voz, economía y hand history |
+| Torneo legacy | Funcional: niveles, pausa, avance manual, knockouts y ranking |
+| Go server-backed | MVP avanzado: mano autoritativa, WebSocket, timer por turno, run-it-N básico, espectadores y lobby de salas activas |
+| Migración a Go | En progreso: Go todavía no tiene paridad con el legacy |
+
+La arquitectura actual mantiene dos caminos en paralelo:
+
+- Legacy host-authoritative: `/host/normal`, `/play/normal/[code]`, `useNormalGame`, Firestore.
+- Server-backed autoritativo: `/play/online/[code]`, `server/`, WebSocket, Render.
+
+El objetivo técnico es llevar el camino server-backed a paridad antes de deprecar el legacy.
 
 ## Antes de empezar
 
-1. Fork del repo + clone local
-2. `npm install`
-3. Crear `.env.local` con tu proyecto Firebase de pruebas (**nunca** usar producción para dev)
-4. `npm run dev` y verificar que el smoke test pasa:
-   - Abrir `/host/normal` → aparece sala con código
-   - Abrir `/play/normal/CODE` en incógnito → unirse como jugador
-   - Host reparte → jugador ve cartas
+1. Crea un fork o rama local desde `master`.
+2. Instala dependencias con `npm install`.
+3. Crea `.env.local` desde `.env.example`.
+4. Usa un proyecto Firebase de pruebas; no desarrolles contra producción.
+5. Corre el smoke test del flujo que vas a tocar.
 
----
+```bash
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
 ## Flujo de trabajo
 
+| Rama | Uso |
+| --- | --- |
+| `master` | Rama principal, debe estar deployable |
+| `feat/<nombre>` | Nueva funcionalidad |
+| `fix/<nombre>` | Corrección de bug |
+| `refactor/<nombre>` | Refactor sin cambio de comportamiento |
+| `docs/<nombre>` | Documentación |
+| `test/<nombre>` | Cobertura o fixtures |
+
+Antes de abrir PR:
+
+```bash
+npm run lint
+npm test
+npm run build
 ```
-master                   rama principal, siempre deployable
-feat/<nombre>            nueva feature
-fix/<nombre>             corrección de bug
-refactor/<nombre>        refactor sin cambio de comportamiento
-docs/<nombre>            solo documentación
+
+Para cambios en `server/`:
+
+```bash
+cd server
+go vet ./...
+go build ./cmd/server
 ```
 
-1. Crear rama desde `master`
-2. Hacer cambios con commits atómicos
-3. Antes de PR, verificar:
-   - `npm run build` pasa sin errores TypeScript
-   - `npm test` (54 tests Vitest) sin regresiones
-   - Smoke test manual del flujo afectado
-4. Abrir PR contra `master` con descripción de qué y por qué
+`go test ./...` corre en CI. En esta máquina Windows puede fallar por Smart App Control bloqueando binarios de test sin firmar.
 
----
+## Commits
 
-## Formato de commits
+Formato recomendado:
 
-```
+```text
 <tipo>(<scope opcional>): <descripción imperativa corta>
 
-Cuerpo opcional con contexto.
+Cuerpo opcional con contexto y motivo.
 ```
 
-| Tipo | Cuándo |
-|------|--------|
+| Tipo | Uso |
+| --- | --- |
 | `feat` | Nueva funcionalidad |
 | `fix` | Corrección de bug |
 | `refactor` | Refactor sin cambio observable |
@@ -61,232 +99,173 @@ Cuerpo opcional con contexto.
 | `docs` | Solo documentación |
 | `style` | Formato, sin cambio lógico |
 | `test` | Tests nuevos o ajustados |
-| `chore` | Dependencias, config, CI |
+| `chore` | Dependencias, config o CI |
 
 Ejemplos:
-```
-feat(betting): agregar preset de apuesta 2x pot
-fix(firestore): retry con backoff en useNormalRoom
-docs: actualizar CONTRIBUTING con guia de tests
-```
 
----
-
-## Convenciones del proyecto
-
-### TypeScript
-- `strict: true`. Sin `any` salvo justificación en comentario `// reason:`
-- Usar `import type { ... }` para tipos
-- Imports absolutos vía `@/`
-
-### React
-- Archivos con interactividad: `"use client"` al tope
-- Hooks en `src/hooks/`, componentes colocalizados por feature
-- Estado funcional: `setX(prev => ...)` cuando depende del valor anterior en async/effects
-- **Regla crítica**: todos los hooks antes de cualquier `return` condicional (Rules of Hooks)
-
-### Tailwind v4
-- Tokens en `globals.css` con `@theme inline`; no hay `tailwind.config.js`
-- Sin librerías de utility extra
-
-### Firebase
-- Helpers en `src/lib/rooms.ts` y `src/lib/normalRooms.ts` — no llamar `getFirestore()` en componentes
-- Un solo punto de escritura a Firestore por feature (no dispersar writes en múltiples componentes)
-
-### Estilo
-- Sin emojis en UI, código, comentarios ni commits
-- Copy en español (intencional)
-- Iconos: solo Lucide
-- Bundle lean: revisar tamaño antes de agregar dependencia nueva
-
----
-
-## Invariantes de privacidad (no romper)
-
-- Equity, fuerza de mano y outs: **solo** panel lateral del host. Nunca sobre la mesa ni en vista del jugador
-- Hole cards: viven en `holes/{seatId}` (subcollection cifrada). No guardar en doc público de sala
-- Al agregar campo que pueda filtrar información: decidir explícitamente entre host-only o no-display
-
----
-
-## Áreas amigables para primer PR
-
-- Ampliar tests en `src/lib/handEval.ts` y `src/lib/betting.ts` (Vitest ya configurado)
-- Documentar funciones públicas en `src/lib/`
-- Arreglar warnings de eslint
-- Mejorar copy en español
-- Implementar un item del roadmap marcado como baja complejidad (ver abajo)
-
----
-
-## Probar cambios multi-dispositivo sin hardware
-
-```
-Pestaña 1:         /host/normal           (auth anónimo A)
-Pestaña 2 incógnito: /play/normal/CODE    (auth anónimo B)
-Pestaña 3 incógnito: /play/normal/CODE    (auth anónimo C)
+```text
+feat(betting): agregar straddle opcional
+fix(firestore): reintentar snapshot tras desconexion
+docs: actualizar roadmap de migracion go
 ```
 
-Cada pestaña incógnita genera un UID anónimo distinto.
+## Convenciones técnicas
 
----
+### TypeScript y React
 
-## CLAUDE.md
+- `strict: true`; evita `any` salvo justificación explícita.
+- Usa `import type { ... }` para tipos.
+- Imports absolutos vía `@/`.
+- Componentes interactivos con `"use client"` al inicio.
+- Hooks en `src/hooks/`; componentes agrupados por feature en `src/components/`.
+- Todos los hooks deben ejecutarse antes de cualquier `return` condicional.
+- Usa actualizaciones funcionales (`setX(prev => ...)`) cuando dependan del estado anterior.
 
-Si trabajas con asistentes AI (Claude Code, Cursor, etc.), leer `CLAUDE.md` en la raíz antes de PRs grandes. Contiene invariantes de privacidad, pitfalls aprendidos de bugs pasados y convenciones de animación específicas del proyecto.
+### Next.js y Tailwind
 
----
+- App Router vive en `src/app`.
+- Una ruta pública existe cuando hay `page.tsx` o `route.ts`.
+- Tailwind v4 usa tokens en `src/app/globals.css` con `@theme inline`.
+- No hay `tailwind.config.js`.
 
----
+### Firebase y realtime
 
-# Actualizaciones & Roadmap
+- No llames `getFirestore()` directo desde componentes.
+- Usa helpers de `src/lib/rooms.ts`, `src/lib/normalRooms.ts` y módulos relacionados.
+- Mantén un solo punto de escritura de estado de sala por flujo.
+- Evita writes dispersos desde varios componentes para el mismo documento.
 
----
+### UI
 
-## Estado actual (Junio 2026)
+- Copy visible en español.
+- Iconos desde Lucide.
+- Mantén el bundle liviano antes de agregar dependencias.
+- Respeta `prefers-reduced-motion` en animaciones nuevas.
 
-El juego es **jugable de punta a punta** en modos Normal y Torneo:
-- Jugadores se unen desde el teléfono, eligen asiento y avatar
-- Apuestas completas (Fold / Check / Call / Bet / Raise / All-in)
-- All-in run-it-N con votación, timeout automático, side pots y avance de mano
-- Chat de texto + reacciones + canal de voz P2P
-- Sala administrada por el host con controles completos
+## Invariantes de privacidad
 
----
+Estas reglas no son negociables:
 
-## Changelog
+| Invariante | Motivo |
+| --- | --- |
+| No guardar hole cards en documentos públicos | Evita filtración desde Firestore o snapshots compartidos |
+| Equity, outs y fuerza de mano solo en host | Esa información no debe aparecer en vista de jugadores ni sobre la mesa |
+| El jugador solo recibe sus cartas | Base de privacidad del modo teléfono y del modo server-backed |
+| Campos nuevos deben clasificarse | Decide explícitamente entre público, host-only, owner-only o no-display |
+| En Go, la lógica de juego vive en `server/internal/game` | El cliente solo renderiza estado y manda acciones |
 
-### v0.10 — Run-it-N normal (Junio 2026)
+## Smoke tests manuales
 
-#### All-in run-it-N robusto
-- All-in en modo Normal vuelve a abrir negociación 1x/2x/3x/5x, limitada por cartas disponibles en el mazo
-- Los votos se escriben por jugador en `state.allInNegotiation.votes`; el host fusiona solo ese mapa para no perder el mazo local
-- Timeout de 15 s evita bloqueo si alguien no vota; los votos faltantes caen a 1x
-- El motor reparte cada run sin duplicar cartas, divide main/side pots por run y guarda `runResults` para el resumen visual
+### Presencial
 
-### v0.9 — Estabilización y jugabilidad (Mayo 2026)
+1. Abre `/host`.
+2. Une dos jugadores desde `/play/CODIGO`.
+3. Reparte, avanza calles, revela cartas y confirma showdown.
 
-#### Correcciones críticas (QA pass de 10 bugs)
-- **BUG-001** Botón Repartir muestra "Faltan N jugadores" en rojo cuando < 2 jugadores
-- **BUG-002** Config BB/SB: BB se clampea a >= SB+1; validación cruzada en `NormalConfigPanel`
-- **BUG-003** Stack inicial no acepta 0; mínimo forzado a 1
-- **BUG-004** "Igualar Stack a Todos" actualiza el lobby pre-partida además del gameState activo
-- **BUG-005** Formulario de unión muestra errores inline (nombre, stack) con ring rojo
-- **BUG-006** Página "Sala no encontrada" incluye enlace "Intentar con otro código"
-- **BUG-007** PlayerForm muestra error cuando nombre está vacío
-- **BUG-008** PlayerForm bloquea nombres duplicados (case-insensitive) en Roster Local
-- **BUG-009** Botón "Ir a la mesa" en Roster Local redirigía a `/` — corregido a `/host`
-- **BUG-010** Modal "Elige un modo" se cierra con tecla Escape (WCAG 2.1)
+### Online legacy
 
-#### All-in simplificado
-- En v0.9 el all-in se simplificó temporalmente a 1 run para quitar bloqueos de votación
-- En v0.10 se reintrodujo run-it-N con timeout y resolución de side pots por run
+1. Abre `/create` o `/host/normal`.
+2. Une dos jugadores desde `/play/normal/CODIGO`.
+3. Valida fold/check/call/raise/all-in.
+4. Revisa side pots, historial, chat y salida de sala.
 
-#### Seguridad: cifrado de hole cards (RSA-OAEP)
-- Par RSA-2048 por dispositivo generado con Web Crypto API
-- Clave privada en `localStorage` únicamente; clave pública publicada en lobby
-- Firestore solo almacena ciphertext — la consola de Firebase no expone cartas
-- Fallback a texto plano si el jugador aún no publicó clave
+### Torneo
 
-#### Interfaz y UX
-- Avatar inline a la izquierda del recuadro nombre/fichas (antes flotaba sobre la mesa)
-- Cartas siempre sobre el recuadro de nombre, sin importar posición del asiento
-- Botones de voz compactos (iconos del mismo tamaño que chat y reacciones)
-- Pot compacto: una línea pequeña en lugar del bloque grande
-- Tabla reducida: `max-w-[1400px]` → `max-w-[1100px]`
-- 7 fondos de sala con gradientes oscuros (Onyx, Humo, Carbon, Ceniza, Pizarra, Tinta, Coque) — sincronizan via Firestore
-- Pantalla de unión rediseñada: avatar picker + BorderGlow igual que modo Presencial
-- Pantalla de espera rediseñada: avatar pulsante, badge de fichas, dots animados
-- Botón "Salir de la sala" en el modal de opciones del jugador
+1. Abre `/host/torneo`.
+2. Une jugadores desde `/play/normal/CODIGO`.
+3. Valida niveles, pausa/reanudar, avance manual y eliminación.
 
-#### Selección de asiento
-- `SeatPicker`: mini-mesa oval en overlay de espera; tocar asiento libre lo reserva en Firestore
-- Host: click en SIT de slot específico asigna `preferredSlot`
-- Slot computation respeta preferencias; resta se distribuye equitativamente
-- Botón de centrar calcula offset exacto para poner al jugador en centro-inferior
+### Server-backed Go
 
-#### Estabilidad Firestore
-- `useNormalRoom` ya no termina silenciosamente ante errores de Firestore
-- Retry con backoff exponencial: 1 s / 2 s / 4 s / 8 s / 15 s / 30 s
-- Estado conocido preservado durante reconexión
+1. Corre el servidor local:
 
----
+   ```bash
+   cd server
+   go run ./cmd/server
+   ```
 
-### v0.8 — Canal de voz y modo betting (Abril 2026)
+2. Configura:
 
-- Canal de voz P2P (WebRTC full-mesh + señalización Supabase Realtime)
-- Modo solo escuchar, mute tecla M, silenciar peer individual
-- Indicador de nivel FFT throttled a ~12 fps
-- Wake Lock para evitar suspensión en iOS
-- Bitrate Opus capeado a 24 kbps
-- Vibración en turno propio
-- Confetti en showdown, sonido + mute, animación chips → pot (GSAP)
-- Indicador de desconexión por seat (presencia Firestore)
-- Suite de 54 tests unitarios (Vitest)
+   ```bash
+   NEXT_PUBLIC_GAME_WS_URL=http://localhost:8080
+   ```
 
----
+3. Abre `/play/online` en dos pestañas o usa el CLI:
+
+   ```bash
+   npm run play -- MESA1 Ana
+   npm run play -- MESA1 Beto
+   ```
+
+4. Reparte y confirma que cada cliente solo recibe sus cartas.
+
+## Áreas recomendadas para contribuir
+
+| Área | Buen primer paso |
+| --- | --- |
+| Tests | Casos adicionales en `handEval`, `betting`, `runIt`, `tournament` |
+| UI | Accesibilidad, focus rings, estados vacíos, copy y responsive |
+| Server Go | Economía real de stacks, categorías de mano, torneos completos, persistencia autoritativa |
+| Historial | Persistencia de manos y replayer |
+| Voz | TURN documentado y experiencia en redes restrictivas |
+| Docs | Mantener README, CONTRIBUTING y plan de migración sincronizados |
 
 ## Roadmap
 
 ### Alta prioridad
 
-| Feature | Notas |
-|---------|-------|
-| **Stats por sala en Firestore** | Migrar `useStats`/`useHistory` de localStorage a `normalRooms/{code}/stats` |
-| **Transferir host** | Botón en HostDock + listener de `hostUid` en Firestore para cuando el host cierra la pestaña |
+| Feature | Estado | Notas |
+| --- | --- | --- |
+| Stats por sala en backend | Pendiente | Migrar `useStats`/`useHistory` desde localStorage a estado durable |
+| Transferir host | Pendiente | Cambio de `hostUid` + listeners para continuidad de sala |
+| Persistencia de manos | Parcial | Necesaria para replayer, HUD y stats avanzadas |
+| Auditoría Firestore rules | Pendiente | Revisar privacidad, rate limits y writes de acciones |
 
-### Juego / lógica
+### Migración Go
 
-- [ ] Torneo: pantalla de podio — `finalRanking[]` y `knockouts[]` ya existen en modelo
-- [ ] Torneo: payouts editables y botón "Distribuir premios"
-- [ ] Rebuy flow completo en torneo con límite de re-entradas
-- [ ] Spectator role: unirse sin seat, sin hole cards ni betting dock
-- [ ] Notas por seat (host-only, para reads físicos)
+| Feature | Estado en Go | Comentario |
+| --- | --- | --- |
+| Mano completa | Hecho | Deal, betting, streets, showdown y side pots |
+| WebSocket rooms | Hecho | Estado público + holes privados por asiento |
+| Auth Firebase WS | Implementado, opcional | Depende de `FIREBASE_PROJECT_ID` en Render |
+| Timer server-side | Hecho | Auto-check/auto-fold con deadline publicado al cliente |
+| Economía/escrow | Parcial | Buy-in/cash-out existe, pero online aún no liquida ganancias/pérdidas desde el stack del Go |
+| Lobby de salas online | Hecho básico | `GET /rooms` lista salas activas del hub; falta metadata rica |
+| Run-it-N | Hecho básico | Configurable 1-3 runs desde creación; falta negociación/votación por mano |
+| Historial y stats del server | Parcial | Cliente escribe `onlineRooms/{code}/hands`; falta escritura autoritativa desde Go y categoría real |
+| Torneos | Parcial | Go tiene escalado simple de ciegas; faltan niveles configurables, knockouts, ranking y payouts |
+| Espectadores/cola | Parcial | Espectador básico implementado; falta cola y UX completa |
+| Deprecar legacy | Bloqueado | Solo cuando Go alcance paridad |
 
-### UX / movil
+### Producto y calidad
 
-- [ ] Replay de ultima mano — snapshot en Firestore con TTL de 1 h
-- [ ] Export historial → JSON/TXT desde tab Historial del HostDock
-- [ ] Canal de voz en modo Presencial (`VoicePanel` en `/play/[code]`)
-- [ ] Notificacion de turno más visible en telefono (banner sobre la mesa)
+- Replayer de última mano.
+- Export de historial desde HostDock.
+- Podio y payouts configurables en torneos.
+- PWA y soporte offline básico.
+- Accesibilidad: `aria-live` en turno, foco visible, contraste.
+- Bundle audit con `ANALYZE=true next build`.
+- E2E para showdown con side pots.
+- Firebase Emulator Suite en CI.
 
-### Infraestructura / seguridad
+## Bugs conocidos
 
-- [ ] TURN server para voz en NAT simétrico (documentar Coturn en VPS)
-- [ ] Auditoria de `firestore.rules` + rate limiting en `pendingAction`
-- [ ] Optimización de bundle (`ANALYZE=true next build`)
+| Severidad | Descripción | Impacto |
+| --- | --- | --- |
+| Media | SeatPicker no aparece en modo Torneo | El jugador puede jugar; la selección visual de asiento queda limitada |
+| Baja | Dealer button puede superponerse con fichas en mesa heads-up | Visual, no afecta lógica |
+| Media | Online cash-out server-backed todavía no usa el stack final del Go | La economía online funciona como escrow/refund, no como win/loss real |
+| Baja | Historial online guarda categoría placeholder | El replayer/HUD no tiene categoría real de mano desde Go |
+| Media | Render free duerme por inactividad | Cold start aproximado de un minuto |
 
-### Calidad
+## Documentos relacionados
 
-- [ ] Tests e2e de showdown con side pots
-- [ ] Integración Firestore con Firebase Emulator Suite en CI
-- [ ] Monitoreo de errores (Sentry o similar)
-
-### Plataforma
-
-- [ ] PWA — `manifest.json` + service worker
-- [ ] Accesibilidad — focus rings, `aria-live` en turno, contraste
-- [ ] Modo home-game persistente con stack tracking entre sesiones
-- [ ] Estadísticas avanzadas: VPIP, PFR, AF por jugador
-
----
-
-## Bugs conocidos activos
-
-| Severidad | Descripción | Workaround |
-|-----------|-------------|------------|
-| Media | SeatPicker no aparece en modo Torneo | Usar botón de centrar (rotacion visual) |
-| Baja | Dealer button superpuesto con fichas de apuesta en mesa de 2 jugadores | Visual solo, no afecta logica |
-
----
-
-## Lecciones aprendidas
-
-| Bug | Causa | Fix |
-|-----|-------|-----|
-| All-in modal bloqueado | Fase `all-in-negotiation` esperaba votos de todos; si uno no votaba se colgaba | Timeout de 15 s + default 1x para votos faltantes |
-| Pantalla negra Next.js | `useMemo` despues de `return` condicional — React error #310 | Mover hooks antes de early returns |
-| Jugador no ve juego iniciado | `onSnapshot` error handler llamaba `cb(null)` terminando el listener | Retry con backoff en `useNormalRoom` |
-| Seats clusterizados al fondo | Mapeo consecutivo de seats a slots | `Math.round(i * 9 / n) % 9` |
-| Cartas re-animan en cada calle | Tween global con `community.length` como dep | Animacion interna en `PlayingCard` |
-| Avatar no encajaba en circulo | `ring-1` del Avatar sumaba espacio fuera del clip | `overflow-hidden` en padre + `ring-0` en Avatar |
+- [README](README.md)
+- [Plan de migración Go](docs/plan-migracion.md)
+- [Architecture roadmap](docs/architecture-roadmap.md)
+- [Servidor Go](server/README.md)
+- [CLI](cli/README.md)
+- [Voz WebRTC](docs/voice-setup.md)
+- [Persistencia](docs/persistence-setup.md)
+- [Backlog de seguridad](docs/security-backlog.md)
+- [Auditoría QA](docs/qa-audit-2026-06-03.md)
