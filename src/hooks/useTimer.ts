@@ -6,18 +6,19 @@ export function useCountdown(deadline: number | null): number {
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    if (deadline === null) {
-      setRemaining(0);
-      return;
-    }
+    cancelAnimationFrame(rafRef.current);
+    if (deadline === null) return;
+    const target = deadline;
+
     function tick() {
-      const r = Math.max(0, deadline! - Date.now());
+      const r = Math.max(0, target - Date.now());
       setRemaining(r);
       if (r > 0) rafRef.current = requestAnimationFrame(tick);
     }
+
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [deadline]);
 
-  return remaining;
+  return deadline === null ? 0 : remaining;
 }

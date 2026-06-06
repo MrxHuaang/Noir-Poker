@@ -42,6 +42,7 @@ export default function PerfilPage() {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [claiming, setClaiming] = useState(false);
   const [claimMsg, setClaimMsg] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const uid = user?.uid ?? null;
   const prog = profile ? levelProgress(profile.xp) : null;
@@ -52,6 +53,11 @@ export default function PerfilPage() {
     if (!uid || isGuest) return;
     getHistory(uid).then(setHistory).catch(() => setHistory([]));
   }, [uid, isGuest, profile?.gamesPlayed]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Barra de XP animada (respeta prefers-reduced-motion).
   useGSAP(
@@ -124,7 +130,7 @@ export default function PerfilPage() {
       ? Math.round((profile.handsWon / profile.handsPlayed) * 100)
       : 0;
   const locked = escrowedTotal(profile.escrows);
-  const bonusReady = dailyBonusReady(profile.lastDailyBonus, Date.now());
+  const bonusReady = dailyBonusReady(profile.lastDailyBonus, now);
 
   async function saveNick() {
     if (!uid) return;

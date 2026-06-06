@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
@@ -44,9 +45,12 @@ export default function Home() {
     <div ref={scope} className="relative isolate min-h-full w-full">
       <div className="relative z-[2] w-full max-w-5xl mx-auto px-4 py-12 sm:py-16 flex flex-col items-center gap-12">
         <header className="home-hero flex flex-col items-center gap-4 text-center">
-          <img
+          <Image
             src="/logo.png"
             alt="Noir Poker"
+            width={760}
+            height={180}
+            priority
             draggable={false}
             className="object-contain select-none pointer-events-none"
             style={{ height: "180px", width: "auto", mixBlendMode: "screen" }}

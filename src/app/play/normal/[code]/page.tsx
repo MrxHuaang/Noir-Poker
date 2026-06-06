@@ -78,8 +78,7 @@ export default function PlayNormalPage() {
   const router = useRouter();
   const code = params.code?.toUpperCase() ?? null;
   const { uid, loading, profile } = useAuth();
-  const [mySeed] = useState(() => Math.random().toString(36).slice(2));
-  const mySeedRef = useRef(mySeed);
+  const [mySeed, setMySeed] = useState(() => Math.random().toString(36).slice(2));
 
   // Contadores de sesion para XP / historial + total comprado para el neto.
   const handsPlayedRef = useRef(0);
@@ -113,11 +112,11 @@ export default function PlayNormalPage() {
   // Register/unregister spectator presence while watching.
   useEffect(() => {
     if (!code || !uid || !spectating) return;
-    joinSpectators(code, uid, profile?.nickname ?? "Espectador", mySeedRef.current).catch(() => {});
+    joinSpectators(code, uid, profile?.nickname ?? "Espectador", mySeed).catch(() => {});
     return () => {
       leaveSpectators(code, uid).catch(() => {});
     };
-  }, [code, uid, spectating, profile?.nickname]);
+  }, [code, uid, spectating, profile?.nickname, mySeed]);
 
   useEffect(() => {
     if (!code || !uid) return;
@@ -156,13 +155,15 @@ export default function PlayNormalPage() {
     gs?.phase === "all-in-negotiation" && openAllInVoteHand === currentHandNum;
 
   // Mantener el snapshot al dia para el cleanup de desmontaje.
-  liveRef.current = {
-    inLobby,
-    spectating,
-    finalChips: mySeat?.chips ?? myLobbyEntry?.chips ?? 0,
-    escrow: (code && profile?.escrows?.[code]) || 0,
-    isCasual,
-  };
+  useEffect(() => {
+    liveRef.current = {
+      inLobby,
+      spectating,
+      finalChips: mySeat?.chips ?? myLobbyEntry?.chips ?? 0,
+      escrow: (code && profile?.escrows?.[code]) || 0,
+      isCasual,
+    };
+  }, [code, inLobby, spectating, mySeat?.chips, myLobbyEntry?.chips, profile?.escrows, isCasual]);
 
   // Publish our public key into the lobby so the host can encrypt our hole
   // cards to it. Runs once we're in the lobby and re-publishes only if missing.
@@ -251,7 +252,7 @@ export default function PlayNormalPage() {
 
   async function handleJoinRequest(name: string, stack: number, seed: string) {
     if (!uid || !code) return;
-    mySeedRef.current = seed; // persist the picked avatar seed
+    setMySeed(seed);
     // Modo casual: no se toca el wallet — el host define/aprueba el stack libre.
     if (!isCasual) {
       // Descontar monedas del wallet (escrow) ANTES de pedir el asiento.
@@ -463,7 +464,7 @@ export default function PlayNormalPage() {
             {/* Avatar */}
             <div className="relative mb-6">
               <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-accent-400/25 shadow-[0_0_40px_-8px_rgba(167,139,250,0.25)]">
-                <Avatar seed={mySeedRef.current} size={96} className="ring-0 rounded-none" />
+                <Avatar seed={mySeed} size={96} className="ring-0 rounded-none" />
               </div>
               {/* Pulsing ring */}
               <div className="absolute inset-0 rounded-full ring-2 ring-accent-400/20 animate-ping" />
@@ -527,7 +528,7 @@ export default function PlayNormalPage() {
             queuePos={queuePos}
             onSpectate={() => setSpectating(true)}
             onJoinQueue={(name) => {
-              if (uid && code) joinQueue(code, uid, name, mySeedRef.current).catch(() => {});
+              if (uid && code) joinQueue(code, uid, name, mySeed).catch(() => {});
             }}
             onLeaveQueue={() => {
               if (uid && code) leaveQueue(code, uid).catch(() => {});

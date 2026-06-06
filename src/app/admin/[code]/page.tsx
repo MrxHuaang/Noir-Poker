@@ -57,6 +57,17 @@ export default function AdminTorneoPage() {
   const config = room?.config;
   const theme = (room?.theme as TableThemeId) ?? "noir";
   const t = getTableTheme(theme);
+  const levelDeadline =
+    tournament && config && !tournament.paused
+      ? tournament.levelStartedAt + (config.blindLevelDuration ?? 15 * 60_000)
+      : null;
+  const tickingLevelMs = useCountdown(levelDeadline);
+  const levelMs =
+    tournament && config
+      ? tournament.paused
+        ? tournament.pausedRemaining ?? 0
+        : tickingLevelMs
+      : 0;
 
   // Auto-advance blind level when timer expires
   useEffect(() => {
@@ -86,12 +97,6 @@ export default function AdminTorneoPage() {
   }
 
   const level = tournament && config ? getLevel(tournament, config) : null;
-  const levelMs =
-    tournament && config ? levelTimeRemaining(tournament, config) : 0;
-  const levelDeadline = tournament?.paused
-    ? Date.now() + levelMs
-    : Date.now() + levelMs;
-
   const levels = config?.blindLevels ?? TOURNAMENT_LEVELS;
   const currentLevelIdx = tournament?.currentLevel ?? 0;
 
@@ -170,7 +175,7 @@ export default function AdminTorneoPage() {
                 </div>
               </div>
               {!tournament.paused ? (
-                <LevelCountdown levelDeadline={levelDeadline} />
+                <LevelCountdown levelDeadline={levelDeadline ?? 0} />
               ) : (
                 <span className="tabular-nums font-semibold text-2xl text-accent-300">
                   {formatDuration(levelMs)}

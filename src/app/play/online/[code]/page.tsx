@@ -51,7 +51,10 @@ export default function PlayOnlinePage() {
   // Economy: escrow buy-in once when authenticated (non-spectators only).
   const escrowRef = useRef<{ code: string } | null>(null);
   const tokenRef = useRef(token);
-  tokenRef.current = token;
+
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
 
   useEffect(() => {
     if (isSpectator || !code || !uid || !token || escrowRef.current) return;
@@ -81,7 +84,7 @@ export default function PlayOnlinePage() {
       escrowRef.current = null;
       callEconomy(tok, "cash-out", { code: esc.code }).catch(() => {});
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // P5: write hand record to Firestore on each showdown.
   const lastSavedHandRef = useRef(0);
