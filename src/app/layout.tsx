@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
+import { GlobalBackground } from "@/components/ui/GlobalBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,14 +15,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Showdown — Poker multi-dispositivo",
+  title: "Noir — Poker multi-dispositivo",
   description:
-    "Plataforma de Texas Hold'em multi-dispositivo. Modo presencial, sala normal y torneos.",
+    "Plataforma premium de Texas Hold'em multi-dispositivo. Mesas públicas y privadas, modo presencial, sala normal y torneos.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
     apple: "/favicon.svg",
   },
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d0b09",
 };
 
 export default function RootLayout({
@@ -34,9 +40,10 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#06070a] text-zinc-100">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
+        <GlobalBackground />
         <Nav />
-        <main className="flex-1 flex flex-col">{children}</main>
+        <main className="relative z-[2] flex-1 flex flex-col">{children}</main>
       </body>
     </html>
   );

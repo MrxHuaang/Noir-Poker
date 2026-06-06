@@ -1,14 +1,17 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Maximize2, RotateCcw, X } from "lucide-react";
+import { Maximize2, RotateCcw, Volume2, VolumeX, WifiOff, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import type { NormalSeat, BettingRound } from "@/lib/betting";
 import { formatChips } from "@/lib/betting";
-import { calculateEquity, getRemainingDeck } from "@/lib/equity";
 import type { Card } from "@/lib/poker";
 import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import { getTableTheme, type TableThemeId } from "@/lib/themes";
+import { fireConfetti } from "@/lib/confetti";
+import { useSound } from "@/hooks/useSound";
 
 interface RoundPokerTableProps {
   seats: NormalSeat[];
@@ -28,9 +31,11 @@ interface RoundPokerTableProps {
   timeBankByUid?: Record<string, boolean>;
   turnTimeMs?: number;
   // Optional callbacks for empty-seat Sit button and own-seat Away toggle.
-  onSit?: () => void;
+  // slotIndex is the visual slot (0-8) that was clicked.
+  onSit?: (slotIndex: number) => void;
   onToggleAway?: () => void;
   amSittingOut?: boolean;
+  presenceMap?: Record<string, boolean>;
 }
 
 const MAX_SEATS = 9;
@@ -66,9 +71,9 @@ function SeatTimer({
 
   // Color phase based on percentage of NORMAL turn time remaining
   const normalPct = (remainingNormal / turnTime) * 100;
-  let normalColor = "bg-emerald-400";
+  let normalColor = "bg-accent";
   if (normalPct < 25) normalColor = "bg-rose-400";
-  else if (normalPct < 50) normalColor = "bg-amber-400";
+  else if (normalPct < 50) normalColor = "bg-accent-400";
 
   // Bank phase: always fully red bar, drains
   const bankPct = inBank && timeBank > 0 ? (remainingBank / timeBank) * 100 : 0;
@@ -143,10 +148,56 @@ function ActionToast({ action, amount }: { action: string; amount?: number }) {
   return (
     <div className={`absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl animate-in zoom-in fade-in duration-200 whitespace-nowrap ${
       isFold ? "bg-rose-500/90 text-white" :
-      isAggressive ? "bg-amber-400 text-amber-950" :
-      "bg-emerald-500 text-white"
+      isAggressive ? "bg-accent text-accent-contrast" :
+      "bg-accent/80 text-accent-contrast"
     }`}>
       {label}{amount ? ` ${formatChips(amount)}` : ""}
+    </div>
+  );
+}
+
+// Transient chip that flies from a seat to the pot when chips move. Mount-only
+// tween scoped to its own node; honors prefers-reduced-motion (skips straight to
+// onDone so the element is removed without animating).
+function FlyingChip({
+  origin,
+  onDone,
+}: {
+  origin: { x: number; y: number };
+  onDone: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useGSAP(
+    () => {
+      const el = ref.current;
+      if (!el) return;
+      const mm = gsap.matchMedia();
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        onDone();
+      });
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.set(el, { xPercent: -50, yPercent: -50, left: `${origin.x}%`, top: `${origin.y}%` });
+        gsap.to(el, {
+          left: "50%",
+          top: "50%",
+          scale: 0.4,
+          opacity: 0,
+          duration: 0.7,
+          ease: "power2.in",
+          onComplete: onDone,
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope: ref, dependencies: [] },
+  );
+  return (
+    <div
+      ref={ref}
+      className="absolute z-[45] pointer-events-none"
+      style={{ left: `${origin.x}%`, top: `${origin.y}%` }}
+    >
+      <div className="w-5 h-5 rounded-full border-2 border-white/40 bg-accent shadow-lg" />
     </div>
   );
 }
@@ -156,9 +207,8 @@ export function RoundPokerTable({
   community,
   betting,
   winners = [],
-  theme = "emerald",
+  theme = "noir",
   roomCode,
-  isTournament = false,
   selfUid,
   ownHole,
   revealedHoles,
@@ -170,54 +220,22 @@ export function RoundPokerTable({
   onSit,
   onToggleAway,
   amSittingOut,
+  presenceMap,
 }: RoundPokerTableProps) {
   const [showQR, setShowQR] = useState(false);
   const [rotationOffset, setRotationOffset] = useState(0);
   // Track last action per seat for toasts
   const [seatToasts, setSeatToasts] = useState<Record<string, { action: string; amount?: number; key: number }>>({});
-  const [equities, setEquities] = useState<Record<string, number>>({});
+  const { muted, toggleMute, play } = useSound();
+  const [flyingChips, setFlyingChips] = useState<{ id: number; x: number; y: number }[]>([]);
   const t = getTableTheme(theme);
 
-  // Compute equities if multiple holes are revealed
-  useEffect(() => {
-    setTimeout(() => {
-      if (!revealedHoles) {
-        setEquities({});
-        return;
-      }
-      const holes = Object.entries(revealedHoles).map(([id, cards]) => ({ id, cards }));
-      if (holes.length < 2) {
-        setEquities({});
-        return;
-      }
-      
-      const knownCards = [...community, ...holes.flatMap((h) => h.cards)];
-      const deck = getRemainingDeck(knownCards);
-      const result = calculateEquity(holes, community, deck, 1500); 
-      
-      const newEquities: Record<string, number> = {};
-      result.forEach((r) => {
-        newEquities[r.seatId] = r.equity;
-      });
-      setEquities(newEquities);
-    }, 0);
-  }, [community, revealedHoles]);
-
-  // Show action toast when lastAction changes
-  const prevActionRef = useRef<typeof lastAction>(undefined);
-  useEffect(() => {
-    if (!lastAction) return;
-    if (prevActionRef.current?.ts === lastAction.ts) return;
-    prevActionRef.current = lastAction;
-    setSeatToasts(prev => ({
-      ...prev,
-      [lastAction.seatId]: { action: lastAction.action, amount: lastAction.amount, key: lastAction.ts },
-    }));
-  }, [lastAction]);
-
+  // Both normal and tournament rooms live in the `normalRooms` collection and
+  // are joined through the mode-agnostic /play/normal route (there is no
+  // /play/torneo route). isTournament only affects UI labels elsewhere.
   const joinUrl =
     typeof window !== "undefined" && roomCode
-      ? `${window.location.origin}/play/${isTournament ? "torneo" : "normal"}/${roomCode}`
+      ? `${window.location.origin}/play/normal/${roomCode}`
       : "";
 
   // 9 positions evenly distributed around an ellipse, starting at bottom-center.
@@ -234,44 +252,100 @@ export function RoundPokerTable({
     });
   }, []);
 
-  // Distribute N players evenly around the 9 slots, then rotate so self lands at slot 0.
-  // This is the key fix: previously with N=2 the seats clustered at slots 0+1 (both at bottom).
+  // Slot computation:
+  // 1. Players with preferredSlot go directly to that slot (shifted by rotationOffset).
+  // 2. Players without preferredSlot auto-distribute evenly into remaining empty slots.
+  // rotationOffset is a LOCAL view shift that applies to ALL slots uniformly, so
+  // the rotate button now works even when selfUid is present.
   const slots = useMemo(() => {
     const out: (NormalSeat | null)[] = Array(MAX_SEATS).fill(null);
     const n = seats.length;
     if (n === 0) return out;
 
-    // Base slot for seats[i]: spread evenly across MAX_SEATS positions.
-    const baseSlots = seats.map((_, i) => Math.round((i * MAX_SEATS) / n) % MAX_SEATS);
+    const unplaced: NormalSeat[] = [];
 
-    // Find self's base slot so we can shift everyone so self lands at slot 0.
-    const myIdx = selfUid ? seats.findIndex((s) => s.id === selfUid) : -1;
-    const baseShift = (myIdx >= 0 ? baseSlots[myIdx] : -rotationOffset) % MAX_SEATS;
-
-    for (let i = 0; i < n; i++) {
-      const slotIdx = (((baseSlots[i] - baseShift) % MAX_SEATS) + MAX_SEATS) % MAX_SEATS;
-      // Guard against rare collisions when round() lands two on the same slot.
-      if (out[slotIdx] === null) out[slotIdx] = seats[i];
-      else {
-        // Fallback: next available slot
-        for (let off = 1; off < MAX_SEATS; off++) {
-          const alt = (slotIdx + off) % MAX_SEATS;
-          if (out[alt] === null) { out[alt] = seats[i]; break; }
+    // Phase 1: place seats that have a preferred slot
+    for (const seat of seats) {
+      if (seat.preferredSlot !== undefined) {
+        const visual = ((seat.preferredSlot + rotationOffset) % MAX_SEATS + MAX_SEATS) % MAX_SEATS;
+        if (out[visual] === null) {
+          out[visual] = seat;
+        } else {
+          unplaced.push(seat); // collision — handled in phase 2
         }
+      } else {
+        unplaced.push(seat);
       }
     }
-    return out;
-  }, [seats, selfUid, rotationOffset]);
 
+    // Phase 2: distribute unplaced seats evenly across remaining empty slots
+    if (unplaced.length > 0) {
+      const empty = Array.from({ length: MAX_SEATS }, (_, i) => i).filter((i) => out[i] === null);
+      unplaced.forEach((seat, idx) => {
+        const target = empty[Math.round((idx * empty.length) / unplaced.length) % empty.length];
+        if (out[target] === null) {
+          out[target] = seat;
+        } else {
+          for (let off = 1; off < empty.length; off++) {
+            const alt = empty[(empty.indexOf(target) + off) % empty.length];
+            if (out[alt] === null) { out[alt] = seat; break; }
+          }
+        }
+      });
+    }
+
+    return out;
+  }, [seats, rotationOffset]);
+
+  // Rotate view so self lands at slot 0 (bottom-center).
+  // If self has a preferredSlot, compute exact offset. Otherwise cycle.
   function rotateSelfToCenter() {
-    // Manual rotation cycles through the seat array (useful when no selfUid yet).
-    setRotationOffset((v) => (v + 1) % MAX_SEATS);
+    const mySeat = selfUid ? seats.find((s) => s.id === selfUid) : undefined;
+    if (mySeat?.preferredSlot !== undefined) {
+      setRotationOffset(((MAX_SEATS - mySeat.preferredSlot) % MAX_SEATS + MAX_SEATS) % MAX_SEATS);
+    } else {
+      setRotationOffset((v) => (v + 1) % MAX_SEATS);
+    }
   }
 
   const selfInSeats = !!(selfUid && seats.some((s) => s.id === selfUid));
 
+  // React to a new lastAction: show the seat toast, play a cue, and fly a chip
+  // from the actor's seat to the pot on chip-moving actions. Guarded by ts so it
+  // fires exactly once per action (slots/positions changing won't re-trigger).
+  const prevActionRef = useRef<typeof lastAction>(undefined);
+  useEffect(() => {
+    if (!lastAction) return;
+    if (prevActionRef.current?.ts === lastAction.ts) return;
+    prevActionRef.current = lastAction;
+    setSeatToasts((prev) => ({
+      ...prev,
+      [lastAction.seatId]: { action: lastAction.action, amount: lastAction.amount, key: lastAction.ts },
+    }));
+    const a = lastAction.action;
+    if (a === "bet" || a === "call" || a === "raise" || a === "all-in") {
+      play(a === "all-in" ? "allIn" : "chip");
+      const slotIdx = slots.findIndex((s) => s?.id === lastAction.seatId);
+      const pos = slotIdx >= 0 ? positions[slotIdx] : null;
+      if (pos) {
+        setFlyingChips((prev) => [...prev, { id: lastAction.ts, x: pos.x, y: pos.y }]);
+      }
+    }
+  }, [lastAction, slots, positions, play]);
+
+  // Fire confetti + winner chime once when winners transition from none to set.
+  const prevWinnersRef = useRef("");
+  useEffect(() => {
+    const key = winners.join(",");
+    if (key && key !== prevWinnersRef.current) {
+      fireConfetti();
+      play("winner");
+    }
+    prevWinnersRef.current = key;
+  }, [winners, play]);
+
   return (
-    <div className="relative w-full max-w-[1400px] aspect-[16/8] mx-auto select-none">
+    <div className="relative w-full max-w-[1100px] aspect-[16/8] mx-auto select-none">
       {/* Table Surface — inset slightly so seats at edges don't clip */}
       <div
         className="absolute inset-x-[8%] inset-y-[16%] rounded-[180px] overflow-hidden"
@@ -287,9 +361,9 @@ export function RoundPokerTable({
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
           {/* Pot */}
           <div className="flex flex-col items-center gap-1">
-            <div className="px-5 py-1.5 rounded-xl bg-black/55 backdrop-blur-md ring-1 ring-white/10 flex flex-col items-center">
-              <span className="text-[9px] uppercase tracking-[0.4em] text-zinc-500 font-bold">Total Pot</span>
-              <span className="text-xl font-bold text-white tabular-nums">{formatChips(betting.pot)}</span>
+            <div className="px-3 py-1 rounded-lg bg-black/55 backdrop-blur-md ring-1 ring-white/10 flex items-center gap-2">
+              <span className="text-[8px] uppercase tracking-[0.3em] text-zinc-500 font-bold">Pot</span>
+              <span className="text-sm font-bold text-white tabular-nums">{formatChips(betting.pot)}</span>
             </div>
             {betting.sidePots.length > 1 && (
               <div className="flex gap-1.5 flex-wrap justify-center">
@@ -324,11 +398,11 @@ export function RoundPokerTable({
               {canSit ? (
                 <button
                   type="button"
-                  onClick={onSit}
+                  onClick={() => onSit!(i)}
                   className="pointer-events-auto group flex flex-col items-center gap-1.5 cursor-pointer"
                 >
-                  <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-emerald-400/60 group-hover:bg-emerald-500/10 backdrop-blur-sm transition flex items-center justify-center">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-emerald-300">
+                  <div className="w-12 h-12 rounded-full bg-zinc-900/60 ring-2 ring-dashed ring-white/15 group-hover:ring-accent/50 group-hover:bg-accent/10 backdrop-blur-sm transition flex items-center justify-center">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-accent">
                       Sit
                     </span>
                   </div>
@@ -348,19 +422,27 @@ export function RoundPokerTable({
         const isSelf = !!selfUid && seat.id === selfUid;
         const useBank = timeBankByUid ? timeBankByUid[seat.id] !== false : true;
 
-        // Bet chip position — towards center
+        // Bet chip position — towards center, nudged tangentially so it never
+        // sits directly under the hole cards (which are centered on the seat).
+        // Without the tangential push the bottom-center self seat had cards and
+        // chips stacked on the same x, causing the overlap.
         const dx_center = 50 - pos.x;
         const dy_center = 50 - pos.y;
         const dist = Math.sqrt(dx_center * dx_center + dy_center * dy_center) || 1;
         const betDist = 13;
-        const bx = pos.x + (dx_center / dist) * betDist;
-        const by = pos.y + (dy_center / dist) * (betDist * 0.75);
+        const betTangential = 9;
+        const bx = pos.x + (dx_center / dist) * betDist + (dy_center / dist) * betTangential;
+        const by = pos.y + (dy_center / dist) * (betDist * 0.75) - (dx_center / dist) * betTangential;
 
-        // Dealer button position — moved more tangentially so it doesn't overlap cards
-        const dDist = 10;
-        const tangential = 7;
-        const dbx = pos.x + (dx_center / dist) * dDist + (dy_center / dist) * tangential;
-        const dby = pos.y + (dy_center / dist) * dDist - (dx_center / dist) * tangential;
+        // Dealer button position — pushed onto the felt at the same radial depth
+        // as the bet chips but mirrored to the OPPOSITE tangential side, so the
+        // button never sits over the seat info box (stack/name) nor over the bet
+        // chip stack. (Negating the tangential term flips it across the radial
+        // axis relative to the bet chips above.)
+        const dDist = 13;
+        const dTang = 10;
+        const dbx = pos.x + (dx_center / dist) * dDist - (dy_center / dist) * dTang;
+        const dby = pos.y + (dy_center / dist) * (dDist * 0.75) + (dx_center / dist) * dTang;
 
         const isDealt =
           (seat.status === "active" || seat.status === "all-in" || seat.status === "folded") &&
@@ -380,45 +462,7 @@ export function RoundPokerTable({
 
         return (
           <React.Fragment key={seat.id}>
-            {/* Hole cards — rendered outside overflow:hidden, z-40 */}
-            {isDealt && (
-              <div
-                className={`absolute flex gap-0.5 z-40 pointer-events-none ${seat.status === "folded" ? "opacity-30 grayscale" : ""}`}
-                style={{
-                  left: `${pos.x}%`,
-                  top: `${pos.y}%`,
-                  transform: "translate(-50%, calc(-100% - 54px))",
-                }}
-              >
-                {/* Equity Tag */}
-                {equities[seat.id] !== undefined && (
-                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-xs font-bold text-emerald-400 ring-1 ring-emerald-500/30 whitespace-nowrap">
-                    {equities[seat.id]}%
-                  </div>
-                )}
-                
-                {faceUpCards ? (
-                  faceUpCards.map((c, ci) => (
-                    <div key={c.id + ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
-                      <PlayingCard card={c} faceUp size="sm" cardBack={cardBack as never} cardFace={cardFace as never} />
-                    </div>
-                  ))
-                ) : (
-                  [0, 1].map((ci) => (
-                    <div key={ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
-                      <PlayingCard
-                        card={{ id: `back-${seat.id}-${ci}`, rank: "A", suit: "S" } as Card}
-                        faceUp={false}
-                        size="sm"
-                        cardBack={cardBack as never} cardFace={cardFace as never}
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Action Toast — globally positioned so z-index works over cards */}
+            {/* Action Toast */}
             {toast && (
               <div
                 className="absolute z-50 pointer-events-none"
@@ -428,25 +472,59 @@ export function RoundPokerTable({
               </div>
             )}
 
-            {/* Seat Box */}
+            {/* Seat Box — flex-col: hole cards on top, avatar+info row on bottom.
+                Cards are always above the name box regardless of seat position.
+                Rendered outside the felt overflow:hidden so cards never clip. */}
             <div
-              className={`absolute flex flex-col items-center transition-all duration-300 ${isToAct ? "z-30" : "z-20"}`}
+              className={`absolute flex flex-col items-center gap-1 transition-all duration-300 ${isToAct ? "z-40" : "z-20"}`}
               style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: "translate(-50%, -50%)" }}
             >
-              {/* Avatar — dimmed but visible when sitting out */}
-              <div className={`absolute -top-7 left-1/2 -translate-x-1/2 z-10 rounded-full ring-2 transition-all ${
+              {/* Hole cards — top of seat group */}
+              {isDealt && (
+                <div className={`relative flex gap-0.5 pointer-events-none ${seat.status === "folded" ? "opacity-30 grayscale" : ""}`}>
+                  {faceUpCards ? (
+                    faceUpCards.map((c, ci) => (
+                      <div key={c.id + ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
+                        <PlayingCard card={c} faceUp size="sm" cardBack={cardBack as never} cardFace={cardFace as never} />
+                      </div>
+                    ))
+                  ) : (
+                    [0, 1].map((ci) => (
+                      <div key={ci} style={{ transform: `rotate(${ci === 0 ? -5 : 5}deg)` }}>
+                        <PlayingCard
+                          card={{ id: `back-${seat.id}-${ci}`, rank: "A", suit: "S" } as Card}
+                          faceUp={false}
+                          size="sm"
+                          cardBack={cardBack as never} cardFace={cardFace as never}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Info row — avatar left, name/chips right */}
+              <div className="flex flex-row items-center gap-1">
+              {/* Avatar */}
+              <div className={`relative flex-shrink-0 w-8 h-8 rounded-full ring-2 overflow-hidden transition-all ${
                 isToAct
-                  ? "ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.5)]"
+                  ? "ring-accent shadow-[0_0_14px_var(--shadow-warm)]"
                   : isWinner
-                    ? "ring-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)]"
+                    ? "ring-accent shadow-[0_0_14px_var(--shadow-warm)]"
                     : "ring-zinc-700"
               } ${seat.status === "folded" ? "opacity-40 grayscale" : ""} ${seat.status === "sitting-out" ? "opacity-50 grayscale" : ""}`}>
-                <div className="rounded-full overflow-hidden bg-zinc-900">
-                  <Avatar seed={seat.seed} size={40} />
-                </div>
+                <Avatar seed={seat.seed} size={32} className="ring-0 rounded-none" />
+                {presenceMap && presenceMap[seat.id] === false && (
+                  <span
+                    className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-600 ring-2 ring-zinc-950 flex items-center justify-center z-20"
+                    title="Desconectado"
+                  >
+                    <WifiOff className="w-2 h-2 text-white" />
+                  </span>
+                )}
               </div>
 
-              {/* Away toggle side button — only on self seat */}
+              {/* Away toggle — right edge of whole seat */}
               {isSelf && onToggleAway && (
                 <button
                   type="button"
@@ -458,26 +536,26 @@ export function RoundPokerTable({
                   }`}
                   title={amSittingOut ? "Volver a jugar" : "Ausentarme"}
                 >
-                  {amSittingOut ? "Back" : "Away"}
+                  {amSittingOut ? "Volver" : "Pausa"}
                 </button>
               )}
 
-              <div className={`relative min-w-[96px] sm:min-w-[112px] rounded-lg overflow-hidden transition-all duration-300 border-2 mt-3 ${
+              <div className={`relative min-w-[80px] sm:min-w-[96px] rounded-lg overflow-hidden transition-all duration-300 border-2 ${
                 isToAct
-                  ? "border-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.4)]"
+                  ? "border-accent shadow-[0_0_18px_var(--shadow-warm)]"
                   : isWinner
-                    ? "border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.4)]"
+                    ? "border-accent shadow-[0_0_18px_var(--shadow-warm)]"
                     : "border-zinc-700 shadow-xl"
               }`}>
                 <div className={`flex flex-col bg-zinc-900/95 backdrop-blur-md ${seat.status === "folded" ? "opacity-40 grayscale" : ""}`}>
                   {/* Name */}
-                  <div className={`px-2 pt-1.5 pb-1 border-b border-white/5 text-center ${isToAct ? "bg-emerald-500/10" : ""}`}>
+                  <div className={`px-2 pt-1.5 pb-1 border-b border-white/5 text-center ${isToAct ? "bg-accent/10" : ""}`}>
                     <span className="text-[11px] font-bold text-zinc-100 truncate block">{seat.name}</span>
                   </div>
                   {/* Chips */}
                   <div className="px-2 py-1.5 text-center bg-black/40 flex items-center justify-center gap-1">
                     {seat.status === "all-in" && (
-                      <span className="text-[8px] font-black uppercase text-amber-400 tracking-widest">AI</span>
+                      <span className="text-[8px] font-black uppercase text-accent tracking-widest">AI</span>
                     )}
                     <span className="text-[10px] sm:text-[11px] text-white font-mono font-black tabular-nums">
                       {formatChips(seat.chips)}
@@ -493,7 +571,7 @@ export function RoundPokerTable({
                     />
                   ) : isToAct ? (
                     <div className="w-full h-1 bg-zinc-800">
-                      <div className="h-full bg-emerald-400 w-full" />
+                      <div className="h-full bg-accent w-full" />
                     </div>
                   ) : null}
                 </div>
@@ -507,15 +585,16 @@ export function RoundPokerTable({
                 {/* Away overlay */}
                 {seat.status === "sitting-out" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Away</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Ausente</span>
                   </div>
                 )}
               </div>
+              </div>{/* end info row */}
 
               {/* Winner crown */}
               {isWinner && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 animate-bounce">
-                  <div className="bg-amber-400 text-amber-950 p-1 rounded-full shadow-lg">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 animate-bounce z-30">
+                  <div className="bg-accent text-accent-contrast p-1 rounded-full shadow-lg">
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
@@ -539,7 +618,7 @@ export function RoundPokerTable({
                       className="absolute w-6 h-6 rounded-full border-2 border-white/30 shadow-inner"
                       style={{
                         bottom: `${offset * 2}px`,
-                        background: seat.bet > 200 ? "#f59e0b" : seat.bet > 50 ? "#6366f1" : "#10b981",
+                        background: seat.bet > 200 ? "#c4b5fd" : seat.bet > 50 ? "#a78bfa" : "#71717a",
                         opacity: offset === 0 ? 1 : 0.6 + offset * 0.1,
                       }}
                     />
@@ -554,10 +633,10 @@ export function RoundPokerTable({
               </div>
             )}
 
-            {/* Dealer Button — z-50 */}
+            {/* Dealer Button — z-30 (above felt + bet chips, below the active seat) */}
             {isDealer && (
               <div
-                className="absolute z-50 animate-in fade-in duration-500"
+                className="absolute z-30 animate-in fade-in duration-500"
                 style={{ left: `${dbx}%`, top: `${dby}%`, transform: "translate(-50%, -50%)" }}
               >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white shadow-lg ring-2 ring-zinc-400 flex items-center justify-center">
@@ -569,12 +648,23 @@ export function RoundPokerTable({
         );
       })}
 
+      {/* Mute toggle */}
+      <button
+        onClick={toggleMute}
+        className="absolute top-1 right-9 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+        title={muted ? "Activar sonido" : "Silenciar"}
+        aria-label={muted ? "Activar sonido" : "Silenciar"}
+      >
+        {muted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+      </button>
+
       {/* QR Button */}
       {roomCode && (
         <button
           onClick={() => setShowQR(true)}
-          className="absolute top-1 right-1 p-1.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+          className="absolute top-1 right-1 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
           title="Invitar"
+          aria-label="Invitar jugadores"
         >
           <Maximize2 className="w-3.5 h-3.5" />
         </button>
@@ -584,8 +674,9 @@ export function RoundPokerTable({
       {selfUid && seats.length > 0 && (
         <button
           onClick={rotateSelfToCenter}
-          className="absolute top-1 left-1 p-1.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
+          className="absolute top-1 left-1 p-2.5 rounded-lg glass hover:bg-white/10 transition text-zinc-500 hover:text-white z-50"
           title="Centrarme"
+          aria-label="Centrarme en la mesa"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
@@ -611,12 +702,21 @@ export function RoundPokerTable({
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-xs uppercase tracking-[0.3em] text-zinc-500 font-bold">Código de sala</span>
-                <span className="text-4xl font-mono font-black text-emerald-400 tracking-[0.2em]">{roomCode}</span>
+                <span className="text-4xl font-mono font-black text-accent tracking-[0.2em]">{roomCode}</span>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Flying chips overlay — chips tween from a seat to the pot on chip moves. */}
+      {flyingChips.map((c) => (
+        <FlyingChip
+          key={c.id}
+          origin={{ x: c.x, y: c.y }}
+          onDone={() => setFlyingChips((prev) => prev.filter((f) => f.id !== c.id))}
+        />
+      ))}
     </div>
   );
 }

@@ -5,10 +5,7 @@ import { subscribeReactions, type Reaction } from "@/lib/reactions";
 export function useReactions(code: string | null): Reaction[] {
   const [list, setList] = useState<Reaction[]>([]);
   useEffect(() => {
-    if (!code) {
-      setList([]);
-      return;
-    }
+    if (!code) return;
     return subscribeReactions(code, setList);
   }, [code]);
 
@@ -24,5 +21,5 @@ export function useReactions(code: string | null): Reaction[] {
     return () => clearInterval(t);
   }, []);
 
-  return list;
+  return code ? list : [];
 }

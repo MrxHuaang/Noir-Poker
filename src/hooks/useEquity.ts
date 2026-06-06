@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Card, GameState } from "@/lib/poker";
+import { wasmEquity } from "@/lib/equityWasm";
 
 type SeatLite = {
   id: string;
@@ -60,7 +61,8 @@ export function useEquity(state: GameState | null) {
         | { type: "equity"; equity: Record<string, number>; outs: Record<string, number> }
         | { type: "run"; runs: RunOne[] };
       if (data.type === "equity") {
-        setRes({ equity: data.equity, outs: data.outs, computing: false });
+        // Equity now comes from the Rust/WASM engine; the worker supplies outs.
+        setRes((p) => ({ ...p, outs: data.outs }));
       } else if (data.type === "run") {
         const r = runResolverRef.current;
         runResolverRef.current = null;
@@ -81,16 +83,45 @@ export function useEquity(state: GameState | null) {
     const key = hashKey(state);
     if (key === lastKeyRef.current) return;
     lastKeyRef.current = key;
+    let aborted = false;
     const t = setTimeout(() => {
       setRes((p) => ({ ...p, computing: true }));
+      // Outs come from the TS worker (off the main thread).
       workerRef.current?.postMessage({
         type: "equity",
         seats: toSeatsLite(state),
         community: state.community,
         trials: 4000,
       });
+      // Equity comes from the Rust/WASM engine: exact enumeration on
+      // flop/turn/river, Monte-Carlo preflop. wasmEquity returns percentages;
+      // the panel contract is 0..1, so divide.
+      const live = state.seats.filter((s) => !s.folded);
+      if (live.length >= 2) {
+        wasmEquity({
+          holes: live.map((s) => [s.hole[0].id, s.hole[1].id]),
+          board: state.community.map((c) => c.id),
+          iters: 30_000,
+        })
+          .then((eq) => {
+            if (aborted) return;
+            const equity: Record<string, number> = {};
+            live.forEach((s, i) => {
+              equity[s.player.id] = (eq[i] ?? 0) / 100;
+            });
+            setRes((p) => ({ ...p, equity, computing: false }));
+          })
+          .catch(() => {
+            if (!aborted) setRes((p) => ({ ...p, computing: false }));
+          });
+      } else {
+        setRes((p) => ({ ...p, equity: {}, computing: false }));
+      }
     }, 80);
-    return () => clearTimeout(t);
+    return () => {
+      aborted = true;
+      clearTimeout(t);
+    };
   }, [state]);
 
   const runMany = useCallback(

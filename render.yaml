@@ -1,0 +1,27 @@
+# Render Blueprint for the Go game server (free, no credit card).
+# Deploy: push to GitHub, then on render.com -> New -> Blueprint -> pick this repo.
+# Free web services sleep after ~15 min idle and wake on the next request
+# (~1 min cold start) — fine for occasional games. WebSockets are supported.
+#
+# The server now FAILS CLOSED: it refuses to start unless WS auth is configured.
+# Set FIREBASE_PROJECT_ID in the Render dashboard (= poker-sim-69129) to enable
+# Firebase-authenticated WS connections. For an intentionally open dev server,
+# set ALLOW_DEV_OPEN_WS=true instead (never in production).
+services:
+  - type: web
+    name: poker-sim-server
+    runtime: docker
+    repo: https://github.com/MrxHuaang/poker-sim
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    plan: free
+    region: virginia # closest free region to Colombia
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Required to boot (enables WS auth). Set the value in the dashboard.
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      # Optional: comma-separated WS origin allow-list (e.g. https://yourapp.vercel.app).
+      - key: ALLOWED_ORIGINS
+        sync: false

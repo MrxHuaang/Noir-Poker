@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import confetti from "canvas-confetti";
 import { SkipForward, Trophy } from "lucide-react";
+import { fireConfetti } from "@/lib/confetti";
 import type { Card, GameState, Player } from "@/lib/poker";
 import {
   gameToPublic,
@@ -20,6 +20,7 @@ import { usePlayers } from "@/hooks/usePlayers";
 import { useStats } from "@/hooks/useStats";
 import { useEquity, type RunOne } from "@/hooks/useEquity";
 import { useHistory } from "@/hooks/useHistory";
+import { useSound } from "@/hooks/useSound";
 import { PlayerPicker } from "./PlayerPicker";
 import { PlayerSeat } from "./PlayerSeat";
 import { CommunityRow } from "./CommunityRow";
@@ -55,6 +56,7 @@ export function PokerTable({
   const players = playersOverride ?? local.players;
   const hydrated = playersOverride ? true : local.hydrated;
   const { addWins } = useStats();
+  const { play: playSound } = useSound();
   const { record, recordMany } = useHistory();
   const [state, setState] = useState<GameState | null>(null);
   const [result, setResult] = useState<Showdown | null>(null);
@@ -100,7 +102,7 @@ export function PokerTable({
       });
     });
     return () => unsub();
-  }, [sync]);
+  }, [sync?.roomCode]);
 
   const lastDealIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -209,6 +211,7 @@ export function PokerTable({
       category: r.category,
     });
     fireConfetti();
+    playSound("winner");
   }
 
   async function doAllIn(N: number) {
@@ -288,24 +291,7 @@ export function PokerTable({
     }
     setRuns(rs);
     fireConfetti();
-  }
-
-  function fireConfetti() {
-    const opts = {
-      spread: 70,
-      ticks: 120,
-      gravity: 1,
-      decay: 0.92,
-      colors: ["#fcd34d", "#34d399", "#f4f4f5", "#0f3d2e"],
-    };
-    confetti({ ...opts, particleCount: 80, origin: { x: 0.2, y: 0.4 } });
-    confetti({ ...opts, particleCount: 80, origin: { x: 0.8, y: 0.4 } });
-    confetti({
-      ...opts,
-      particleCount: 120,
-      origin: { x: 0.5, y: 0.3 },
-      startVelocity: 55,
-    });
+    playSound("winner");
   }
 
   const activeCount = useMemo(
@@ -573,16 +559,16 @@ function WinnerBanner({
 }) {
   const tie = names.length > 1;
   return (
-    <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-amber-300/10 ring-1 ring-amber-300/40 text-amber-100 shadow-[0_20px_60px_-20px_rgba(252,211,77,0.4)]">
-      <Trophy className="w-5 h-5 text-amber-300" />
+    <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-accent/12 ring-1 ring-accent/35 text-accent shadow-[0_20px_60px_-20px_var(--shadow-warm)]">
+      <Trophy className="w-5 h-5 text-accent" />
       <div className="flex flex-col">
         <span className="text-sm">
           {tie ? "Empate: " : "Gana "}
-          <span className="font-semibold text-amber-50">
+          <span className="font-semibold text-zinc-50">
             {names.join(" · ")}
           </span>
         </span>
-        <span className="text-[11px] text-amber-200/80">{category}</span>
+        <span className="text-[11px] text-accent/80">{category}</span>
       </div>
     </div>
   );
@@ -627,13 +613,18 @@ function HostLobby({
           type="button"
           disabled={players.length < 2 || players.length > 9}
           onClick={() => onDeal(players)}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-950 font-medium text-sm transition"
+          title={players.length < 2 ? "Se necesitan al menos 2 jugadores" : undefined}
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-accent/85 hover:bg-accent disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-accent-contrast font-medium text-sm transition"
         >
           Repartir ({players.length})
         </button>
       </div>
-      <p className="text-[11px] text-zinc-500 text-center">
-        Requiere 2 a 9 jugadores.
+      <p className={`text-[11px] text-center ${players.length < 2 || players.length > 9 ? "text-rose-400/70" : "text-zinc-500"}`}>
+        {players.length < 2
+          ? `Faltan ${2 - players.length} jugador${2 - players.length === 1 ? "" : "es"} para repartir.`
+          : players.length > 9
+            ? "Máximo 9 jugadores."
+            : "Requiere 2 a 9 jugadores."}
       </p>
     </div>
   );

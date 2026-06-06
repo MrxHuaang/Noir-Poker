@@ -51,7 +51,7 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
       >
         <MessageSquare className="w-5 h-5" />
         {unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-500 text-emerald-950 text-[10px] font-black flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-zinc-200 text-zinc-950 text-[10px] font-black flex items-center justify-center">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -60,10 +60,10 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
   }
 
   return (
-    <div className="w-80 h-72 flex flex-col bg-zinc-900/95 backdrop-blur-xl ring-1 ring-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
+    <div className="h-72 w-[min(20rem,calc(100vw-1.5rem))] flex flex-col bg-zinc-900/95 backdrop-blur-xl ring-1 ring-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-200">
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-300">
-          <MessageSquare className="w-3.5 h-3.5 text-emerald-400" /> Chat
+          <MessageSquare className="w-3.5 h-3.5 text-zinc-300" /> Chat
         </div>
         <button
           type="button"
@@ -90,7 +90,7 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
                 <div
                   className={`px-2.5 py-1.5 rounded-xl text-xs leading-snug break-words ${
                     mine
-                      ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/20"
+                      ? "bg-white/[0.10] text-zinc-100 ring-1 ring-white/15"
                       : "bg-white/5 text-zinc-200 ring-1 ring-white/10"
                   }`}
                 >
@@ -109,12 +109,12 @@ export function ChatPanel({ code, uid, name, seed, messages }: Props) {
           placeholder={uid ? "Mensaje…" : "Conectando…"}
           maxLength={200}
           disabled={!uid || !code}
-          className="flex-1 px-3 py-1.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none focus:ring-emerald-400/40 disabled:opacity-40"
+          className="flex-1 px-3 py-1.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none focus:ring-white/30 disabled:opacity-40"
         />
         <button
           type="submit"
           disabled={!text.trim() || !uid}
-          className="p-2 rounded-xl bg-emerald-500/90 hover:bg-emerald-400 disabled:opacity-30 text-emerald-950 transition btn-press"
+          className="p-2 rounded-xl bg-white/[0.10] hover:bg-white/[0.16] disabled:opacity-30 text-zinc-100 ring-1 ring-white/10 transition btn-press"
         >
           <Send className="w-3.5 h-3.5" />
         </button>

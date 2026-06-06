@@ -1,5 +1,5 @@
 import type { Card, Rank } from "./poker";
-import { bestHand, categoryFor } from "./handEval";
+import { bestHand, categoryFor, RANK_VAL } from "./handEval";
 
 const RANK_ES: Record<Rank, string> = {
   "2": "dos",
@@ -57,11 +57,6 @@ function rankSingular(n: number): string {
   return RANK_ES_SINGULAR[RANK_TO_CHAR[n]] ?? "";
 }
 
-const RANK_ORDER: Record<Rank, number> = {
-  "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
-  T: 10, J: 11, Q: 12, K: 13, A: 14,
-};
-
 export function describeHand(holeAndCommunity: Card[]): string {
   if (holeAndCommunity.length < 5) {
     if (holeAndCommunity.length === 2) {
@@ -69,7 +64,7 @@ export function describeHand(holeAndCommunity: Card[]): string {
       if (a.rank === b.rank) {
         return `Par de ${RANK_ES[a.rank]}`;
       }
-      const hi = RANK_ORDER[a.rank] >= RANK_ORDER[b.rank] ? a : b;
+      const hi = RANK_VAL[a.rank] >= RANK_VAL[b.rank] ? a : b;
       const lo = hi === a ? b : a;
       return `${RANK_ES_SINGULAR[hi.rank]} y ${RANK_ES_SINGULAR[lo.rank]} altos`;
     }

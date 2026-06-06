@@ -6,14 +6,19 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "play": "tsx cli/index.ts"
   },
   "dependencies": {
     "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.2",
     "@gsap/react": "^2.1.2",
+    "@supabase/supabase-js": "^2.105.4",
     "canvas-confetti": "^1.9.4",
     "firebase": "^12.13.0",
+    "firebase-admin": "^13.10.0",
     "gsap": "^3.15.0",
     "lucide-react": "^1.14.0",
     "next": "16.2.6",
@@ -31,6 +36,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.22.4",
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   }
 }

@@ -12,38 +12,29 @@ import {
 export function useRoom(code: string | null) {
   const [room, setRoom] = useState<RoomDoc | null | undefined>(undefined);
   useEffect(() => {
-    if (!code) {
-      setRoom(null);
-      return;
-    }
+    if (!code) return;
     const unsub = subscribeRoom(code, (r) => setRoom(r));
     return () => unsub();
   }, [code]);
-  return room;
+  return code ? room : null;
 }
 
 export function useLobby(code: string | null): LobbyPlayer[] {
   const [list, setList] = useState<LobbyPlayer[]>([]);
   useEffect(() => {
-    if (!code) {
-      setList([]);
-      return;
-    }
+    if (!code) return;
     const unsub = subscribeLobby(code, (p) => setList(p));
     return () => unsub();
   }, [code]);
-  return list;
+  return code ? list : [];
 }
 
 export function useHole(code: string | null, seatId: string | null) {
   const [hole, setHole] = useState<HoleDoc | null | undefined>(undefined);
   useEffect(() => {
-    if (!code || !seatId) {
-      setHole(null);
-      return;
-    }
+    if (!code || !seatId) return;
     const unsub = subscribeHole(code, seatId, (h) => setHole(h));
     return () => unsub();
   }, [code, seatId]);
-  return hole;
+  return code && seatId ? hole : null;
 }

@@ -1,12 +1,62 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07080c;
-  --foreground: #f4f4f5;
-  --surface: rgba(255, 255, 255, 0.03);
-  --surface-strong: rgba(255, 255, 255, 0.06);
-  --border-soft: rgba(255, 255, 255, 0.08);
-  --accent: #34d399;
+  --background: oklch(0.088 0.012 292);
+  --foreground: oklch(0.925 0.012 290);
+  --surface: oklch(0.165 0.014 290 / 0.72);
+  --surface-strong: oklch(0.205 0.018 288 / 0.82);
+  --border-soft: oklch(0.72 0.14 290 / 0.12);
+  /* Noir brand accent — violet on near-black. */
+  --accent: oklch(0.72 0.19 290);
+  --accent-soft: oklch(0.72 0.19 290 / 0.14);
+  --accent-2: oklch(0.52 0.14 290);
+  --accent-contrast: oklch(0.155 0.022 292);
+  --shadow-warm: oklch(0.62 0.18 290 / 0.28);
+
+  /* ── Motion tokens ──────────────────────────────────────────────────
+     Shared easing + duration scale. Use in CSS transitions and pass
+     to GSAP via gsap.defaults() or inline ease strings.
+     --ease-out:      expo-out — snappy enter, smooth settle (UI enter)
+     --ease-in:       accelerate — exit animations
+     --ease-standard: material standard — generic state transitions
+     --duration-micro:    hover/press feedback
+     --duration-standard: modal open, card reveal
+     --duration-dramatic: page-level or sequential reveals            */
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-micro:    150ms;
+  --duration-standard: 280ms;
+  --duration-dramatic: 480ms;
+
+  /* ── Radius scale ────────────────────────────────────────────────────
+     Pass these to BorderGlow borderRadius prop and Tailwind utilities.
+     --radius-sm:   inputs, tags
+     --radius-md:   cards, panels
+     --radius-lg:   modals, large cards
+     --radius-pill: nav pills, badges                                  */
+  --radius-sm:   12px;
+  --radius-md:   18px;
+  --radius-lg:   24px;
+  --radius-pill: 999px;
+
+  /* ── Semantic text tokens ────────────────────────────────────────────
+     Use these instead of raw zinc-* in body copy.
+     text-primary   → headings, main content
+     text-secondary → subtitles, descriptions
+     text-muted     → labels, metadata, placeholder prose             */
+  --text-primary:   oklch(0.935 0.010 290);
+  --text-secondary: oklch(0.820 0.010 290);
+  --text-muted:     oklch(0.700 0.009 290);
+
+  /* ── Liquid glass surface tokens ────────────────────────────────────
+     Change these two vars to restyle every glass card in the app.
+     --lg-bg:        base card fill (semi-transparent for blur to show through)
+     --lg-bg-active: selected / hovered card fill
+     --lg-blur:      backdrop blur amount                                      */
+  --lg-bg:        oklch(0.20 0.020 290 / 0.42);
+  --lg-bg-active: oklch(0.27 0.026 290 / 0.60);
+  --lg-blur:      22px;
 }
 
 /* stylelint-disable-next-line at-rule-no-unknown */
@@ -16,8 +66,44 @@
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
   --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-contrast: var(--accent-contrast);
+
+  /* ── Brand accent scale ─────────────────────────────────────────────
+     SINGLE SOURCE OF TRUTH for the brand accent in Tailwind classes.
+     Use accent-* utilities everywhere instead of amber-* / emerald-*:
+       text-accent-300, bg-accent-500/10, ring-accent-400/40, etc.
+     To re-skin the whole app, change only the hue (290 = violet) here.
+     JS/canvas/inline-style usages mirror this in src/lib/brand.ts —
+     keep the two in sync. */
+  --color-accent-50:  oklch(0.97 0.014 290);
+  --color-accent-100: oklch(0.94 0.03 290);
+  --color-accent-200: oklch(0.89 0.06 290);
+  --color-accent-300: oklch(0.81 0.10 290);
+  --color-accent-400: oklch(0.72 0.16 290);
+  --color-accent-500: oklch(0.64 0.20 290);
+  --color-accent-600: oklch(0.56 0.22 290);
+  --color-accent-700: oklch(0.49 0.20 290);
+  --color-accent-800: oklch(0.42 0.16 290);
+  --color-accent-900: oklch(0.36 0.11 290);
+  --color-accent-950: oklch(0.26 0.09 290);
+
+  /* ── Semantic state scales ──────────────────────────────────────────
+     For NON-brand UI signals only: warnings and success/confirmation
+     feedback (toasts, validation). These are deliberately OUTSIDE the
+     accent system so warn vs success stay distinguishable. Do NOT use
+     these for chrome — chrome is always accent-*. Profit/loss keeps using
+     emerald-400 / rose-400 directly (financial semantics, separate again). */
+  --color-warn-200: oklch(0.90 0.07 85);
+  --color-warn-400: oklch(0.80 0.15 80);
+  --color-warn-500: oklch(0.74 0.16 75);
+
+  --color-success-200: oklch(0.90 0.07 160);
+  --color-success-400: oklch(0.77 0.14 162);
+  --color-success-500: oklch(0.70 0.15 162);
+
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
 }
 
 html,
@@ -35,37 +121,51 @@ body {
 
 body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
   background-image:
     radial-gradient(
-      ellipse at 80% -10%,
-      rgba(52, 211, 153, 0.08) 0%,
+      ellipse at 76% -10%,
+      oklch(0.72 0.19 290 / 0.08) 0%,
       transparent 50%
     ),
     radial-gradient(
-      ellipse at 0% 110%,
-      rgba(96, 165, 250, 0.06) 0%,
+      ellipse at 8% 112%,
+      oklch(0.62 0.14 290 / 0.055) 0%,
       transparent 50%
     );
   background-attachment: fixed;
 }
 
+/* Liquid glass backdrop-filter utility — pair with backgroundColor="var(--lg-bg)" on BorderGlow */
+.lg-blur {
+  backdrop-filter: blur(var(--lg-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(140%);
+}
+
 .glass {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-soft);
 }
 
 .glass-strong {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-strong);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid oklch(0.72 0.18 290 / 0.16);
 }
 
 /* Mobile: drop expensive backdrop-filter — fall back to opaque bg */
 @media (max-width: 768px) {
+  :root {
+    --lg-bg:        oklch(0.20 0.018 290 / 0.90);
+    --lg-bg-active: oklch(0.27 0.024 290 / 0.95);
+  }
+  .lg-blur {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
   .glass {
     background: rgba(20, 20, 24, 0.85);
     backdrop-filter: none;
@@ -98,15 +198,15 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(52, 211, 153, 0.18);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(52, 211, 153, 0.38);
+  background: rgba(255, 255, 255, 0.34);
 }
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(52, 211, 153, 0.18) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
 /* Custom scrollbar (kept for explicit opt-in) */
@@ -118,11 +218,11 @@ body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(52, 211, 153, 0.18);
+  background: oklch(0.72 0.16 290 / 0.22);
   border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(52, 211, 153, 0.38);
+  background: oklch(0.72 0.16 290 / 0.42);
 }
 
 .elevate {
@@ -131,14 +231,20 @@ body {
     0 20px 60px -25px rgba(0, 0, 0, 0.7);
 }
 
+/* Semantic text utilities — map to --text-* tokens above */
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+
+/* Press feedback: scale(0.97) with expo-out feels more physical than translateY */
 .btn-press {
   transition:
-    transform 120ms ease,
-    box-shadow 120ms ease,
-    background 120ms ease;
+    transform var(--duration-micro) var(--ease-out),
+    box-shadow var(--duration-micro) var(--ease-out),
+    background var(--duration-standard) var(--ease-out);
 }
 .btn-press:active {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 /* Keep 3D transforms crisp on Safari */
@@ -160,6 +266,19 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Film grain — subtle noir texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  mix-blend-mode: overlay;
 }
 
 /* Reaction emoji float */

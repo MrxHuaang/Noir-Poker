@@ -24,7 +24,7 @@ export function StatsPanel({
     <aside className="w-full lg:w-72 lg:shrink-0 flex flex-col gap-3 p-4 rounded-2xl bg-white/[0.03] ring-1 ring-white/10">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-zinc-100">
-          <Trophy className="w-4 h-4 text-amber-300" />
+          <Trophy className="w-4 h-4 text-accent-300" />
           <h3 className="text-sm tracking-tight">Historial</h3>
         </div>
         {total > 0 ? (
@@ -58,7 +58,7 @@ export function StatsPanel({
                 key={player.id}
                 className={`relative flex items-center gap-2 p-2 rounded-xl ring-1 transition ${
                   isHi
-                    ? "bg-amber-300/10 ring-amber-300/40"
+                    ? "bg-accent-300/10 ring-accent-300/40"
                     : "bg-white/[0.02] ring-white/5"
                 }`}
               >
@@ -69,7 +69,7 @@ export function StatsPanel({
                   </div>
                   <div className="mt-1 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
-                      className={`h-full ${isHi ? "bg-amber-300" : "bg-emerald-400/70"}`}
+                      className={`h-full ${isHi ? "bg-accent-300" : "bg-accent-600/50"}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>

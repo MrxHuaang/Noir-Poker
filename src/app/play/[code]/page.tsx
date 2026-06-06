@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Crown, Eye, EyeOff, Flame, LogOut, RotateCcw, Shuffle, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,10 +11,9 @@ import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import { CardBackPicker } from "@/components/themes/CardBackPicker";
 import { BorderGlow } from "@/components/ui/BorderGlow";
+import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 import { describeHand } from "@/lib/handLabel";
 import type { Card } from "@/lib/poker";
-
-
 
 export default function PlayPage() {
   const params = useParams<{ code: string }>();
@@ -22,17 +21,36 @@ export default function PlayPage() {
   const { uid, loading } = useAuth();
   const room = useRoom(code);
   const lobby = useLobby(code);
+  const [participantUid, setParticipantUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!uid || !code) return;
+    const key = `noir:presencial:${code}:participantUid`;
+    const existing = window.sessionStorage.getItem(key);
+    if (existing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setParticipantUid(existing);
+      return;
+    }
+    const random =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+    const next = `tab-${uid.slice(0, 8)}-${random}`;
+    window.sessionStorage.setItem(key, next);
+    setParticipantUid(next);
+  }, [code, uid]);
 
   const inLobby = useMemo(
-    () => (uid ? lobby.find((p) => p.uid === uid) : null),
-    [uid, lobby],
+    () => (participantUid ? lobby.find((p) => p.uid === participantUid) : null),
+    [participantUid, lobby],
   );
-  const mySeat = uid && room?.state
-    ? room.state.seats.find((s) => s.id === uid)
+  const mySeat = participantUid && room?.state
+    ? room.state.seats.find((s) => s.id === participantUid)
     : null;
   const hole = useHole(code, mySeat?.id ?? null);
 
-  if (loading || room === undefined) {
+  if (loading || room === undefined || !participantUid) {
     return (
       <div className="w-full max-w-md mx-auto px-4 py-10 text-center text-zinc-500 text-sm">
         Conectando…
@@ -41,16 +59,22 @@ export default function PlayPage() {
   }
   if (room === null) {
     return (
-      <div className="w-full max-w-md mx-auto px-4 py-10 text-center">
+      <div className="w-full max-w-md mx-auto px-4 py-10 text-center flex flex-col items-center gap-4">
         <p className="text-zinc-300">Sala no encontrada.</p>
-        <p className="text-xs text-zinc-500 mt-2">Código: {code}</p>
+        <p className="text-xs text-zinc-500">Código: {code}</p>
+        <a
+          href="/join"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-sm transition"
+        >
+          Intentar con otro código
+        </a>
       </div>
     );
   }
 
   if (!mySeat) {
     if (!inLobby) {
-      return <LobbyForm code={code} uid={uid} />;
+      return <LobbyForm code={code} participantUid={participantUid} ownerUid={uid} />;
     }
     return (
       <div className="w-full max-w-md mx-auto px-4 py-10 flex flex-col items-center gap-4 text-center">
@@ -79,17 +103,25 @@ export default function PlayPage() {
   );
 }
 
-function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
+function LobbyForm({
+  code,
+  participantUid,
+  ownerUid,
+}: {
+  code: string;
+  participantUid: string | null;
+  ownerUid: string | null;
+}) {
   const [name, setName] = useState("");
   const [seed, setSeed] = useState(() => randomSeed());
   const [submitting, setSubmitting] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!uid || !name.trim() || submitting) return;
+    if (!participantUid || !name.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await joinLobby(code, uid, name.trim(), seed);
+      await joinLobby(code, participantUid, name.trim(), seed, ownerUid);
     } finally {
       setSubmitting(false);
     }
@@ -108,16 +140,16 @@ function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
       </header>
 
       <BorderGlow
-        className="w-full"
+        className="w-full lg-blur"
         edgeSensitivity={26}
-        glowColor="152 68 48"
-        backgroundColor="rgba(8, 10, 16, 0.9)"
+        glowColor={ACCENT_GLOW_HSL}
+        backgroundColor="var(--lg-bg)"
         borderRadius={20}
         glowRadius={30}
         glowIntensity={1}
         coneSpread={24}
         animated={false}
-        colors={["#34d399", "#38bdf8", "#c4b5fd"]}
+        colors={ACCENT_GLOW_COLORS}
         fillOpacity={0.45}
       >
         <div className="flex flex-col gap-6 p-5">
@@ -140,13 +172,13 @@ function LobbyForm({ code, uid }: { code: string; uid: string | null }) {
             placeholder="Tu apodo"
             maxLength={20}
             autoFocus
-            className="rounded-2xl bg-black/40 px-5 py-4 text-center text-lg text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-emerald-400/40"
+            className="rounded-2xl bg-black/40 px-5 py-4 text-center text-lg text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-accent-500/40"
           />
 
           <button
             type="submit"
             disabled={!name.trim() || submitting}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500/90 px-5 py-3 font-medium text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-30 btn-press"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent-700/70 px-5 py-3 font-medium text-accent-100 transition hover:bg-accent-600/75 disabled:cursor-not-allowed disabled:opacity-30 btn-press"
           >
             Entrar a la mesa
           </button>
@@ -210,7 +242,7 @@ function PhoneGameView({
   async function onLeave() {
     if (!uid) return;
     try {
-      await leaveLobby(code, uid);
+      await leaveLobby(code, mySeat.id);
     } catch {
       /* ignore */
     }
@@ -249,8 +281,8 @@ function PhoneGameView({
       </header>
 
       {room.result ? (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-amber-300/10 ring-1 ring-amber-300/40 text-amber-100">
-          <Crown className="w-4 h-4 text-amber-300" />
+        <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-accent-300/10 ring-1 ring-accent-300/40 text-accent-100">
+          <Crown className="w-4 h-4 text-accent-300" />
           <span className="text-sm">
             {isWinner
               ? "¡Ganas esta mano!"
@@ -265,9 +297,9 @@ function PhoneGameView({
       {/* Hand strength label — PokerStars style */}
       {label && hole && !mySeat.folded && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/10 ring-1 ring-emerald-400/30 shadow-[0_0_20px_-4px_rgba(52,211,153,0.25)]">
-            <span className="text-[11px] uppercase tracking-[0.25em] text-emerald-400/60 font-bold">Tu mano</span>
-            <span className="text-sm font-semibold text-emerald-100">{label}</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-accent-500/12 to-accent-700/8 ring-1 ring-accent-400/25 shadow-[0_0_20px_-4px_rgba(167,139,250,0.2)]">
+            <span className="text-[11px] uppercase tracking-[0.25em] text-accent-400/60 font-bold">Tu mano</span>
+            <span className="text-sm font-semibold text-accent-100">{label}</span>
           </div>
         </div>
       )}
@@ -363,7 +395,7 @@ function PhoneGameView({
               onClick={() => onRevealCard(0)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ring-1 text-xs font-medium transition btn-press ${
                 mySeat.revealedCards[0]
-                  ? "bg-emerald-500/20 ring-emerald-400/40 text-emerald-200"
+                  ? "bg-accent-500/15 ring-accent-400/40 text-accent-200"
                   : "bg-white/5 ring-white/10 text-zinc-300 hover:bg-white/10"
               }`}
             >
@@ -374,7 +406,7 @@ function PhoneGameView({
               onClick={() => onRevealCard(1)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ring-1 text-xs font-medium transition btn-press ${
                 mySeat.revealedCards[1]
-                  ? "bg-emerald-500/20 ring-emerald-400/40 text-emerald-200"
+                  ? "bg-accent-500/15 ring-accent-400/40 text-accent-200"
                   : "bg-white/5 ring-white/10 text-zinc-300 hover:bg-white/10"
               }`}
             >
@@ -420,7 +452,7 @@ function PhoneGameView({
                 key={s.id}
                 className={`flex items-center gap-3 p-2 rounded-xl ring-1 ${
                   winners.includes(s.id)
-                    ? "bg-amber-300/10 ring-amber-300/40"
+                    ? "bg-accent-300/10 ring-accent-300/40"
                     : s.folded
                       ? "bg-white/[0.01] ring-white/5 opacity-50"
                       : "bg-white/[0.02] ring-white/10"
@@ -435,7 +467,7 @@ function PhoneGameView({
                     Fold
                   </span>
                 ) : winners.includes(s.id) ? (
-                  <Crown className="w-4 h-4 text-amber-300" />
+                  <Crown className="w-4 h-4 text-accent-300" />
                 ) : null}
               </li>
             ))}

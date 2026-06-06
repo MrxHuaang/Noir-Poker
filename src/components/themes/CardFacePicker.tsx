@@ -32,18 +32,25 @@ const PREVIEW_CONFIGS: Record<
     glowColor: "rgba(244,63,94,0.25)",
     label: "A",
   },
-  showdown: {
-    bg: "linear-gradient(160deg,#071510,#04090b)",
-    border: "rgba(52,211,153,0.25)",
-    rankColor: "#fbbf24",
-    glowColor: "rgba(251,191,36,0.18)",
+  noir: {
+    bg: "linear-gradient(160deg,#1a1a1e,#050506)",
+    border: "rgba(255,255,255,0.28)",
+    rankColor: "#ededf2",
+    glowColor: "rgba(255,255,255,0.20)",
+    label: "A",
+  },
+  balatro: {
+    bg: "#0e0e16",
+    border: "rgba(106,176,245,0.30)",
+    rankColor: "#6ab0f5",
+    glowColor: "rgba(106,176,245,0.28)",
     label: "A",
   },
 };
 
 export function CardFacePicker({ value, onChange }: Props) {
   return (
-    <ul className="grid grid-cols-4 gap-2">
+    <ul className="grid grid-cols-5 gap-2">
       {CARD_FACE_LIST.map((face) => {
         const selected = face.id === value;
         const cfg = PREVIEW_CONFIGS[face.id];
@@ -55,7 +62,7 @@ export function CardFacePicker({ value, onChange }: Props) {
               title={face.label}
               aria-label={face.label}
               className={`relative w-full aspect-[2/3] rounded-lg ring-1 transition overflow-hidden ${
-                selected ? "ring-emerald-400/70" : "ring-white/10 hover:ring-white/30"
+                selected ? "ring-white/70" : "ring-white/10 hover:ring-white/30"
               }`}
               style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
             >
@@ -83,7 +90,7 @@ export function CardFacePicker({ value, onChange }: Props) {
                 {cfg.label}
               </span>
               {selected ? (
-                <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 text-emerald-950 flex items-center justify-center">
+                <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-white text-black flex items-center justify-center">
                   <Check className="w-2 h-2" />
                 </div>
               ) : null}

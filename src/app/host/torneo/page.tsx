@@ -1,7 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Play, SkipForward, Trophy } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Play, Trophy } from "lucide-react";
+
+const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
+  ssr: false,
+});
 import { useAuth } from "@/hooks/useAuth";
+import { usePresenceMap } from "@/hooks/usePresenceMap";
 import { useNormalLobby, useNormalRoom, useStackRequests } from "@/hooks/useNormalRoom";
 import { useNormalHole } from "@/hooks/useNormalRoom";
 import { useNormalGame } from "@/hooks/useNormalGame";
@@ -15,6 +21,7 @@ import {
   approveJoin,
   patchNormalRoom,
   lobbyToSeats,
+  setHostHeartbeat,
 } from "@/lib/normalRooms";
 import { formatChips, TOURNAMENT_LEVELS } from "@/lib/betting";
 import type {
@@ -36,13 +43,13 @@ import {
 } from "@/lib/tournament";
 import { randomSeed } from "@/lib/dicebear";
 import { TableShell } from "@/components/table/TableShell";
-import { HostDock } from "@/components/host/HostDock";
+import { OptionsMenu } from "@/components/settings/OptionsMenu";
+import { HostSettings } from "@/components/settings/HostSettings";
 import { HostNotifications } from "@/components/host/HostNotifications";
 import { TournamentHUD } from "@/components/host/TournamentHUD";
+import { TournamentPodium } from "@/components/host/TournamentPodium";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
-import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
-import { postPlayerVote } from "@/lib/normalRooms";
 
 const DEFAULT_TORNEO_CONFIG: RoomConfig = {
   mode: "torneo",
@@ -61,6 +68,7 @@ const EMPTY_BETTING: BettingRound = {
   sidePots: [],
   currentBet: 0,
   minRaise: 0,
+  bigBlind: 0,
   toActId: null,
   lastAggressorId: null,
   dealerIdx: -1,
@@ -71,18 +79,20 @@ const EMPTY_BETTING: BettingRound = {
 };
 
 export default function HostTorneoPage() {
-  const { uid, loading } = useAuth();
+  const { uid, loading, profile } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
-  const [dockOpen, setDockOpen] = useState(true);
+  const [dockOpen, setDockOpen] = useState(false);
   const [tournament, setTournament] = useState<TournamentState>(
     initTournamentState(),
   );
+  const [showPodium, setShowPodium] = useState(false);
 
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
   const requests = useStackRequests(code);
+  const presenceMap = usePresenceMap(code);
   const hole = useNormalHole(code, uid);
   const chatMessages = useChat(code);
   const reactions = useReactions(code);
@@ -124,18 +134,54 @@ export default function HostTorneoPage() {
     if (room?.tournament) setTournament(room.tournament as TournamentState);
   }, [room?.tournament]);
 
+  // Lobby liveness + occupancy (same as normal host) so torneo rooms list.
+  useEffect(() => {
+    if (!code || !uid || room?.hostUid !== uid) return;
+    setHostHeartbeat(code).catch(() => {});
+    const id = setInterval(() => setHostHeartbeat(code).catch(() => {}), 15000);
+    return () => clearInterval(id);
+  }, [code, uid, room?.hostUid]);
+
+  useEffect(() => {
+    if (!code || !uid || room?.hostUid !== uid) return;
+    patchNormalRoom(code, { playerCount: lobby.length }).catch(() => {});
+  }, [code, uid, room?.hostUid, lobby.length]);
+
+  // Detect tournament end: started + only 1 player with chips remaining
+  useEffect(() => {
+    if (!tournament.started || showPodium) return;
+    const active = gameState?.seats.filter((s) => s.chips > 0) ?? [];
+    if (active.length === 1 && (gameState?.seats.length ?? 0) > 1) {
+      setShowPodium(true);
+    }
+  }, [tournament.started, showPodium, gameState?.seats]);
+
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(
     () => gameState?.seats.find((s) => s.id === uid) ?? null,
     [gameState, uid],
   );
-  const isMyTurn = !!(gameState && gameState.betting.toActId === uid);
+  const isMyTurn = !!(gameState && mySeat && gameState.betting.toActId === mySeat.id);
   const isAdmin = !!(uid && room?.adminUid === uid);
+
+  // Build podium ranking: winner first, then knockouts in reverse order (last out = 2nd)
+  const podiumRanking = useMemo(() => {
+    if (!gameState) return [];
+    const winner = gameState.seats.find((s) => s.chips > 0);
+    const allSeats = gameState.seats;
+    // knockouts: last element = most recently knocked out = highest finish
+    const knockedOut = [...tournament.knockouts].reverse();
+    const ordered = [
+      ...(winner ? [winner] : []),
+      ...knockedOut.map((id) => allSeats.find((s) => s.id === id)).filter(Boolean),
+    ] as typeof allSeats;
+    return ordered.map((s) => ({ id: s.id, name: s.name, seed: s.seed ?? "" }));
+  }, [showPodium, gameState, tournament.knockouts]);
 
   const config: RoomConfig = room?.config ?? DEFAULT_TORNEO_CONFIG;
   const theme: TableThemeId = (room?.theme as TableThemeId) ?? "sapphire";
   const cardBack: CardBackId = (room?.cardBack as CardBackId) ?? "classic-blue";
-  const cardFace = (room?.cardFace as never) ?? "classic";
+  const roomBg = room?.roomBg ?? "onyx";
   const result = room?.result ?? null;
   const isShowdown = gameState?.phase === "showdown";
   const canDeal = !gameState && lobby.length >= 2 && lobby.length <= 9;
@@ -157,17 +203,20 @@ export default function HostTorneoPage() {
   const betting = gameState?.betting ?? EMPTY_BETTING;
 
   async function handleAction(action: BettingAction, amount?: number) {
-    if (!uid || !code) return;
-    await postPlayerAction(code, uid, action, amount);
+    const seatId = mySeat?.id ?? uid;
+    if (!seatId || !code) return;
+    await postPlayerAction(code, seatId, action, amount);
   }
 
   function updateConfig(newConfig: RoomConfig) {
     if (code) patchNormalRoom(code, { config: newConfig }).catch(() => {});
   }
 
-  function handleJoinAsHost() {
+  function handleJoinAsHost(slotIndex?: number) {
     if (!uid || !code) return;
-    approveJoin(code, uid, "Host", randomSeed(), config.startingStack).catch(() => {});
+    const hostName = profile?.nickname?.trim() || "Host";
+    const hostSeed = profile?.avatarSeed || randomSeed();
+    approveJoin(code, uid, hostName, hostSeed, config.startingStack, slotIndex).catch(() => {});
   }
 
   function togglePause() {
@@ -216,7 +265,7 @@ export default function HostTorneoPage() {
               type="button"
               disabled={!canDeal || isProcessing}
               onClick={handleStartTournament}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 text-emerald-950 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-emerald-500/30 btn-press animate-in zoom-in fade-in duration-500"
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-zinc-900 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-black/40 btn-press animate-in zoom-in fade-in duration-500"
             >
               <Play className="w-5 h-5 fill-current" /> Iniciar torneo
             </button>
@@ -224,7 +273,7 @@ export default function HostTorneoPage() {
           {!lobby.some((p) => p.uid === uid) && (
             <button
               type="button"
-              onClick={handleJoinAsHost}
+              onClick={() => handleJoinAsHost()}
               className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-widest transition btn-press"
             >
               Unirme como jugador
@@ -235,12 +284,12 @@ export default function HostTorneoPage() {
 
       {result && gameState && (
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500">
-          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-amber-400/50 shadow-[0_20px_80px_-20px_rgba(251,191,36,0.5)] flex flex-col items-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-1">
+          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-white/20 shadow-[0_20px_80px_-20px_rgba(255,255,255,0.15)] flex flex-col items-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-1">
               Mano terminada
             </span>
             <h4 className="text-xl font-black text-white flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-amber-400" />
+              <Trophy className="w-5 h-5 text-zinc-300" />
               {result.winners
                 .map((id) => gameState.seats.find((s) => s.id === id)?.name ?? id)
                 .join(" & ")}
@@ -254,29 +303,8 @@ export default function HostTorneoPage() {
     </>
   );
 
-  const adminExtra = (
-    <div className="flex gap-2 mt-3">
-      {isShowdown && !result && (
-        <button
-          type="button"
-          onClick={resolveShowdown}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs uppercase tracking-widest transition shadow-xl animate-pulse"
-        >
-          <Trophy className="w-4 h-4" /> Resolver
-        </button>
-      )}
-      {result && (
-        <button
-          type="button"
-          onClick={startNewHand}
-          disabled={isProcessing}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs uppercase tracking-widest transition shadow-xl"
-        >
-          <SkipForward className="w-4 h-4" /> Siguiente
-        </button>
-      )}
-    </div>
-  );
+  void resolveShowdown; // auto-resolved by useNormalGame after 1.5 s
+  void Trophy; // reserved for centerOverlay
 
   return (
     <>
@@ -292,29 +320,21 @@ export default function HostTorneoPage() {
         ownHole={hole?.cards ?? null}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={cardBack}
-        cardFace={cardFace}
+        cardFace="classic"
+        roomBg={roomBg}
+        presenceMap={presenceMap}
         topLeft={
-          <HostDock
-            code={code}
-            joinUrl={joinUrl}
-            open={dockOpen}
-            onOpen={() => setDockOpen(true)}
-            onClose={() => setDockOpen(false)}
-            config={config}
-            onConfigChange={updateConfig}
-            theme={theme}
-            cardBack={cardBack}
-            cardFace={cardFace}
-            lobby={lobby}
-            requests={requests}
-            gameSeats={gameState?.seats ?? null}
-            locked={room?.locked ?? false}
-            hostUid={room?.hostUid}
-            selfUid={uid}
-            history={history}
-            onAdjustChips={adjustPlayerChips}
-            onSetAllChips={setAllChips}
-            onKick={kickPlayer}
+          <OptionsMenu
+            name={myLobbyEntry?.name ?? profile?.nickname ?? "Host"}
+            seed={myLobbyEntry?.seed}
+            onOpenSettings={() => setDockOpen(true)}
+            onLeave={() => {
+              if (confirm("¿Salir del torneo? Los jugadores perderán el host.")) {
+                window.location.href = "/";
+              }
+            }}
+            leaveLabel="Salir del torneo"
+            badge={requests.filter((r) => r.status === "pending").length}
           />
         }
         topCenter={
@@ -328,10 +348,18 @@ export default function HostTorneoPage() {
         }
         bottomLeft={
           <>
+            {myLobbyEntry && (
+              <VoicePanel
+                code={code}
+                uid={uid}
+                displayName={myLobbyEntry.name}
+                seed={myLobbyEntry.seed}
+              />
+            )}
             <ChatPanel
               code={code}
               uid={uid}
-              name={myLobbyEntry?.name ?? "Host"}
+              name={myLobbyEntry?.name ?? profile?.nickname ?? "Host"}
               seed={myLobbyEntry?.seed ?? ""}
               messages={chatMessages}
             />
@@ -351,29 +379,45 @@ export default function HostTorneoPage() {
               turnTimeMs={config.turnTime}
               hasResult={!!result}
               onAction={handleAction}
-              extra={adminExtra}
             />
-          ) : gameState && (isShowdown || result) ? (
-            <div className="w-[min(420px,92vw)] bg-zinc-900/95 backdrop-blur-xl rounded-[28px] ring-1 ring-white/10 p-4 shadow-2xl">
-              {adminExtra}
-            </div>
           ) : null
         }
         centerOverlay={centerOverlay}
       />
+      {dockOpen && (
+        <HostSettings
+          code={code}
+          joinUrl={joinUrl}
+          onClose={() => setDockOpen(false)}
+          config={config}
+          onConfigChange={updateConfig}
+          theme={theme}
+          cardBack={cardBack}
+          roomBg={roomBg}
+          lobby={lobby}
+          requests={requests}
+          gameSeats={gameState?.seats ?? null}
+          locked={room?.locked ?? false}
+          hostUid={room?.hostUid}
+          selfUid={uid}
+          history={history}
+          onAdjustChips={adjustPlayerChips}
+          onSetAllChips={setAllChips}
+          onKick={kickPlayer}
+        />
+      )}
       <HostNotifications
         requests={requests}
         gameState={gameState}
         result={result}
         onClickRequest={() => setDockOpen(true)}
       />
-      <AllInVoteModal
-        gameState={gameState}
-        selfUid={uid}
-        onVote={(n) => {
-          if (code && uid) postPlayerVote(code, uid, n).catch(() => {});
-        }}
-      />
+      {showPodium && (
+        <TournamentPodium
+          ranking={podiumRanking}
+          onClose={() => { setShowPodium(false); window.location.href = "/"; }}
+        />
+      )}
     </>
   );
 }

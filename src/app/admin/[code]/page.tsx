@@ -55,8 +55,19 @@ export default function AdminTorneoPage() {
   const gs = room?.state ?? null;
   const tournament = room?.tournament ?? null;
   const config = room?.config;
-  const theme = (room?.theme as TableThemeId) ?? "emerald";
+  const theme = (room?.theme as TableThemeId) ?? "noir";
   const t = getTableTheme(theme);
+  const levelDeadline =
+    tournament && config && !tournament.paused
+      ? tournament.levelStartedAt + (config.blindLevelDuration ?? 15 * 60_000)
+      : null;
+  const tickingLevelMs = useCountdown(levelDeadline);
+  const levelMs =
+    tournament && config
+      ? tournament.paused
+        ? tournament.pausedRemaining ?? 0
+        : tickingLevelMs
+      : 0;
 
   // Auto-advance blind level when timer expires
   useEffect(() => {
@@ -86,12 +97,6 @@ export default function AdminTorneoPage() {
   }
 
   const level = tournament && config ? getLevel(tournament, config) : null;
-  const levelMs =
-    tournament && config ? levelTimeRemaining(tournament, config) : 0;
-  const levelDeadline = tournament?.paused
-    ? Date.now() + levelMs
-    : Date.now() + levelMs;
-
   const levels = config?.blindLevels ?? TOURNAMENT_LEVELS;
   const currentLevelIdx = tournament?.currentLevel ?? 0;
 
@@ -170,9 +175,9 @@ export default function AdminTorneoPage() {
                 </div>
               </div>
               {!tournament.paused ? (
-                <LevelCountdown levelDeadline={levelDeadline} />
+                <LevelCountdown levelDeadline={levelDeadline ?? 0} />
               ) : (
-                <span className="tabular-nums font-semibold text-2xl text-amber-300">
+                <span className="tabular-nums font-semibold text-2xl text-accent-300">
                   {formatDuration(levelMs)}
                 </span>
               )}
@@ -254,7 +259,7 @@ export default function AdminTorneoPage() {
                     key={seat.id}
                     className={`flex items-center gap-3 p-3 rounded-2xl ring-1 transition ${
                       gs.betting.toActId === seat.id
-                        ? "bg-emerald-500/10 ring-emerald-400/40"
+                        ? "bg-accent-500/8 ring-accent-400/40"
                         : seat.status === "folded"
                           ? "glass ring-white/5 opacity-50"
                           : seat.status === "out"
@@ -269,12 +274,12 @@ export default function AdminTorneoPage() {
                           {seat.name}
                         </span>
                         {gs.betting.toActId === seat.id && (
-                          <span className="text-[9px] uppercase tracking-widest text-emerald-300 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[9px] uppercase tracking-widest text-accent-300 bg-accent-400/10 px-1.5 py-0.5 rounded-full">
                             Turno
                           </span>
                         )}
                         {seat.status === "all-in" && (
-                          <span className="text-[9px] uppercase tracking-widest text-amber-300 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[9px] uppercase tracking-widest text-accent-300 bg-accent-400/10 px-1.5 py-0.5 rounded-full">
                             All-in
                           </span>
                         )}
@@ -346,7 +351,7 @@ export default function AdminTorneoPage() {
                       key={i}
                       className={`border-b border-white/5 ${
                         i === currentLevelIdx
-                          ? "bg-emerald-500/10 text-zinc-100"
+                          ? "bg-accent-500/8 text-zinc-100"
                           : i < currentLevelIdx
                             ? "opacity-40"
                             : ""
@@ -396,9 +401,9 @@ export default function AdminTorneoPage() {
                     {seat.name}
                   </span>
                   {i === 0 && (
-                    <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                    <Crown className="w-3.5 h-3.5 text-accent-300 shrink-0" />
                   )}
-                  <span className="tabular-nums font-medium text-emerald-300">
+                  <span className="tabular-nums font-medium text-accent-300">
                     {formatChips(seat.chips)}
                   </span>
                 </li>
@@ -444,16 +449,16 @@ export default function AdminTorneoPage() {
                   return (
                     <li
                       key={id}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl glass ring-1 ring-amber-400/10 text-xs"
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl glass ring-1 ring-accent-400/10 text-xs"
                     >
                       <span
                         className={`w-5 text-center font-semibold tabular-nums ${
                           i === 0
-                            ? "text-amber-300"
+                            ? "text-accent-300"
                             : i === 1
                               ? "text-zinc-300"
                               : i === 2
-                                ? "text-amber-600"
+                                ? "text-accent-600"
                                 : "text-zinc-500"
                         }`}
                       >

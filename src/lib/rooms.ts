@@ -81,7 +81,7 @@ export async function createRoom(
       result: null,
       playback: null,
       runHighlight: [],
-      theme: opts?.theme ?? "emerald",
+      theme: opts?.theme ?? "noir",
       mode: opts?.mode ?? "presencial",
     };
     await setDoc(ref, room);
@@ -245,6 +245,7 @@ export type LobbyPlayer = {
   name: string;
   seed: string;
   joinedAt: number;
+  ownerUid?: string | null;
 };
 
 export async function joinLobby(
@@ -252,6 +253,7 @@ export async function joinLobby(
   uid: string,
   name: string,
   seed: string,
+  ownerUid?: string | null,
 ): Promise<void> {
   const db = getDb();
   await setDoc(doc(db, "rooms", code, "lobby", uid), {
@@ -259,6 +261,7 @@ export async function joinLobby(
     name,
     seed,
     joinedAt: Date.now(),
+    ownerUid: ownerUid ?? uid,
   });
 }
 

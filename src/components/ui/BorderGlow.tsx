@@ -9,6 +9,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { ACCENT_GLOW_COLORS } from "@/lib/brand";
 
 export interface BorderGlowProps {
   children?: ReactNode;
@@ -125,14 +126,14 @@ export function BorderGlow({
   children,
   className = "",
   edgeSensitivity = 30,
-  glowColor = "40 80 80",
-  backgroundColor = "#120F17",
+  glowColor = "272 80 74",
+  backgroundColor = "#09070f",
   borderRadius = 28,
   glowRadius = 40,
   glowIntensity = 1.0,
   coneSpread = 25,
   animated = false,
-  colors = ["#c084fc", "#f472b6", "#38bdf8"],
+  colors = ACCENT_GLOW_COLORS,
   fillOpacity = 0.5,
 }: BorderGlowProps) {
   const cardRef = useRef<HTMLDivElement>(null);

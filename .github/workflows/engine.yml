@@ -1,0 +1,45 @@
+name: engine
+
+# Builds + tests the Rust poker engine and produces the WASM package as a CI
+# artifact. Runs on Linux (no Windows Smart App Control to block build scripts),
+# which is the canonical build for the engine. Download the artifact to wire the
+# WASM into the Next app, or have a deploy step consume it.
+
+on:
+  push:
+    paths:
+      - "engine/**"
+      - ".github/workflows/engine.yml"
+  pull_request:
+    paths:
+      - "engine/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable + wasm32)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Unit tests (host)
+        run: cargo test
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM (release)
+        run: wasm-pack build --target web --out-dir pkg
+
+      - name: Upload WASM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: poker-engine-wasm
+          path: engine/pkg

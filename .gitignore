@@ -32,6 +32,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+# also ignore dot-less env files (.env* does NOT match `env.local`)
+env.local
+env*.local
+*.env.local
 
 # vercel
 .vercel
@@ -39,3 +44,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# rust engine (build output; Cargo.lock IS committed for reproducible CI)
+/engine/target
+/engine/pkg

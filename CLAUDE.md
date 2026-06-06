@@ -6,7 +6,13 @@ Project-specific guidance for working in this codebase. Read alongside the globa
 
 Multi-device Texas Hold'em simulator. Big screen runs the table, phones see private hole cards. No betting — visual sim with showdown, equity, all-in run-it-N-times, history, stats.
 
-**Stack**: Next.js 16 (App Router, Turbopack), TS, Tailwind v4, GSAP 3, Firebase Firestore + Anonymous Auth, Web Worker for equity.
+**Stack**: Next.js 16 (App Router, Turbopack), TS, Tailwind v4, GSAP 3, Firebase Firestore + Anonymous Auth, Web Worker for equity. **Rust→WASM** equity engine (`engine/`, powers the host equity panel). **Go authoritative game server** (`server/`) for the trustless online mode, deployed on Render.
+
+## Two backends — pick the right one
+
+- **Legacy host-authoritative mode** (`/play/normal`, `/host/normal`, `useNormalGame`): the host browser runs the game and syncs to Firestore. Has the full feature set (economy/escrow, tournaments, queue/spectators, run-it-twice). UNCHANGED — keep it working.
+- **Server-backed online mode** (`/play/online/[code]`, NEW): the game runs on the **Go server** (`server/`). Client connects via `useGameSocket`/`useServerGame` over `NEXT_PUBLIC_GAME_WS_URL`; the server deals, validates, and pushes per-seat private holes. Trustless. Cash game only for now (no economy/tournaments yet). Voice/chat are mounted by room code, same as legacy. A terminal client (`cli/`) speaks the same protocol.
+- When adding online-mode features, port to the Go server (`server/internal/game`) + the WS protocol — do NOT add game logic to the client. The web client only renders state + sends actions.
 
 ## Repo conventions
 
@@ -19,6 +25,35 @@ Multi-device Texas Hold'em simulator. Big screen runs the table, phones see priv
 - Hooks live under `src/hooks/`.
 - Firestore helpers in `src/lib/rooms.ts`. Don't sprinkle direct `getFirestore()` calls in components.
 
+## Color system (brand accent)
+
+The brand accent is **violet (hue ~290)**. There is ONE knob per layer — never
+hardcode amber/gold/green/blue chrome again.
+
+- **Tailwind classes** → use `accent-*` utilities ONLY: `text-accent-300`,
+  `bg-accent-500/10`, `ring-accent-400/40`, `shadow-accent-700/20`, etc. The
+  full `--color-accent-50…950` scale lives in `globals.css` (`@theme inline`).
+  Do NOT use `amber-*`, `emerald-*` (for chrome), `yellow-*`, or raw hue values.
+- **JS / canvas / inline styles** (BorderGlow `colors`/`glowColor`, Grainient,
+  confetti, card-back gradients) → import from `src/lib/brand.ts`
+  (`ACCENT`, `ACCENT_GLOW_COLORS`, `ACCENT_GLOW_HSL`, `accentAlpha()`). Never
+  inline a hex/rgba/HSL accent literal in a component.
+- **To re-skin the whole app**: change the oklch hue in `globals.css` `@theme`
+  AND the hex ramp in `src/lib/brand.ts`. Those two files are the single source
+  of truth and MUST stay in sync.
+- **Deliberately exempt** (do not force to violet): per-suit card faces
+  (`neon`/`noir`/`balatro` are opt-in cosmetic styles), selectable table felt
+  themes (`emerald`/`amber`/`ruby`/`sapphire` in `themes.ts`), profit/loss
+  semantics (`text-emerald-400` gain / `text-rose-400` loss), and the per-rank
+  identity palette in `RankTowerModal.tsx` `RANK_META` (each rank owns a distinct
+  color — zinc/amber/slate/yellow/red/… — like the card faces; this IS the
+  progression visual, not chrome).
+- **Semantic state colors** (warnings, success/confirmation feedback): use the
+  `warn-*` / `success-*` Tailwind scales (defined in `globals.css` `@theme`), NOT
+  `amber-*` / `emerald-*` directly and NOT `accent-*`. They keep warn vs success
+  distinguishable without borrowing felt-theme hues. Chrome is still always `accent-*`.
+- **Audit before shipping a color change**: `grep -rn "amber-\|emerald-\|#fbbf24\|#34d399\|rgba(251,191,36\|rgba(180,130,40" src` should return only the exempt cases above.
+
 ## Critical files
 
 | File                                          | What it owns                                                  |
@@ -28,12 +63,18 @@ Multi-device Texas Hold'em simulator. Big screen runs the table, phones see priv
 | `src/lib/handLabel.ts`                        | Spanish hand descriptions (e.g. "Par de ases", "Escalera al rey") |
 | `src/lib/rooms.ts`                            | Firestore room CRUD, lobby subcollection, hole subcollection  |
 | `src/lib/firebase.ts`                         | Lazy app/auth/firestore singletons (client-only)              |
+| `src/lib/brand.ts`                            | Canonical accent palette for JS/canvas/inline styles. Mirrors the `accent-*` scale in `globals.css`. |
 | `src/workers/equity.worker.ts`                | Exact + MC equity, multi-run dealer                           |
 | `src/components/table/PokerTable.tsx`         | Orchestrator. Accepts `sync` + `playersOverride` for host mode |
 | `src/components/table/RoundPokerTable.tsx`    | Betting-mode table. Seats use 10 fixed positions. Rotation via `rotationOffset` state. |
 | `src/components/cards/PlayingCard.tsx`        | 3D flip card. Mount-only deal tween + flip tween on `faceUp`. |
 | `src/app/host/page.tsx`                       | Auto-creates room, subscribes lobby, mounts host PokerTable   |
 | `src/app/play/[code]/page.tsx`                | Phone: lobby form, then private game view                     |
+| `server/`                                     | Go authoritative game server. `internal/game` (Betting/Settle/Room), `internal/hub` (WS), `internal/auth` (Firebase token), `internal/session` (wiring). Deployed on Render; CI in `.github/workflows/server.yml`. |
+| `src/hooks/useGameSocket.ts` / `useServerGame.ts` | Client WS to the Go server (state/hole in, start/action/config out). |
+| `src/components/online/ServerTable.tsx` + `src/app/play/online/`  | Server-backed online table UI + routes (create/join + table).  |
+| `engine/`                                     | Rust→WASM equity engine; built in CI, bundled in `src/lib/engine/`, used by `useEquity`. |
+| `cli/`                                        | Terminal poker client (same WS protocol as the web online mode). `npm run play -- CODE Name`. |
 
 ## Animation rules
 
@@ -113,6 +154,22 @@ Firebase calls require a real network. The smoke test path: `/host` → room cod
 - Avoid useEffects that write to Firestore from multiple components — single source of truth lives in `PokerTable`.
 - No emojis in code, comments, UI strings, or commit messages. The Spanish UI copy is intentional; keep it.
 
+## Canal de voz
+
+Voz P2P entre teléfonos en `/play/[code]`. WebRTC + señalización Supabase Realtime.
+NO está en `/host`: la TV no se une al canal (evita feedback con micros cercanos).
+
+- `src/hooks/useVoiceWebRTC.ts` — peer connections. **No tocar** la lógica de glare (uid mayor inicia oferta), el cleanup por `peerUidsKey`, ni el effect race-fix de móvil que agrega tracks tarde y renegocia. Están comentadas en el archivo.
+- `src/hooks/useVoiceRoom.ts` — presence + broadcast `peer-state` vía Supabase. `callId` = `code` del cuarto Firestore.
+- `src/components/voice/VoicePanel.tsx` — UI con opt-in (botón "Unirme a voz") + Wake Lock. **Importado en `play/[code]/page.tsx` con `next/dynamic({ ssr: false })`** porque usa `navigator.mediaDevices`/`RTCPeerConnection`/`AudioContext` que no existen en Node.
+- `src/components/voice/RemoteAudio.tsx` — `<audio>` invisible por peer remoto.
+- `src/hooks/useAudioLevel.ts` — analizador FFT throttled a ~12 fps (no 60) para no fundir batería con N peers.
+- `src/lib/supabaseClient.ts` — cliente singleton. Supabase NO tiene tablas: solo Realtime Broadcast + Presence con anon key.
+
+Bitrate de Opus capeado a 24 kbps via SDP munging + `sender.setParameters()` en `useVoiceWebRTC` — full-mesh con 6-10 peers saturaría redes móviles sin esto.
+
+Setup completo: `docs/voice-setup.md`.
+
 ## Don'ts (learned from prior incidents)
 
 - Don't write a `useEffect` that depends on a `playback` state and calls `setPlayback` from within — it cascades and crashes the tab.
@@ -123,3 +180,9 @@ Firebase calls require a real network. The smoke test path: `/host` → room cod
 - Don't render hole cards as `absolute -top-20 z-0` inside an `overflow-hidden` container — they will be clipped by the table surface. Render them outside the felt element as siblings in the `React.Fragment` and use `z-40`.
 - Don't compare `seat.status` against `'sit-out'` — the correct value in `SeatStatus` is `'sitting-out'`.
 - Don't add `phase` or `allInNegotiation` fields to `RoomState` (in `rooms.ts`) without also updating the `RoomDoc` type and Firestore rules. These fields exist only on `NormalGameState` in `betting.ts`.
+- Don't add `Co-Authored-By: Claude` trailers to commit messages. Write commits as if the owner wrote them.
+- Don't pass an inline object literal (`{ roomCode, ownersMap }`) as a `useEffect` dependency — it creates a new reference on every render and re-fires the effect continuously. Memoize the object at the call site or depend only on the primitive fields (e.g. `sync?.roomCode`).
+- Don't use `el.volume = 0` to mute a remote audio element — the pipeline stays active. Use `el.muted = true` so the browser can suspend decoding and save battery.
+- Don't use `dangerouslySetInnerHTML` for SVG output from third-party libraries (e.g. DiceBear). Render via `<img src={\`data:image/svg+xml,${encodeURIComponent(svg)}\`} alt="" />` instead to eliminate the XSS surface.
+- Don't write CSS values in inline `style` objects with underscores instead of spaces (e.g. `"0 12px_32px"` is invalid — shadows will be silently ignored).
+- Don't default boolean UI flags like `allInVoteOpen` to `true` when the safe/closed state is `false` — an inverted default causes modals to flash open on every page load.

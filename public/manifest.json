@@ -1,0 +1,26 @@
+{
+  "name": "Noir Poker",
+  "short_name": "Noir",
+  "description": "Texas Hold'em multi-dispositivo. Mesas públicas y privadas, modo presencial y torneo.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#06070a",
+  "theme_color": "#06070a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1536x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "lang": "es"
+}

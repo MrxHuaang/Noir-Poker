@@ -46,12 +46,26 @@ export function makeDeck(): Card[] {
   return deck;
 }
 
+// Parse a card id like "AS" / "TD" back into a Card. Returns null if malformed.
+// Used to rebuild stored community cards (string ids) for the hand replayer.
+export function cardFromId(id: string): Card | null {
+  if (typeof id !== "string" || id.length < 2) return null;
+  const suit = id.slice(-1) as Suit;
+  const rank = id.slice(0, -1) as Rank;
+  if (!SUITS.includes(suit) || !RANKS.includes(rank)) return null;
+  return { rank, suit, id };
+}
+
 export function shuffle<T>(arr: T[]): T[] {
   const out = arr.slice();
   const rand = new Uint32Array(1);
   for (let i = out.length - 1; i > 0; i--) {
-    crypto.getRandomValues(rand);
-    const j = rand[0] % (i + 1);
+    // Rejection sampling eliminates modulo bias: discard values in the
+    // remainder region [max, 2^32) so each index in [0, range) is equally likely.
+    const range = i + 1;
+    const max = Math.floor(0x100000000 / range) * range;
+    do { crypto.getRandomValues(rand); } while (rand[0] >= max);
+    const j = rand[0] % range;
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;

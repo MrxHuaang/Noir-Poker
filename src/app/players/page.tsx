@@ -9,6 +9,7 @@ import { useHistory } from "@/hooks/useHistory";
 import { PlayerForm } from "@/components/players/PlayerForm";
 import { PlayerList } from "@/components/players/PlayerList";
 import { BorderGlow } from "@/components/ui/BorderGlow";
+import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 
 export default function PlayersPage() {
   const { players, add, update, remove, hydrated } = usePlayers();
@@ -32,25 +33,25 @@ export default function PlayersPage() {
       <header className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl tracking-tight text-zinc-100">Jugadores</h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-sm text-muted mt-1">
             Roster local. Persistido en este navegador.
           </p>
         </div>
         {hydrated && canPlay ? (
-          <Link href="/" className="group block">
+          <Link href="/host" className="group block">
             <BorderGlow
               edgeSensitivity={32}
-              glowColor="152 62 50"
-              backgroundColor="rgba(6, 52, 40, 0.82)"
+              glowColor={ACCENT_GLOW_HSL}
+              backgroundColor="rgba(9,7,16,0.85)"
               borderRadius={999}
               glowRadius={18}
               glowIntensity={1}
               coneSpread={28}
               animated={false}
-              colors={["#34d399", "#6ee7b7", "#2dd4bf"]}
+              colors={ACCENT_GLOW_COLORS}
               fillOpacity={0.42}
             >
-              <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-50 transition group-hover:text-white">
+              <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent-200 transition group-hover:text-white">
                 Ir a la mesa
                 <ArrowRight className="w-4 h-4" />
               </span>
@@ -59,22 +60,23 @@ export default function PlayersPage() {
         ) : null}
       </header>
       <BorderGlow
-        className="w-full"
+        className="w-full lg-blur"
         edgeSensitivity={24}
-        glowColor="210 50 48"
-        backgroundColor="rgba(10, 11, 16, 0.88)"
+        glowColor={ACCENT_GLOW_HSL}
+        backgroundColor="var(--lg-bg)"
         borderRadius={18}
         glowRadius={26}
         glowIntensity={0.92}
         coneSpread={26}
         animated={false}
-        colors={["#34d399", "#60a5fa", "#94a3b8"]}
+        colors={ACCENT_GLOW_COLORS}
         fillOpacity={0.38}
       >
         <PlayerForm
           editing={editing}
           onSubmit={onSubmit}
           onCancel={() => setEditing(null)}
+          existingNames={players.map((p) => p.name)}
         />
       </BorderGlow>
       {hydrated ? (
@@ -91,20 +93,20 @@ export default function PlayersPage() {
           />
           {canPlay ? (
             <div className="flex items-center justify-center pt-2">
-              <Link href="/" className="group block">
+              <Link href="/host" className="group block">
                 <BorderGlow
                   edgeSensitivity={32}
-                  glowColor="152 62 50"
-                  backgroundColor="rgba(6, 52, 40, 0.82)"
+                  glowColor={ACCENT_GLOW_HSL}
+                  backgroundColor="rgba(9, 7, 16, 0.82)"
                   borderRadius={999}
                   glowRadius={18}
                   glowIntensity={1}
                   coneSpread={28}
                   animated={false}
-                  colors={["#34d399", "#6ee7b7", "#2dd4bf"]}
+                  colors={ACCENT_GLOW_COLORS}
                   fillOpacity={0.42}
                 >
-                  <span className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-emerald-50 transition group-hover:text-white">
+                  <span className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-accent-200 transition group-hover:text-white">
                     Ir a la mesa ({players.length} jugadores)
                     <ArrowRight className="w-4 h-4" />
                   </span>
@@ -112,13 +114,13 @@ export default function PlayersPage() {
               </Link>
             </div>
           ) : players.length === 1 ? (
-            <p className="text-center text-xs text-zinc-500">
+            <p className="text-center text-xs text-muted">
               Agrega 1 jugador más para poder jugar.
             </p>
           ) : null}
         </>
       ) : (
-        <div className="text-sm text-zinc-500 py-8 text-center">Cargando…</div>
+        <div className="text-sm text-muted py-8 text-center">Cargando…</div>
       )}
     </div>
   );

@@ -50,7 +50,7 @@ export function AllInModal({
                 onClick={() => setN(p)}
                 className={`min-w-[2.6rem] px-3 py-1.5 rounded-full ring-1 text-sm transition ${
                   N === p
-                    ? "bg-amber-300 ring-amber-200 text-amber-950"
+                    ? "bg-accent ring-accent text-accent-contrast"
                     : "bg-white/5 ring-white/10 text-zinc-200 hover:bg-white/10"
                 }`}
               >

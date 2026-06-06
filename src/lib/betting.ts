@@ -1,5 +1,6 @@
 import type { Card } from "./poker";
 import { shuffle, makeDeck } from "./poker";
+import { clamp } from "./num";
 
 export type SeatStatus =
   | "waiting"
@@ -36,6 +37,8 @@ export type NormalSeat = {
   status: SeatStatus;
   timeBank: number;
   turnDeadline: number | null;
+  // Physical slot preference (0-8 around the ellipse, independent of view rotation).
+  preferredSlot?: number;
 };
 
 export type BettingRound = {
@@ -43,6 +46,7 @@ export type BettingRound = {
   sidePots: SidePot[];
   currentBet: number;
   minRaise: number;
+  bigBlind: number;
   toActId: string | null;
   lastAggressorId: string | null;
   dealerIdx: number;
@@ -73,6 +77,9 @@ export type NormalGameState = {
     playerIds: string[];
     votes: Record<string, number>; // uid -> number of runs requested
     agreedN?: number;
+    options?: number[];
+    createdAt?: number;
+    equity?: Record<string, number>;
   };
   lastAction?: {
     seatId: string;
@@ -307,6 +314,7 @@ export function startHand(
       sidePots: [],
       currentBet: bbAmt,
       minRaise: bb,
+      bigBlind: bb,
       toActId: resolvedToActId,
       lastAggressorId: newSeats[bbIdx].id,
       dealerIdx,
@@ -325,6 +333,9 @@ export function handleAction(
   amount = 0,
 ): NormalGameState {
   if (state.betting.toActId !== seatId) return state;
+  // Reject non-finite or negative amounts up front: a NaN/Infinity reaching
+  // Math.min below would poison chips/pot, and negatives are never valid.
+  if (!Number.isFinite(amount) || amount < 0) return state;
 
   const seats = state.seats.map((s) => ({ ...s }));
   const bet = { ...state.betting };
@@ -354,6 +365,9 @@ export function handleAction(
     case "bet": {
       const betAmt = Math.min(amount, seat.chips);
       if (betAmt <= 0) return state;
+      // Sub-minimum opening bets are illegal unless the player is going all-in.
+      const isAllIn = betAmt === seat.chips;
+      if (!isAllIn && betAmt < bet.minRaise) return state;
       seat.chips -= betAmt;
       seat.bet += betAmt;
       seat.totalBet += betAmt;
@@ -367,19 +381,28 @@ export function handleAction(
     }
 
     case "raise": {
-      const raiseTotal = Math.min(amount, seat.chips + seat.bet);
+      const maxTotal = seat.chips + seat.bet;
+      const raiseTotal = Math.min(amount, maxTotal);
       const raiseIncrease = raiseTotal - seat.bet;
       if (raiseIncrease <= 0) return state;
+      const isAllIn = raiseTotal === maxTotal;
+      const minRaiseTotal = bet.currentBet + bet.minRaise;
+      // A legal raise must reach at least minRaiseTotal. A short all-in (the
+      // player commits every chip) is allowed below that; anything else is an
+      // illegal under-raise and is rejected.
+      if (!isAllIn && raiseTotal < minRaiseTotal) return state;
       seat.chips -= raiseIncrease;
-      const prevBet = seat.bet;
       seat.bet = raiseTotal;
       seat.totalBet += raiseIncrease;
       bet.pot += raiseIncrease;
-      bet.minRaise = raiseTotal - bet.currentBet;
-      bet.currentBet = raiseTotal;
-      bet.lastAggressorId = seatId;
-      bet.actedThisRound = [seatId];
-      void prevBet;
+      // Only re-open the action if the total actually exceeds the current bet.
+      // A short all-in for less than currentBet must not lower it.
+      if (raiseTotal > bet.currentBet) {
+        bet.minRaise = raiseTotal - bet.currentBet;
+        bet.currentBet = raiseTotal;
+        bet.lastAggressorId = seatId;
+        bet.actedThisRound = [seatId];
+      }
       if (seat.chips === 0) seat.status = "all-in";
       break;
     }
@@ -532,7 +555,7 @@ function advanceStreet(state: NormalGameState): NormalGameState {
   const newBetting: BettingRound = {
     ...betting,
     currentBet: 0,
-    minRaise: betting.minRaise,
+    minRaise: betting.bigBlind || betting.minRaise,
     toActId,
     actedThisRound: [],
     sidePots: computeSidePots(newSeats, betting.pot),
@@ -571,7 +594,7 @@ export function computeSidePots(
     let potAmt = 0;
 
     for (const s of seats) {
-      const contribution = Math.min(Math.max(0, s.totalBet - prev), tier);
+      const contribution = clamp(s.totalBet - prev, 0, tier);
       potAmt += contribution;
     }
 
@@ -645,4 +668,33 @@ export function formatChips(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
   return String(n);
+}
+
+// Split a pot across N board run-outs with zero chip leakage.
+// Per-run pots sum to exactly totalPot (the last run absorbs the remainder),
+// and within each run the leftover from an uneven split goes to the first
+// winner — mirroring the single-showdown distribution in resolveShowdown.
+export function distributeRunPot(
+  totalPot: number,
+  runs: { winners: string[] }[],
+): { winningsByPlayer: Record<string, number>; perRunPot: number[] } {
+  const winningsByPlayer: Record<string, number> = {};
+  const perRunPot: number[] = [];
+  const n = runs.length;
+  if (n === 0) return { winningsByPlayer, perRunPot };
+
+  const runShare = Math.floor(totalPot / n);
+  for (let r = 0; r < n; r++) {
+    const runPot = r === n - 1 ? totalPot - runShare * (n - 1) : runShare;
+    perRunPot.push(runPot);
+    const winners = runs[r].winners;
+    if (winners.length === 0) continue;
+    const share = Math.floor(runPot / winners.length);
+    const remainder = runPot - share * winners.length;
+    winners.forEach((w, i) => {
+      winningsByPlayer[w] =
+        (winningsByPlayer[w] ?? 0) + share + (i === 0 ? remainder : 0);
+    });
+  }
+  return { winningsByPlayer, perRunPot };
 }

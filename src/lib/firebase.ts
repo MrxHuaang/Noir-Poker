@@ -1,6 +1,11 @@
 "use client";
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  GithubAuthProvider,
+  type Auth,
+} from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -35,4 +40,14 @@ export function getDb(): Firestore {
   if (_db) return _db;
   _db = getFirestore(getFirebaseApp());
   return _db;
+}
+
+export function googleProvider(): GoogleAuthProvider {
+  const p = new GoogleAuthProvider();
+  p.setCustomParameters({ prompt: "select_account" });
+  return p;
+}
+
+export function githubProvider(): GithubAuthProvider {
+  return new GithubAuthProvider();
 }

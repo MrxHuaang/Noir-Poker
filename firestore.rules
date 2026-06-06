@@ -11,14 +11,55 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/normalRooms/$(code)).data.hostUid == request.auth.uid;
     }
 
+    // Cuentas de usuario: perfil, wallet, progresion, stats.
+    //
+    // AUTORIDAD SERVER-SIDE: coins / escrows / xp / level / stats SOLO los
+    // escribe el backend (Admin SDK en /api/economy, que ignora estas reglas).
+    // El cliente jamas puede crear el perfil ni tocar el wallet/XP: solo puede
+    // EDITAR su apodo y avatar. Esto cierra de raiz la acunacion de monedas y
+    // la forja de XP/stats; las reglas son la red de seguridad que garantiza
+    // que ninguna escritura sensible del cliente pase.
+    match /users/{uid} {
+      // Perfil legible por usuarios autenticados (apodo / avatar / rango / wallet).
+      // Nota: para ocultar el email a terceros, moverlo a una subcoleccion
+      // privada users/{uid}/private (las reglas de lectura son por documento).
+      allow read: if isSignedIn();
+
+      // El perfil lo crea el servidor (Admin SDK). El cliente no crea.
+      allow create: if false;
+
+      // El cliente solo puede editar campos cosmeticos de su propio perfil.
+      // coins / escrows / xp / level / title / stats quedan fuera de su alcance.
+      allow update: if isSignedIn()
+                    && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['nickname', 'displayName', 'avatarSeed']);
+
+      match /history/{id} {
+        // Historial privado del dueno. Lo escribe el servidor (Admin SDK).
+        allow read: if isSignedIn() && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+
     // Legacy presencial rooms
     match /rooms/{code} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
                     && request.resource.data.hostUid == request.auth.uid;
+      // The host owns the room doc. A non-host may only patch 'state' (phones
+      // claim a seat / reveal their own cards via state.seats), and only if they
+      // are a participant — i.e. they hold a lobby entry in this room. This shrinks
+      // the surface from "any signed-in user can overwrite any room's state" to
+      // "only someone seated here can". Per-field/array validation isn't expressible
+      // in rules for the seats array; the full fix is moving per-seat writes into a
+      // subcollection (presencial-mode refactor), tracked separately.
       allow update: if isSignedIn() && (
         resource.data.hostUid == request.auth.uid ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
+          && exists(/databases/$(database)/documents/rooms/$(code)/lobby/$(request.auth.uid))
+        )
       );
 
       match /lobby/{uid} {
@@ -37,6 +78,13 @@ service cloud.firestore {
       }
     }
 
+    // Libro de suma cero por sala (totalIn / totalOut). Lo escribe SOLO el
+    // backend (Admin SDK, que ignora estas reglas) en /api/economy. Cerrado al
+    // cliente: ni lee el bote ni puede tocar el tope de pago.
+    match /roomLedgers/{code} {
+      allow read, write: if false;
+    }
+
     // Normal + Tournament rooms
     match /normalRooms/{code} {
       allow read: if isSignedIn();
@@ -44,15 +92,43 @@ service cloud.firestore {
                     && request.resource.data.hostUid == request.auth.uid
                     && request.resource.data.adminUid == request.auth.uid;
       // Host owns config/state/result/locked/theme/tournament/pendingRebuys.
-      // Other players can only write a pendingAction whose seatId is their own uid.
+      // Players may write their own pendingAction or cast an all-in vote.
       allow update: if isSignedIn() && (
         resource.data.hostUid == request.auth.uid ||
         (
+          // PendingAction: seatId must equal the caller's uid; validate action type.
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingAction'])
           && request.resource.data.pendingAction.seatId == request.auth.uid
+          && request.resource.data.pendingAction.action in [
+               'fold','check','call','bet','raise','all-in','show-card','vote-run'
+             ]
+          && (
+               !('amount' in request.resource.data.pendingAction)
+               || (
+                    request.resource.data.pendingAction.amount is int
+                    && request.resource.data.pendingAction.amount >= 0
+                  )
+             )
         ) ||
-        // Voting on all-in negotiation: only own vote key
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
+        (
+          // All-in vote: may only change own key inside state.allInNegotiation.votes.
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state'])
+          && resource.data.state != null
+          && request.resource.data.state != null
+          && request.resource.data.state.diff(resource.data.state)
+               .affectedKeys().hasOnly(['allInNegotiation'])
+          && resource.data.state.allInNegotiation != null
+          && request.resource.data.state.allInNegotiation != null
+          && resource.data.state.allInNegotiation.keys().hasAll(['votes'])
+          && request.resource.data.state.allInNegotiation
+               .diff(resource.data.state.allInNegotiation)
+               .affectedKeys().hasOnly(['votes'])
+          && request.resource.data.state.allInNegotiation.votes
+               .diff(resource.data.state.allInNegotiation.votes)
+               .affectedKeys().hasOnly([request.auth.uid])
+          && request.resource.data.state.allInNegotiation.votes
+               .get(request.auth.uid, null) is number
+        )
       );
 
       match /lobby/{uid} {
@@ -77,13 +153,15 @@ service cloud.firestore {
 
       match /stackRequests/{uid} {
         allow read: if isSignedIn();
+        // Validated create/update for own requests
         allow create, update: if isSignedIn() && request.auth.uid == uid
           && request.resource.data.uid == uid
           && request.resource.data.requestedStack is number
           && request.resource.data.requestedStack > 0
           && request.resource.data.requestedStack <= 1000000;
-        // Host resolves requests; player can dismiss their own
-        allow update, delete: if isHost(code) || (isSignedIn() && request.auth.uid == uid);
+        // Host resolves; player can delete their own
+        allow update, delete: if isHost(code);
+        allow delete: if isSignedIn() && request.auth.uid == uid;
       }
 
       match /chat/{msgId} {
@@ -110,6 +188,33 @@ service cloud.firestore {
         allow read: if isSignedIn();
         // Only host writes hand records
         allow create, update, delete: if isHost(code);
+      }
+
+      match /presence/{uid} {
+        allow read: if isSignedIn();
+        // Players write own heartbeats (online: true) or graceful disconnects (online: false)
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && request.resource.data.online is bool;
+        allow delete: if isSignedIn() && request.auth.uid == uid;
+      }
+
+      match /waitQueue/{uid} {
+        allow read: if isSignedIn();
+        // Players manage their own queue entry; the host can remove it (promote/clear).
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid;
+        allow delete: if isSignedIn() && (request.auth.uid == uid || isHost(code));
+      }
+
+      match /spectators/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid;
+        allow delete: if isSignedIn() && (request.auth.uid == uid || isHost(code));
       }
     }
   }

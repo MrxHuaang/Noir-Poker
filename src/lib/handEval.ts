@@ -1,6 +1,6 @@
 import type { Card, Rank } from "./poker";
 
-const RANK_VAL: Record<Rank, number> = {
+export const RANK_VAL: Record<Rank, number> = {
   "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
   T: 10, J: 11, Q: 12, K: 13, A: 14,
 };
@@ -82,6 +82,7 @@ export function compareScore(a: Score, b: Score): number {
 }
 
 export function bestHand(cards: Card[]): Score {
+  if (cards.length < 5) throw new Error(`bestHand requires at least 5 cards, got ${cards.length}`);
   let best: Score | null = null;
   for (const c of combos(cards, 5)) {
     const s = eval5(c);

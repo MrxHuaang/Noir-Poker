@@ -10,14 +10,30 @@ import type { NormalRoomDoc, PendingAction, NormalLobbyPlayer } from "@/lib/norm
 import {
   lobbyToSeats,
   patchNormalRoom,
+  patchLobbyPlayer,
   kickFromLobby,
   writeNormalDealt,
 } from "@/lib/normalRooms";
-import { showdown, bestHand, compareScore, categoryFor } from "@/lib/handEval";
+import { showdown, bestHand, compareScore } from "@/lib/handEval";
 import type { Category } from "@/lib/handEval";
 import { writeHandRecord } from "@/lib/handHistory";
-import type { Card, GameState } from "@/lib/poker";
-import { advance } from "@/lib/poker";
+import type { Card } from "@/lib/poker";
+import { makeDeck, shuffle } from "@/lib/poker";
+import {
+  chooseRunCount,
+  maxRunCountForState,
+  resolveRunItN,
+  runOptionsForState,
+  type RunItRun,
+} from "@/lib/runIt";
+
+export type RunRecord = {
+  community: Card[];
+  winners: string[];
+  category: Category;
+} & Partial<RunItRun>;
+
+const ALL_IN_VOTE_TIMEOUT_MS = 8_000;
 
 export type RunRecord = {
   community: Card[];
@@ -32,6 +48,82 @@ function sleep(ms: number): Promise<void> {
 function toPublicState(gs: NormalGameState) {
   const { deck, ...rest } = gs;
   return { ...rest, deckCount: deck.length };
+}
+
+function withRunoutDeck(
+  state: NormalGameState,
+  holeCards: Record<string, [Card, Card]>,
+  runCount: number,
+): NormalGameState {
+  const needed = runCount * (state.street === "preflop" ? 8 : state.street === "flop" ? 4 : state.street === "turn" ? 2 : 0);
+  if (needed === 0 || state.deck.length >= needed) return state;
+
+  const known = new Set<string>();
+  for (const c of state.community) known.add(c.id);
+  for (const c of state.burns) known.add(c.id);
+  for (const h of Object.values(holeCards)) {
+    known.add(h[0].id);
+    known.add(h[1].id);
+  }
+
+  return {
+    ...state,
+    deck: shuffle(makeDeck()).filter((c) => !known.has(c.id)),
+  };
+}
+
+function shuffled<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function estimateAllInEquity(
+  state: NormalGameState,
+  playerIds: string[],
+  holeCards: Record<string, [Card, Card]>,
+  trials = 700,
+): Record<string, number> {
+  const equity: Record<string, number> = {};
+  for (const id of playerIds) equity[id] = 0;
+
+  const knownIds = new Set(state.community.map((c) => c.id));
+  for (const id of playerIds) {
+    const hole = holeCards[id];
+    if (!hole) continue;
+    knownIds.add(hole[0].id);
+    knownIds.add(hole[1].id);
+  }
+
+  const deck = state.deck.filter((c) => !knownIds.has(c.id));
+  const missing = Math.max(0, 5 - state.community.length);
+  const runnableTrials = Math.max(1, trials);
+
+  for (let i = 0; i < runnableTrials; i++) {
+    const board = [...state.community, ...shuffled(deck).slice(0, missing)];
+    const scores: Record<string, number[]> = {};
+    for (const id of playerIds) {
+      const hole = holeCards[id];
+      if (hole) scores[id] = bestHand([...hole, ...board]);
+    }
+    const scored = playerIds.filter((id) => scores[id]);
+    if (scored.length === 0) continue;
+    let best = scores[scored[0]];
+    for (const id of scored) {
+      if (compareScore(scores[id], best) > 0) best = scores[id];
+    }
+    const winners = scored.filter((id) => compareScore(scores[id], best) === 0);
+    const share = 1 / winners.length;
+    for (const id of winners) equity[id] += share;
+  }
+
+  for (const id of playerIds) {
+    equity[id] = Math.round((equity[id] / runnableTrials) * 100);
+  }
+  return equity;
 }
 
 type UseNormalGameReturn = {
@@ -56,6 +148,7 @@ export function useNormalGame(
   const [gameState, setGameState] = useState<NormalGameState | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [runs, setRuns] = useState<RunRecord[] | null>(null);
+  const [negotiationTick, setNegotiationTick] = useState(0);
   const handNumRef = useRef(0);
   const dealerIdxRef = useRef(-1);
   const isAdminRef = useRef(false);
@@ -65,13 +158,26 @@ export function useNormalGame(
   const allInTriggeredHandRef = useRef<number>(-1);
   // Tracks which hand's all-in run was already started, prevents finalize re-entry.
   const allInRanHandRef = useRef<number>(-1);
+  // Tracks which hand was fully resolved via run-it-N.
+  // Prevents the auto-resolve-showdown effect from firing before room?.result
+  // arrives from Firestore (race condition: isProcessing=false but Firestore
+  // snapshot not yet delivered → resolveShowdown() would overwrite run result).
+  const runItNResolvedHandRef = useRef<number>(-1);
+  const resolvingShowdownHandRef = useRef<number>(-1);
+  const resolvedShowdownHandRef = useRef<number>(-1);
+  const autoStartedAfterResultHandRef = useRef<number>(-1);
 
   const dismissRuns = useCallback(() => setRuns(null), []);
 
   const startNewHand = useCallback(async () => {
     if (!code || !isAdminRef.current) return;
+    setRuns(null);
     const ownersMap: Record<string, string | null> = {};
-    for (const p of lobby) ownersMap[p.uid] = p.uid;
+    const pubKeyByOwner: Record<string, string | undefined> = {};
+    for (const p of lobby) {
+      ownersMap[p.uid] = p.uid;
+      pubKeyByOwner[p.uid] = p.pubKey;
+    }
 
     const cfgFallback: RoomConfig = {
       mode: "normal", startingStack: 1000, smallBlind: 5, bigBlind: 10,
@@ -148,11 +254,20 @@ export function useNormalGame(
 
     dealtHolesRef.current = newHoleCards;
     setGameState(finalState);
-    await writeNormalDealt(code, finalState, newHoleCards, ownersMap);
+    await writeNormalDealt(code, finalState, newHoleCards, ownersMap, pubKeyByOwner);
   }, [code, gameState, lobby, room?.config, room?.pendingRebuys]);
 
   const resolveShowdown = useCallback(async () => {
     if (!gameState || !code) return;
+    const handNum = gameState.betting.handNum;
+    if (
+      resolvingShowdownHandRef.current === handNum ||
+      resolvedShowdownHandRef.current === handNum ||
+      runItNResolvedHandRef.current === handNum
+    ) {
+      return;
+    }
+    resolvingShowdownHandRef.current = handNum;
 
     const activeSeatIds = gameState.seats
       .filter((s) => s.status !== "folded" && s.status !== "out")
@@ -169,7 +284,10 @@ export function useNormalGame(
       .filter(Boolean) as { player: { id: string }; hole: [Card, Card]; folded: boolean }[];
 
     const result = showdown(handShodownSeats, gameState.community);
-    if (!result) return;
+    if (!result) {
+      resolvingShowdownHandRef.current = -1;
+      return;
+    }
 
     // Distribute pots
     const sidePots = computeSidePots(
@@ -230,11 +348,18 @@ export function useNormalGame(
       }
     }
 
-    await patchNormalRoom(code, {
-      state: toPublicState(newState),
-      result: { ...result, chips: newChips },
-      revealedHoles,
-    });
+    try {
+      await patchNormalRoom(code, {
+        state: toPublicState(newState),
+        result: { ...result, chips: newChips },
+        revealedHoles,
+        runResults: null,
+      });
+      resolvedShowdownHandRef.current = handNum;
+    } catch {
+      resolvingShowdownHandRef.current = -1;
+      return;
+    }
 
     // Record hand for history
     const winnerInfo = result.winners.map((id) => {
@@ -246,12 +371,17 @@ export function useNormalGame(
         amount: Math.max(0, after - before),
       };
     });
+    const participated = gameState.seats.filter((s) =>
+      s.status === "active" || s.status === "all-in" || s.status === "folded",
+    );
     writeHandRecord(code, {
       handNum: gameState.betting.handNum,
       winners: winnerInfo,
       category: result.category,
       pot: gameState.betting.pot,
       community: gameState.community.map((c) => c.id),
+      dealtIds: participated.map((s) => s.id),
+      showdownIds: Object.keys(revealedHoles),
     }).catch(() => {});
   }, [gameState, code, holeCards]);
 
@@ -276,6 +406,7 @@ export function useNormalGame(
   const setAllChips = useCallback(
     (amount: number) => {
       if (!code) return;
+      // Update game seats when a hand is active
       setGameState((prev) => {
         if (!prev) return prev;
         const seats = prev.seats.map((s) =>
@@ -287,8 +418,13 @@ export function useNormalGame(
         patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {});
         return next;
       });
+      // Always also update lobby chips so pre-game players and the lobby list
+      // both reflect the change immediately (fixes BUG-004: no game state yet).
+      for (const p of lobby) {
+        patchLobbyPlayer(code, p.uid, { chips: amount }).catch(() => {});
+      }
     },
-    [code],
+    [code, lobby],
   );
 
   const kickPlayer = useCallback(
@@ -320,6 +456,33 @@ export function useNormalGame(
     void _dc;
     setGameState({ ...rest, deck: [] } as NormalGameState);
   }, [room?.state]);
+
+  const remoteRunVotes = room?.state?.allInNegotiation?.votes;
+  const remoteRunVotesKey = remoteRunVotes ? JSON.stringify(remoteRunVotes) : "";
+
+  // The admin owns the local deck, but players write run-it-N votes directly to
+  // Firestore. Merge only the vote map back into the admin state.
+  useEffect(() => {
+    if (!isAdminRef.current || !remoteRunVotes || !room?.state?.allInNegotiation) return;
+    setGameState((prev) => {
+      if (!prev?.allInNegotiation) return prev;
+      if (prev.betting.handNum !== room.state?.betting.handNum) return prev;
+      const mergedVotes = { ...prev.allInNegotiation.votes, ...remoteRunVotes };
+      const changed =
+        Object.keys(mergedVotes).length !== Object.keys(prev.allInNegotiation.votes).length ||
+        Object.entries(mergedVotes).some(
+          ([playerId, vote]) => prev.allInNegotiation?.votes[playerId] !== vote,
+        );
+      if (!changed) return prev;
+      return {
+        ...prev,
+        allInNegotiation: {
+          ...prev.allInNegotiation,
+          votes: mergedVotes,
+        },
+      };
+    });
+  }, [remoteRunVotes, remoteRunVotesKey, room?.state?.allInNegotiation, room?.state?.betting.handNum]);
 
   // Admin: process pending actions from players
   useEffect(() => {
@@ -415,297 +578,232 @@ export function useNormalGame(
     }, 0);
   }, [room?.pendingAction, code, gameState, room?.config, room?.revealedHoles]);
 
-  // Admin: auto-resolve when phase reaches showdown
+  // Admin: auto-resolve when phase reaches showdown.
+  // Guard: skip if this hand was resolved via run-it-N — Firestore snapshot with
+  // the result may not have arrived yet, so room?.result is momentarily null even
+  // though the result was already written.  Without this guard, resolveShowdown()
+  // fires and overwrites the run-it-N result (race condition).
   useEffect(() => {
     if (!isAdminRef.current || !gameState || !code || isProcessing) return;
     if (gameState.phase !== "showdown") return;
     if (room?.result) return;
+    if (runItNResolvedHandRef.current === gameState.betting.handNum) return;
     const t = setTimeout(() => {
       void resolveShowdown();
     }, 1500);
     return () => clearTimeout(t);
   }, [gameState, code, isProcessing, room?.result, resolveShowdown]);
 
-  // Admin: auto next hand — DISABLED: host manually clicks "Siguiente"
-  // useEffect(() => {
-  //   if (!isAdminRef.current || !code) return;
-  //   if (!room?.result) return;
-  //   const remainingPlayers = (room.state?.seats ?? []).filter(
-  //     (s) => s.status !== "out" && s.chips > 0,
-  //   ).length;
-  //   if (remainingPlayers < 2) return;
-  //   const t = setTimeout(() => { void startNewHand(); }, 6000);
-  //   return () => clearTimeout(t);
-  // }, [room?.result, room?.state?.seats, code, startNewHand]);
-
-  // Admin: Auto-advance street if round is complete or all-in
+  // Admin: auto-deal next hand after showing the result for 5 s.
+  // Skips if fewer than 2 players remain (tournament over) or if already processing.
   useEffect(() => {
-    if (!isAdminRef.current || !gameState || !code || isProcessing) return;
+    if (!isAdminRef.current || !code) return;
+    if (!room?.result) return;
+    if (isProcessing) return;
+    const handNum = room.state?.betting.handNum;
+    if (!handNum || autoStartedAfterResultHandRef.current === handNum) return;
+    const remainingPlayers = (room.state?.seats ?? []).filter(
+      (s) => s.status !== "out" && s.chips > 0,
+    ).length;
+    if (remainingPlayers < 2) return;
+    const t = setTimeout(() => {
+      if (autoStartedAfterResultHandRef.current === handNum) return;
+      autoStartedAfterResultHandRef.current = handNum;
+      void startNewHand();
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [room?.result, room?.state?.seats, room?.state?.betting.handNum, code, isProcessing, startNewHand]);
+
+  // Admin: negotiate and execute run-it-N when all remaining players are all-in
+  // or no player has further betting action.
+  useEffect(() => {
+    if (!isAdminRef.current || !gameState || !code) return;
     if (gameState.phase === "showdown" || gameState.phase === "between-hands") return;
 
-    // Check if everyone is all-in or folded except one
+    const unfolded = gameState.seats.filter((s) => s.status !== "folded" && s.status !== "out");
+    if (unfolded.length <= 1) return;
+    if (gameState.betting.toActId !== null) return;
+
+    if (gameState.street === "river") {
+      if (!isProcessing) void resolveShowdown();
+      return;
+    }
+
+    const thisHand = gameState.betting.handNum;
+    const allHoles = { ...dealtHolesRef.current, ...holeCards };
+
+    if (gameState.phase !== "all-in-negotiation" || !gameState.allInNegotiation) {
+      if (allInTriggeredHandRef.current === thisHand) return;
+      allInTriggeredHandRef.current = thisHand;
+      const runState = withRunoutDeck(gameState, allHoles, 1);
+      const next: NormalGameState = {
+        ...runState,
+        phase: "all-in-negotiation",
+        allInNegotiation: {
+          playerIds: unfolded.map((s) => s.id),
+          votes: {},
+          options: runOptionsForState(runState),
+          createdAt: Date.now(),
+          equity: estimateAllInEquity(runState, unfolded.map((s) => s.id), allHoles),
+        },
+      };
+      setGameState(next);
+      patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {
+        allInTriggeredHandRef.current = -1;
+      });
+      return;
+    }
+
+    const neg = gameState.allInNegotiation;
+    const maxRuns = maxRunCountForState(withRunoutDeck(gameState, allHoles, 1));
+    const allVoted = neg.playerIds.every((id) => typeof neg.votes[id] === "number");
+    const createdAt = neg.createdAt ?? Date.now();
+    const elapsed = Date.now() - createdAt;
+    if (!allVoted && elapsed < ALL_IN_VOTE_TIMEOUT_MS) {
+      const t = setTimeout(
+        () => setNegotiationTick(Date.now()),
+        Math.max(250, ALL_IN_VOTE_TIMEOUT_MS - elapsed),
+      );
+      return () => clearTimeout(t);
+    }
+
+    if (allInRanHandRef.current === thisHand) return;
+    allInRanHandRef.current = thisHand;
+
+    setTimeout(() => {
+      setIsProcessing(true);
+      (async () => {
+        try {
+          const runCount = chooseRunCount(neg.votes, neg.playerIds, maxRuns);
+          const revealedHoles: Record<string, [Card, Card]> = {};
+          for (const u of unfolded) {
+            const cards = allHoles[u.id];
+            if (cards) revealedHoles[u.id] = cards;
+          }
+
+          const revealedSeats = gameState.seats.map((seat) => ({
+            ...seat,
+            revealed: seat.status !== "folded" && seat.status !== "out",
+          }));
+          let s = withRunoutDeck(
+            {
+              ...gameState,
+              seats: revealedSeats,
+              allInNegotiation: { ...neg, agreedN: runCount },
+            },
+            allHoles,
+            runCount,
+          );
+
+          setGameState(s);
+          await patchNormalRoom(code, {
+            state: toPublicState(s),
+            revealedHoles,
+          });
+
+          await sleep(1100);
+
+          const resolution = resolveRunItN(s, allHoles, runCount);
+
+          for (let idx = 0; idx < resolution.runs.length; idx++) {
+            const run = resolution.runs[idx];
+            for (const step of run.steps) {
+              await sleep(step.street === "flop" ? 1100 : 1250);
+              s = {
+                ...s,
+                community: step.community,
+                street: step.street,
+                phase: step.street,
+              };
+              setGameState(s);
+              await patchNormalRoom(code, { state: toPublicState(s) });
+            }
+            await sleep(900);
+          }
+
+          const newChips: Record<string, number> = {};
+          for (const seat of gameState.seats) {
+            newChips[seat.id] = seat.chips + (resolution.winningsByPlayer[seat.id] ?? 0);
+          }
+
+          const finalSeats = gameState.seats.map((seat) => ({
+            ...seat,
+            chips: newChips[seat.id] ?? seat.chips,
+            revealed: seat.status !== "folded",
+            bet: 0,
+            totalBet: 0,
+            status: (newChips[seat.id] ?? seat.chips) === 0 ? ("out" as const) : ("waiting" as const),
+          }));
+
+          const winnerInfo = Object.entries(resolution.winningsByPlayer)
+            .filter(([, amount]) => amount > 0)
+            .map(([id, amount]) => ({
+              id,
+              name: finalSeats.find((seat) => seat.id === id)?.name ?? id,
+              amount,
+            }));
+
+          const finalState: NormalGameState = {
+            ...s,
+            deck: resolution.finalDeck,
+            burns: resolution.finalBurns,
+            seats: finalSeats,
+            phase: "showdown",
+            allInNegotiation: undefined,
+          };
+          runItNResolvedHandRef.current = thisHand;
+          resolvedShowdownHandRef.current = thisHand;
+          setGameState(finalState);
+
+          await patchNormalRoom(code, {
+            state: toPublicState(finalState),
+            result: {
+              scores: {},
+              winners: resolution.winners,
+              category: resolution.category,
+              chips: newChips,
+            },
+            runResults: resolution.runs,
+          });
+          setRuns(resolution.runs);
+
+          const runParticipated = gameState.seats.filter((s) =>
+            s.status === "active" || s.status === "all-in" || s.status === "folded",
+          );
+          const runUnfolded = runParticipated.filter((s) => s.status !== "folded").map((s) => s.id);
+          writeHandRecord(code, {
+            handNum: gameState.betting.handNum,
+            winners: winnerInfo,
+            category: resolution.category,
+            pot: gameState.betting.pot,
+            community: resolution.runs.map((run) => run.community.map((c) => c.id).join(" ")),
+            dealtIds: runParticipated.map((s) => s.id),
+            showdownIds: runUnfolded.length > 1 ? runUnfolded : [],
+          }).catch(() => {});
+        } catch {
+          allInRanHandRef.current = -1;
+          runItNResolvedHandRef.current = -1;
+          resolvedShowdownHandRef.current = -1;
+        } finally {
+          setIsProcessing(false);
+        }
+      })();
+    }, 0);
+  }, [gameState, code, isProcessing, resolveShowdown, holeCards, negotiationTick]);
+
+  // Admin: Auto-resolve when only one player remains.
+  useEffect(() => {
+    if (!isAdminRef.current || !gameState || !code) return;
+    if (gameState.phase === "showdown" || gameState.phase === "between-hands") return;
+
     const unfolded = gameState.seats.filter(s => s.status !== "folded" && s.status !== "out");
 
     if (unfolded.length <= 1) {
-      // Auto-showdown
-      void resolveShowdown();
+      // Single remaining player: resolve once any in-flight action settles.
+      if (!isProcessing) void resolveShowdown();
       return;
     }
-
-    const isAllInRunout = gameState.betting.toActId === null && unfolded.length >= 2;
-
-    if (isAllInRunout) {
-      const thisHand = gameState.betting.handNum;
-      // Guard: don't re-trigger all-in negotiation for the same hand after run started.
-      if (allInRanHandRef.current === thisHand) return;
-      if (allInTriggeredHandRef.current === thisHand) return;
-
-      if (gameState.phase !== "all-in-negotiation") {
-        const revealedHoles: Record<string, [Card, Card]> = { ...(room?.revealedHoles ?? {}) };
-        for (const u of unfolded) {
-           const cards = dealtHolesRef.current[u.id];
-           if (cards) revealedHoles[u.id] = cards;
-        }
-
-        const newState: NormalGameState = {
-          ...gameState,
-          phase: "all-in-negotiation",
-          allInNegotiation: {
-            playerIds: unfolded.map(u => u.id),
-            votes: {},
-          }
-        };
-        allInTriggeredHandRef.current = thisHand;
-        setTimeout(() => {
-          setGameState(newState);
-          patchNormalRoom(code, { state: toPublicState(newState), revealedHoles }).catch(() => {});
-        }, 0);
-      }
-      return;
-    }
-  }, [gameState, code, isProcessing, resolveShowdown, room?.revealedHoles]);
-
-  // Admin: sync all-in votes from Firestore
-  useEffect(() => {
-    if (!isAdminRef.current || !gameState || !room?.state) return;
-    if (gameState.phase !== "all-in-negotiation") return;
-    
-    const firestoreVotes = room.state.allInNegotiation?.votes;
-    if (!firestoreVotes) return;
-
-    const localVotes = gameState.allInNegotiation?.votes ?? {};
-    if (Object.keys(firestoreVotes).length > Object.keys(localVotes).length) {
-      setTimeout(() => {
-        setGameState((prev) => {
-          if (prev?.phase !== "all-in-negotiation" || !prev.allInNegotiation) return prev;
-          return {
-            ...prev,
-            allInNegotiation: {
-              ...prev.allInNegotiation,
-              votes: firestoreVotes,
-            },
-          };
-        });
-      }, 0);
-    }
-  }, [room?.state, gameState]);
-
-  // Admin: Finalize all-in negotiation and run board
-  useEffect(() => {
-    if (!isAdminRef.current || !gameState || !code || isProcessing) return;
-    if (gameState.phase !== "all-in-negotiation" || !gameState.allInNegotiation) return;
-    // Guard: only run once per hand
-    if (allInRanHandRef.current === gameState.betting.handNum) return;
-
-    const { playerIds, votes } = gameState.allInNegotiation;
-    const votedIds = Object.keys(votes);
-
-    if (votedIds.length >= playerIds.length && playerIds.length >= 2) {
-      // Mark this hand as "all-in started" immediately to prevent re-entry.
-      allInRanHandRef.current = gameState.betting.handNum;
-      // All votes are in
-      // For now, let's take the most common vote or minimum to be safe
-      const voteCounts: Record<number, number> = {};
-      votedIds.forEach(id => {
-        const v = votes[id];
-        voteCounts[v] = (voteCounts[v] || 0) + 1;
-      });
-
-      // Find the vote with most supporters, tie-break to lower N
-      let bestN = 1;
-      let maxVotes = 0;
-      [1, 2, 3].forEach(n => {
-        if ((voteCounts[n] || 0) > maxVotes) {
-          maxVotes = voteCounts[n];
-          bestN = n;
-        }
-      });
-
-      // Execute run out — clear allInNegotiation immediately so the vote modal dismisses
-      setTimeout(() => {
-        setIsProcessing(true);
-        (async () => {
-          try {
-            // Reveal all hole cards and clear allInNegotiation (closes the vote modal)
-            const revealedSeats = gameState.seats.map(s => ({
-              ...s,
-              revealed: s.status !== "folded" && s.status !== "out",
-            }));
-            const baselineCommunity = gameState.community.slice();
-            const baselineStreet = gameState.street;
-            const baseState: NormalGameState = {
-              ...gameState,
-              seats: revealedSeats,
-              phase: baselineStreet,
-              allInNegotiation: undefined,
-            };
-            setGameState(baseState);
-            await patchNormalRoom(code, { state: toPublicState(baseState) });
-
-            // Pause so players can see the equity %
-            await sleep(2500);
-
-            const allHoles = { ...dealtHolesRef.current, ...holeCards };
-            const unfoldedHoles = revealedSeats
-              .filter((s) => s.status !== "folded" && s.status !== "out")
-              .map((s) => ({ id: s.id, hole: allHoles[s.id] }))
-              .filter((x) => !!x.hole) as { id: string; hole: [Card, Card] }[];
-
-            const runRecords: RunRecord[] = [];
-
-            for (let r = 0; r < bestN; r++) {
-              // Restore baseline community for each run
-              let s: NormalGameState = {
-                ...baseState,
-                community: baselineCommunity.slice(),
-                street: baselineStreet,
-              };
-              if (r > 0) {
-                setGameState(s);
-                await patchNormalRoom(code, { state: toPublicState(s) });
-                await sleep(900);
-              }
-
-              while (s.street !== "river") {
-                await sleep(1400);
-                s = advance(s as unknown as GameState) as unknown as NormalGameState;
-                setGameState(s);
-                await patchNormalRoom(code, { state: toPublicState(s) });
-              }
-
-              // Evaluate this run
-              const knownIds = new Set<string>();
-              const scored = unfoldedHoles.map(({ id, hole }) => {
-                knownIds.add(id);
-                const score = bestHand([...hole, ...s.community]);
-                return { id, score };
-              });
-              if (scored.length > 0) {
-                let best = scored[0];
-                const winners: string[] = [best.id];
-                for (let i = 1; i < scored.length; i++) {
-                  const cmp = compareScore(scored[i].score, best.score);
-                  if (cmp > 0) {
-                    best = scored[i];
-                    winners.length = 0;
-                    winners.push(scored[i].id);
-                  } else if (cmp === 0) {
-                    winners.push(scored[i].id);
-                  }
-                }
-                runRecords.push({
-                  community: s.community.slice(),
-                  winners,
-                  category: categoryFor(best.score),
-                });
-              }
-
-              await sleep(1600);
-            }
-
-            // Distribute pot across runs. Each run wins pot/N (rounded).
-            const totalPot = gameState.betting.pot;
-            const runShare = Math.floor(totalPot / bestN);
-            const winningsByPlayer: Record<string, number> = {};
-            for (const rec of runRecords) {
-              const perWinner = Math.floor(runShare / rec.winners.length);
-              for (const w of rec.winners) {
-                winningsByPlayer[w] = (winningsByPlayer[w] ?? 0) + perWinner;
-              }
-            }
-
-            // Build new chips + final state
-            const newChips: Record<string, number> = {};
-            for (const seat of gameState.seats) newChips[seat.id] = seat.chips;
-            for (const [pid, amt] of Object.entries(winningsByPlayer)) {
-              newChips[pid] = (newChips[pid] ?? 0) + amt;
-            }
-
-            const finalSeats = gameState.seats.map((s) => ({
-              ...s,
-              chips: newChips[s.id] ?? s.chips,
-              revealed: s.status !== "folded",
-              bet: 0,
-              totalBet: 0,
-              status:
-                (newChips[s.id] ?? s.chips) === 0
-                  ? ("out" as const)
-                  : ("waiting" as const),
-            }));
-
-            // Use the last run as the displayed final result
-            const finalRun = runRecords[runRecords.length - 1];
-            const finalCommunity = finalRun?.community ?? gameState.community;
-
-            const finalState: NormalGameState = {
-              ...gameState,
-              seats: finalSeats,
-              community: finalCommunity,
-              phase: "showdown",
-            };
-            setGameState(finalState);
-
-            const tallyWinners: Set<string> = new Set();
-            for (const rec of runRecords) for (const w of rec.winners) tallyWinners.add(w);
-
-            await patchNormalRoom(code, {
-              state: toPublicState(finalState),
-              result: {
-                scores: {},
-                winners: [...tallyWinners],
-                category: finalRun?.category ?? "high",
-                chips: newChips,
-              },
-            });
-
-            // History: write one record per run
-            for (let i = 0; i < runRecords.length; i++) {
-              const rec = runRecords[i];
-              const winnerInfo = rec.winners.map((wid) => ({
-                id: wid,
-                name: finalSeats.find((s) => s.id === wid)?.name ?? wid,
-                amount: Math.floor(runShare / rec.winners.length),
-              }));
-              writeHandRecord(code, {
-                handNum: gameState.betting.handNum,
-                winners: winnerInfo,
-                category: rec.category,
-                pot: runShare,
-                community: rec.community.map((c) => c.id),
-                runIndex: bestN > 1 ? i : undefined,
-                runTotal: bestN > 1 ? bestN : undefined,
-              }).catch(() => {});
-            }
-
-            // Show RunResults modal if multiple runs
-            if (bestN > 1) setRuns(runRecords);
-          } finally {
-            setIsProcessing(false);
-          }
-        })();
-      }, 0);
-    }
-  }, [gameState, code, isProcessing, resolveShowdown]);
+  }, [gameState, code, isProcessing, resolveShowdown, holeCards]);
 
   // Admin: auto-fold on turn timer expiry.
   // Respects each player's useTimeBank preference (lobby field). If disabled,

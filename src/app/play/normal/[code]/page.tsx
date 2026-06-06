@@ -1,19 +1,35 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
-import { Clock, Trophy, X as CloseIcon, Menu } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useParams, useRouter } from "next/navigation";
+import { Clock, Trophy, Eye, Hourglass, Users } from "lucide-react";
+
+// Importar con ssr:false porque VoicePanel usa navigator.mediaDevices,
+// RTCPeerConnection y AudioContext que no existen en Node.
+const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
+  ssr: false,
+});
 import { useAuth } from "@/hooks/useAuth";
-import { useNormalRoom, useNormalLobby, useNormalHole } from "@/hooks/useNormalRoom";
+import { usePresence } from "@/hooks/usePresence";
+import { usePresenceMap } from "@/hooks/usePresenceMap";
+import { useNormalRoom, useNormalLobby, useNormalHole, useQueue } from "@/hooks/useNormalRoom";
 import { useChat } from "@/hooks/useChat";
 import { useReactions } from "@/hooks/useReactions";
 import { ReactionBar } from "@/components/reactions/ReactionBar";
 import { JoinWithStack } from "@/components/lobby/JoinWithStack";
+import { SeatPicker } from "@/components/lobby/SeatPicker";
 import { Avatar } from "@/components/players/Avatar";
+import { setPlayerPreferredSlot } from "@/lib/normalRooms";
 import {
   postPlayerAction,
   patchLobbyPlayer,
   postPlayerVote,
   lobbyToSeats,
+  kickFromLobby,
+  joinQueue,
+  leaveQueue,
+  joinSpectators,
+  leaveSpectators,
 } from "@/lib/normalRooms";
 import {
   submitStackRequest,
@@ -21,24 +37,33 @@ import {
   dismissStackRequest,
   type StackRequest,
 } from "@/lib/stackRequests";
+import { getMyPublicKeyString } from "@/lib/holeCrypto";
+import { buyIn, cashOut, recordSession, refundBuyIn } from "@/lib/users";
+import { sessionXp } from "@/lib/progression";
+import { availableCoins } from "@/lib/economy";
 import { formatChips } from "@/lib/betting";
 import type {
   BettingAction,
   BettingRound,
+  NormalGameState,
   NormalSeat,
 } from "@/lib/betting";
 import type { TableThemeId } from "@/lib/themes";
 import { TableShell } from "@/components/table/TableShell";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { BettingDock } from "@/components/betting/BettingDock";
+import { OptionsMenu } from "@/components/settings/OptionsMenu";
+import { PlayerSettings } from "@/components/settings/PlayerSettings";
 import { AllInVoteModal } from "@/components/betting/AllInVoteModal";
 import { AllInVoteChip } from "@/components/betting/AllInVoteChip";
+import { RunResults } from "@/components/table/RunResults";
 
 const EMPTY_BETTING: BettingRound = {
   pot: 0,
   sidePots: [],
   currentBet: 0,
   minRaise: 0,
+  bigBlind: 0,
   toActId: null,
   lastAggressorId: null,
   dealerIdx: -1,
@@ -50,23 +75,48 @@ const EMPTY_BETTING: BettingRound = {
 
 export default function PlayNormalPage() {
   const params = useParams<{ code: string }>();
+  const router = useRouter();
   const code = params.code?.toUpperCase() ?? null;
-  const { uid, loading } = useAuth();
-  const [mySeed] = useState(() => Math.random().toString(36).slice(2));
-  const mySeedRef = useRef(mySeed);
+  const { uid, loading, profile } = useAuth();
+  const [mySeed, setMySeed] = useState(() => Math.random().toString(36).slice(2));
+
+  // Contadores de sesion para XP / historial + total comprado para el neto.
+  const handsPlayedRef = useRef(0);
+  const handsWonRef = useRef(0);
+  const biggestPotRef = useRef(0);
+  const boughtInRef = useRef(0);
+  const countedHandRef = useRef(-1);
+  const settledRef = useRef(false);
+  // Snapshot del estado vivo para el cleanup de desmontaje (navegacion SPA).
+  // Un effect con deps vacias captura valores stale, por eso leemos un ref.
+  const liveRef = useRef({ inLobby: false, spectating: false, finalChips: 0, escrow: 0, isCasual: false });
 
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [voteModalOpen, setVoteModalOpen] = useState(false);
-  const lastVoteHandRef = useRef<number>(-1);
+  const [openAllInVoteHand, setOpenAllInVoteHand] = useState<number | null>(null);
+  const [closedRunResultsHand, setClosedRunResultsHand] = useState<number | null>(null);
   const [myRequest, setMyRequest] = useState<StackRequest | null | undefined>(
     undefined,
   );
+
+  usePresence(code, uid);
+  const presenceMap = usePresenceMap(code);
 
   const room = useNormalRoom(code);
   const lobby = useNormalLobby(code);
   const hole = useNormalHole(code, uid);
   const chatMessages = useChat(code);
   const reactions = useReactions(code);
+  const { position: queuePos } = useQueue(code, uid);
+  const [spectating, setSpectating] = useState(false);
+
+  // Register/unregister spectator presence while watching.
+  useEffect(() => {
+    if (!code || !uid || !spectating) return;
+    joinSpectators(code, uid, profile?.nickname ?? "Espectador", mySeed).catch(() => {});
+    return () => {
+      leaveSpectators(code, uid).catch(() => {});
+    };
+  }, [code, uid, spectating, profile?.nickname, mySeed]);
 
   useEffect(() => {
     if (!code || !uid) return;
@@ -75,14 +125,110 @@ export default function PlayNormalPage() {
 
   const gs = room?.state ?? null;
   const config = room?.config;
-  const theme: TableThemeId = (room?.theme as TableThemeId) ?? "emerald";
+  const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
+
+  // Vibrate once when it becomes the player's turn (mobile UX).
+  const isMyTurn = !!(gs && mySeat && gs.betting.toActId === mySeat.id);
+  const prevTurnRef = useRef(false);
+  useEffect(() => {
+    if (isMyTurn && !prevTurnRef.current) {
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate([180]);
+      }
+    }
+    prevTurnRef.current = isMyTurn;
+  }, [isMyTurn]);
+  const theme: TableThemeId = (room?.theme as TableThemeId) ?? "noir";
   const locked = room?.locked ?? false;
+  // Modo casual: stacks libres del host, sin tocar wallet/monedas/XP.
+  const isCasual = (room?.economy ?? "coins") === "casual";
 
   const inLobby = uid ? lobby.some((p) => p.uid === uid) : false;
+  const maxPlayers = room?.maxPlayers ?? 9;
+  const roomFull = lobby.length >= maxPlayers;
   const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
-  const mySeat = gs?.seats.find((s) => s.id === uid) ?? null;
-  const isMyTurn = !!(gs && gs.betting.toActId === uid);
   const result = room?.result ?? null;
+  const currentHandNum = gs?.betting.handNum ?? EMPTY_BETTING.handNum;
+  const visibleRunResults =
+    closedRunResultsHand === currentHandNum ? null : (room?.runResults ?? null);
+  const allInVoteOpen =
+    gs?.phase === "all-in-negotiation" && openAllInVoteHand === currentHandNum;
+
+  // Mantener el snapshot al dia para el cleanup de desmontaje.
+  useEffect(() => {
+    liveRef.current = {
+      inLobby,
+      spectating,
+      finalChips: mySeat?.chips ?? myLobbyEntry?.chips ?? 0,
+      escrow: (code && profile?.escrows?.[code]) || 0,
+      isCasual,
+    };
+  }, [code, inLobby, spectating, mySeat?.chips, myLobbyEntry?.chips, profile?.escrows, isCasual]);
+
+  // Publish our public key into the lobby so the host can encrypt our hole
+  // cards to it. Runs once we're in the lobby and re-publishes only if missing.
+  const myPubKey = myLobbyEntry?.pubKey;
+  useEffect(() => {
+    if (!code || !uid || !inLobby) return;
+    let cancelled = false;
+    (async () => {
+      const pub = await getMyPublicKeyString(uid);
+      if (!pub || cancelled || myPubKey === pub) return;
+      patchLobbyPlayer(code, uid, { pubKey: pub }).catch(() => {});
+    })();
+    return () => { cancelled = true; };
+  }, [code, uid, inLobby, myPubKey]);
+
+  // Cuenta manos jugadas/ganadas y el bote mayor para XP + historial.
+  // El guard por handNum evita contar dos veces el mismo showdown.
+  useEffect(() => {
+    if (!result || !gs || !uid || !inLobby) return;
+    const hn = gs.betting.handNum;
+    if (countedHandRef.current === hn) return;
+    countedHandRef.current = hn;
+    handsPlayedRef.current += 1;
+    if (result.winners.includes(uid)) handsWonRef.current += 1;
+    const pot = gs.betting.pot ?? 0;
+    if (pot > biggestPotRef.current) biggestPotRef.current = pot;
+  }, [result, gs, uid, inLobby]);
+
+  // Liquidacion al desmontar (navegacion SPA): evita que el escrow quede
+  // bloqueado si el jugador se va sin pulsar "Salir". El cierre de pestana no
+  // garantiza writes async, pero la navegacion interna del SPA si. Usa el
+  // snapshot de liveRef (no closures stale) y se salta si ya se liquido.
+  useEffect(() => {
+    return () => {
+      if (!uid || !code) return;
+      const s = liveRef.current;
+      if (s.spectating) {
+        leaveSpectators(code, uid).catch(() => {});
+        return;
+      }
+      if (settledRef.current) return;
+      settledRef.current = true;
+      // Casual: sin wallet ni XP — solo la salida del lobby (la maneja el host/heartbeat).
+      if (s.isCasual) return;
+      if (s.inLobby) {
+        cashOut(uid, code, s.finalChips).catch(() => {});
+        const handsPlayed = handsPlayedRef.current;
+        if (handsPlayed > 0) {
+          recordSession(uid, {
+            code,
+            roomName: room?.roomName ?? `Sala ${code}`,
+            handsPlayed,
+            handsWon: handsWonRef.current,
+            net: s.finalChips - boughtInRef.current,
+            biggestPot: biggestPotRef.current,
+            xpGained: sessionXp(handsPlayed, handsWonRef.current),
+          }).catch(() => {});
+        }
+      } else if (s.escrow > 0) {
+        // Solicitud pendiente nunca aprobada: devolver el escrow exacto.
+        refundBuyIn(uid, code, s.escrow).catch(() => {});
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, code]);
 
   const placeholderSeats: NormalSeat[] = useMemo(() => {
     if (gs) return gs.seats as NormalSeat[];
@@ -92,33 +238,92 @@ export default function PlayNormalPage() {
     return lobbyToSeats(lobby, config, ownerMap);
   }, [gs, lobby, config]);
 
-  async function handleJoinRequest(name: string, stack: number) {
+  // SeatPicker data — must be before any early returns (Rules of Hooks)
+  const seatOccupants = useMemo(() => {
+    const map: Record<number, { uid: string; name: string; seed: string }> = {};
+    for (const p of lobby) {
+      if (p.preferredSlot !== undefined) {
+        map[p.preferredSlot] = { uid: p.uid, name: p.name, seed: p.seed };
+      }
+    }
+    return map;
+  }, [lobby]);
+  const myPreferredSlot = myLobbyEntry?.preferredSlot;
+
+  async function handleJoinRequest(name: string, stack: number, seed: string) {
     if (!uid || !code) return;
-    await submitStackRequest(code, {
-      uid,
-      name,
-      seed: mySeedRef.current,
-      requestedStack: stack,
-      type: "join",
-      ts: Date.now(),
-    });
+    setMySeed(seed);
+    // Modo casual: no se toca el wallet — el host define/aprueba el stack libre.
+    if (!isCasual) {
+      // Descontar monedas del wallet (escrow) ANTES de pedir el asiento.
+      try {
+        await buyIn(uid, code, stack);
+        boughtInRef.current += stack;
+        settledRef.current = false;
+      } catch {
+        alert("No tienes monedas suficientes para esa entrada.");
+        return;
+      }
+    }
+    try {
+      await submitStackRequest(code, {
+        uid,
+        name,
+        seed,
+        requestedStack: stack,
+        type: "join",
+        ts: Date.now(),
+      });
+    } catch (err) {
+      // Revertir el escrow si no se pudo crear la solicitud (solo modo monedas).
+      if (!isCasual) {
+        await refundBuyIn(uid, code, stack).catch(() => {});
+        boughtInRef.current -= stack;
+      }
+      throw err;
+    }
   }
 
   async function handleRebuyRequest(stack: number) {
     if (!uid || !code || !myLobbyEntry) return;
-    await submitStackRequest(code, {
-      uid,
-      name: myLobbyEntry.name,
-      seed: myLobbyEntry.seed,
-      requestedStack: stack,
-      type: "rebuy",
-      ts: Date.now(),
-    });
+    if (!isCasual) {
+      try {
+        await buyIn(uid, code, stack);
+        boughtInRef.current += stack;
+      } catch {
+        alert("No tienes monedas suficientes para ese rebuy.");
+        return;
+      }
+    }
+    try {
+      await submitStackRequest(code, {
+        uid,
+        name: myLobbyEntry.name,
+        seed: myLobbyEntry.seed,
+        requestedStack: stack,
+        type: "rebuy",
+        ts: Date.now(),
+      });
+    } catch (err) {
+      // Revertir SOLO el rebuy (no borrar el escrow completo del buy-in previo).
+      if (!isCasual) {
+        await refundBuyIn(uid, code, stack).catch(() => {});
+        boughtInRef.current -= stack;
+      }
+      throw err;
+    }
   }
 
   async function handleAction(action: BettingAction, amount?: number) {
+    const seatId = mySeat?.id ?? uid;
+    if (!seatId || !code) return;
+    await postPlayerAction(code, seatId, action, amount);
+  }
+
+  async function handleRunVote(n: number) {
     if (!uid || !code) return;
-    await postPlayerAction(code, uid, action, amount);
+    await postPlayerVote(code, uid, n).catch(() => {});
+    setOpenAllInVoteHand(null);
   }
 
   async function handleToggleSitOut() {
@@ -144,29 +349,77 @@ export default function PlayNormalPage() {
   const myUseTimeBank = myLobbyEntry?.useTimeBank !== false;
 
   // Auto-open vote modal exactly once per all-in hand, only for involved players
-  // who haven't voted yet. Subsequent renders use the side chip.
+
+  // Rebuy rechazado por el host: el jugador sigue sentado y no hay pantalla de
+  // rechazo dedicada, asi que devolvemos el escrow automaticamente y descartamos.
+  // (El rechazo de "join" se maneja en handleRetry con su pantalla propia.)
   useEffect(() => {
-    if (!gs || gs.phase !== "all-in-negotiation" || !gs.allInNegotiation) {
-      if (voteModalOpen) setVoteModalOpen(false);
-      return;
-    }
-    const handNum = gs.betting.handNum;
-    if (lastVoteHandRef.current === handNum) return;
-    const involved = uid ? gs.allInNegotiation.playerIds.includes(uid) : false;
-    const alreadyVoted = uid ? gs.allInNegotiation.votes[uid] != null : false;
-    if (involved && !alreadyVoted) {
-      lastVoteHandRef.current = handNum;
-      setVoteModalOpen(true);
-    } else {
-      lastVoteHandRef.current = handNum;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gs?.phase, gs?.betting.handNum]);
+    if (!uid || !code) return;
+    if (myRequest?.status !== "rejected" || myRequest.type !== "rebuy") return;
+    const amt = myRequest.requestedStack ?? 0;
+    (async () => {
+      // En casual no hay escrow que devolver.
+      if (!isCasual && amt > 0) {
+        await refundBuyIn(uid, code, amt).catch(() => {});
+        boughtInRef.current = Math.max(0, boughtInRef.current - amt);
+      }
+      await dismissStackRequest(code, uid).catch(() => {});
+      setMyRequest(null);
+    })();
+  }, [myRequest?.status, myRequest?.type, myRequest?.requestedStack, uid, code, isCasual]);
 
   async function handleRetry() {
     if (!uid || !code) return;
+    // El host rechazo la solicitud: devolver el escrow comprometido en el buy-in
+    // antes de descartar la solicitud (si no, las monedas quedan bloqueadas).
+    // En casual no hay escrow.
+    const amt = myRequest?.requestedStack ?? 0;
+    if (!isCasual && amt > 0) {
+      await refundBuyIn(uid, code, amt).catch(() => {});
+      boughtInRef.current = Math.max(0, boughtInRef.current - amt);
+    }
     await dismissStackRequest(code, uid);
     setMyRequest(null);
+  }
+
+  // Liquida la sesion: devuelve las fichas finales al wallet (cash-out) y
+  // registra XP + historial. lobby.chips es la verdad del host (no falsificable).
+  async function settleSession() {
+    if (!uid || !code || settledRef.current) return;
+    settledRef.current = true;
+    // Casual: sin wallet ni XP — no hay nada que liquidar.
+    if (isCasual) return;
+    const finalChips = mySeat?.chips ?? myLobbyEntry?.chips ?? 0;
+    await cashOut(uid, code, finalChips).catch(() => {});
+    const handsPlayed = handsPlayedRef.current;
+    if (handsPlayed > 0 || boughtInRef.current > 0) {
+      const xpGained = sessionXp(handsPlayed, handsWonRef.current);
+      await recordSession(uid, {
+        code,
+        roomName: room?.roomName ?? `Sala ${code}`,
+        handsPlayed,
+        handsWon: handsWonRef.current,
+        net: finalChips - boughtInRef.current,
+        biggestPot: biggestPotRef.current,
+        xpGained,
+      }).catch(() => {});
+    }
+  }
+
+  async function handleLeave() {
+    if (!uid || !code) return;
+    if (spectating) {
+      await leaveSpectators(code, uid).catch(() => {});
+      setSpectating(false);
+      router.push("/lobby");
+      return;
+    }
+    if (!confirm("¿Salir de la sala? Perderás tu lugar en esta mano.")) return;
+    await settleSession();
+    try {
+      await kickFromLobby(code, uid);
+    } catch { /* ignore */ }
+    router.push("/lobby");
   }
 
   if (loading || room === undefined) {
@@ -178,26 +431,76 @@ export default function PlayNormalPage() {
   }
   if (!room) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center text-zinc-500 text-sm bg-[#0b0b0b]">
-        Sala no encontrada.
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 text-sm bg-[#0b0b0b]">
+        <p className="text-zinc-300">Sala no encontrada.</p>
+        <p className="text-xs text-zinc-500">Código: {code}</p>
+        <a
+          href="/join"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 transition"
+        >
+          Intentar con otro código
+        </a>
       </div>
     );
   }
 
-  if (!inLobby) {
+  if (!inLobby && !spectating) {
     return (
       <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-4">
         {myRequest?.status === "pending" ? (
-          <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
-            <Clock className="w-12 h-12 text-amber-300 animate-pulse" />
-            <h2 className="text-xl font-bold text-white">Solicitud enviada</h2>
-            <p className="text-sm text-zinc-500 text-center max-w-xs">
-              Esperando aprobación con{" "}
-              <span className="text-emerald-400 font-mono font-bold">
-                {formatChips(myRequest.requestedStack)}
-              </span>{" "}
-              fichas.
-            </p>
+          <div className="fixed inset-0 bg-[#0b0b0b] flex flex-col items-center justify-center gap-0 p-6 animate-in fade-in duration-500">
+            {/* Ambient glow */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-accent-500/5 blur-[80px]" />
+            </div>
+
+            {/* Room code chip */}
+            {code && (
+              <div className="mb-8 px-4 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">
+                Sala {code}
+              </div>
+            )}
+
+            {/* Avatar */}
+            <div className="relative mb-6">
+              <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-accent-400/25 shadow-[0_0_40px_-8px_rgba(167,139,250,0.25)]">
+                <Avatar seed={mySeed} size={96} className="ring-0 rounded-none" />
+              </div>
+              {/* Pulsing ring */}
+              <div className="absolute inset-0 rounded-full ring-2 ring-accent-400/20 animate-ping" />
+            </div>
+
+            {/* Name */}
+            <h2 className="text-2xl font-black text-white tracking-tight mb-1">
+              {myRequest.name}
+            </h2>
+
+            {/* Stack badge */}
+            <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-accent-500/8 ring-1 ring-accent-400/18 mb-8">
+              <div className="w-3 h-3 rounded-full bg-accent-400 shadow-[0_0_8px_rgba(167,139,250,0.5)]" />
+              <span className="text-accent-300 font-mono font-black tabular-nums">
+                {formatChips(myRequest.requestedStack)} fichas
+              </span>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-zinc-900/80 ring-1 ring-white/8">
+              <Clock className="w-4 h-4 text-accent-400 animate-pulse flex-shrink-0" />
+              <p className="text-sm text-zinc-400">
+                Esperando aprobación del host…
+              </p>
+            </div>
+
+            {/* Animated dots */}
+            <div className="flex gap-1.5 mt-6">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-zinc-600"
+                  style={{ animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite` }}
+                />
+              ))}
+            </div>
           </div>
         ) : myRequest?.status === "rejected" ? (
           <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
@@ -217,11 +520,29 @@ export default function PlayNormalPage() {
               Intentar de nuevo
             </button>
           </div>
+        ) : roomFull ? (
+          <FullRoomPanel
+            code={code ?? ""}
+            playerCount={lobby.length}
+            maxPlayers={maxPlayers}
+            queuePos={queuePos}
+            onSpectate={() => setSpectating(true)}
+            onJoinQueue={(name) => {
+              if (uid && code) joinQueue(code, uid, name, mySeed).catch(() => {});
+            }}
+            onLeaveQueue={() => {
+              if (uid && code) leaveQueue(code, uid).catch(() => {});
+            }}
+          />
         ) : (
-          <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="fixed inset-0 bg-[#0b0b0b] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             <JoinWithStack
+              defaultName={profile?.nickname ?? ""}
               suggestedStack={config?.startingStack ?? 1000}
               locked={locked}
+              showAvatar
+              roomCode={code ?? undefined}
+              maxStack={isCasual ? undefined : profile ? availableCoins(profile) : undefined}
               onSubmit={handleJoinRequest}
             />
           </div>
@@ -246,21 +567,21 @@ export default function PlayNormalPage() {
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 0)}
         disabled={hasRevealedLeft}
-        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedLeft ? "bg-emerald-500/20 text-emerald-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
+        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedLeft ? "bg-accent-500/10 text-accent-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
       >
-        Isq
+        Izq
       </button>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 1)}
         disabled={hasRevealedRight}
-        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedRight ? "bg-emerald-500/20 text-emerald-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
+        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedRight ? "bg-accent-500/10 text-accent-500 opacity-50" : "bg-white/10 hover:bg-white/20 text-white"}`}
       >
         Der
       </button>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 2)}
         disabled={hasRevealedBoth}
-        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedBoth ? "bg-emerald-500/20 text-emerald-500 opacity-50" : "bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20"}`}
+        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition ${hasRevealedBoth ? "bg-accent-500/10 text-accent-500 opacity-50" : "bg-accent-700/70 hover:bg-accent-600/75 text-accent-100 shadow-lg shadow-accent-700/20"}`}
       >
         Ambas
       </button>
@@ -276,34 +597,57 @@ export default function PlayNormalPage() {
             defaultName={myLobbyEntry?.name ?? ""}
             suggestedStack={config?.startingStack ?? 1000}
             mode="rebuy"
-            onSubmit={async (_, stack) => handleRebuyRequest(stack)}
+            maxStack={isCasual ? undefined : profile ? availableCoins(profile) : undefined}
+            onSubmit={async (_, stack) => handleRebuyRequest(stack) as unknown as Promise<void>}
           />
         )}
         {rebuyPending && (
-          <div className="text-center py-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-[11px] font-bold text-amber-200 uppercase tracking-widest">
+          <div className="text-center py-3 bg-accent-500/10 rounded-2xl border border-accent-500/20 text-[11px] font-bold text-accent-200 uppercase tracking-widest">
             Rebuy pendiente ({formatChips(myRequest!.requestedStack)})
           </div>
         )}
       </div>
     ) : showMuckUI;
 
+  async function handlePickSeat(slot: number) {
+    if (!code || !uid) return;
+    await setPlayerPreferredSlot(code, uid, slot).catch(() => {});
+  }
+
   const centerOverlay = (
     <>
-      {!gs && (
-        <div className="px-6 py-3 rounded-2xl bg-zinc-900/80 backdrop-blur-md ring-1 ring-white/10 text-zinc-400 text-sm font-bold uppercase tracking-widest shadow-2xl flex items-center gap-2">
-          <Clock className="w-4 h-4 text-emerald-500 animate-pulse" />
-          Esperando al host…
+      {!gs && inLobby && (
+        <div className="flex flex-col items-center gap-4 px-4 py-5 rounded-2xl bg-zinc-900/90 backdrop-blur-md ring-1 ring-white/10 shadow-2xl">
+          <SeatPicker
+            myUid={uid ?? ""}
+            myPreferredSlot={myPreferredSlot}
+            occupants={seatOccupants}
+            onPick={handlePickSeat}
+          />
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-zinc-500 text-[11px] font-bold uppercase tracking-widest">
+              <Clock className="w-3.5 h-3.5 text-accent-500 animate-pulse" />
+              Esperando al host…
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="text-[10px] text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2"
+            >
+              ¿Sin actualizaciones? Refrescar
+            </button>
+          </div>
         </div>
       )}
       {result && gs && (
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500">
-          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-amber-400/50 shadow-[0_20px_80px_-20px_rgba(251,191,36,0.5)] flex flex-col items-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 mb-1">
+          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-accent-400/50 shadow-[0_20px_80px_-20px_rgba(167,139,250,0.5)] flex flex-col items-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent-400 mb-1">
               Mano terminada
             </span>
             <h4 className="text-xl font-black text-white flex items-center gap-2">
               {result.winners.includes(uid ?? "") && (
-                <Trophy className="w-5 h-5 text-amber-400" />
+                <Trophy className="w-5 h-5 text-accent-400" />
               )}
               {result.winners.includes(uid ?? "")
                 ? "¡Has ganado!"
@@ -319,13 +663,15 @@ export default function PlayNormalPage() {
   );
 
   const topLeft = (
-    <button
-      type="button"
-      onClick={() => setOptionsOpen(true)}
-      className="p-3 rounded-2xl glass hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 transition btn-press shadow-xl"
-    >
-      <Menu className="w-5 h-5" />
-    </button>
+    <OptionsMenu
+      name={myLobbyEntry?.name ?? mySeat?.name ?? "Invitado"}
+      seed={myLobbyEntry?.seed ?? mySeat?.seed ?? mySeed}
+      onOpenSettings={() => setOptionsOpen(true)}
+      away={myLobbyEntry?.sittingOut === true}
+      onToggleAway={inLobby ? handleToggleSitOut : undefined}
+      onLeave={handleLeave}
+      leaveLabel={spectating ? "Dejar de observar" : "Salir de la sala"}
+    />
   );
 
   return (
@@ -338,18 +684,27 @@ export default function PlayNormalPage() {
         theme={theme}
         roomCode={code ?? undefined}
         selfUid={uid}
-        ownHole={hole?.cards ?? null}
+        ownHole={inLobby ? (hole?.cards ?? null) : null}
+        isSpectator={!inLobby && spectating}
         revealedHoles={room?.revealedHoles ?? undefined}
         cardBack={(room?.cardBack as never) ?? "classic-blue"}
         cardFace={(room?.cardFace as never) ?? "classic"}
+        roomBg={room?.roomBg ?? "onyx"}
         lastAction={gs?.lastAction}
         timeBankByUid={timeBankByUid}
         turnTimeMs={config?.turnTime ?? 30_000}
         onToggleAway={inLobby ? handleToggleSitOut : undefined}
         amSittingOut={myLobbyEntry?.sittingOut === true}
+        presenceMap={presenceMap}
         topLeft={topLeft}
         bottomLeft={
           <>
+            <VoicePanel
+              code={code ?? ""}
+              uid={uid}
+              displayName={myLobbyEntry?.name ?? mySeat?.name ?? ""}
+              seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
+            />
             <ChatPanel
               code={code}
               uid={uid}
@@ -362,96 +717,159 @@ export default function PlayNormalPage() {
         }
         reactions={reactions}
         bottomRight={
-          <BettingDock
-            seat={mySeat}
-            name={myLobbyEntry?.name ?? mySeat?.name ?? ""}
-            seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
-            betting={gs?.betting ?? null}
-            holeCards={hole?.cards ?? null}
-            community={gs?.community ?? []}
-            isMyTurn={isMyTurn}
-            turnTimeMs={config?.turnTime ?? 30_000}
-            hasResult={!!result}
-            onAction={handleAction}
-            extra={playerExtra}
-            useTimeBank={myUseTimeBank}
-            onToggleTimeBank={handleToggleTimeBank}
-          />
+          inLobby ? (
+            <BettingDock
+              seat={mySeat}
+              name={myLobbyEntry?.name ?? mySeat?.name ?? ""}
+              seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
+              betting={gs?.betting ?? null}
+              holeCards={hole?.cards ?? null}
+              community={gs?.community ?? []}
+              isMyTurn={isMyTurn}
+              turnTimeMs={config?.turnTime ?? 30_000}
+              hasResult={!!result}
+              onAction={handleAction}
+              extra={playerExtra}
+              useTimeBank={myUseTimeBank}
+              onToggleTimeBank={handleToggleTimeBank}
+            />
+          ) : null
         }
         centerOverlay={centerOverlay}
       />
 
-      <AllInVoteChip
-        gameState={gs as never}
-        selfUid={uid}
-        onClick={() => setVoteModalOpen(true)}
-      />
-      <AllInVoteModal
-        gameState={gs as never}
-        selfUid={uid}
-        open={voteModalOpen}
-        onClose={() => setVoteModalOpen(false)}
-        onVote={(n) => {
-          if (code && uid) postPlayerVote(code, uid, n).catch(() => {});
-        }}
-      />
 
       {optionsOpen && (
-        <div className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-zinc-900 rounded-[28px] ring-1 ring-white/10 shadow-2xl relative p-6 flex flex-col gap-5">
+        <PlayerSettings
+          code={code}
+          joinUrl={
+            typeof window !== "undefined" && code
+              ? `${window.location.origin}/play/normal/${code}`
+              : ""
+          }
+          lobby={lobby}
+          selfUid={uid}
+          onClose={() => setOptionsOpen(false)}
+        />
+      )}
+      <AllInVoteModal
+        gameState={gs as NormalGameState | null}
+        selfUid={uid}
+        onVote={handleRunVote}
+        open={allInVoteOpen}
+        onClose={() => setOpenAllInVoteHand(null)}
+      />
+      {!allInVoteOpen && (
+        <AllInVoteChip
+          gameState={gs as NormalGameState | null}
+          selfUid={uid}
+          onClick={() => setOpenAllInVoteHand(currentHandNum)}
+          onVote={handleRunVote}
+        />
+      )}
+      {visibleRunResults ? (
+        <RunResults
+          runs={visibleRunResults}
+          players={(gs?.seats ?? placeholderSeats).map((s) => ({
+            id: s.id,
+            name: s.name,
+            seed: s.seed,
+            createdAt: 0,
+          }))}
+          onClose={() => setClosedRunResultsHand(currentHandNum)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+// Shown when the room is full: spectate now, or take a numbered spot in the
+// wait queue (the host auto-seats the head when a seat frees).
+function FullRoomPanel({
+  code,
+  playerCount,
+  maxPlayers,
+  queuePos,
+  onSpectate,
+  onJoinQueue,
+  onLeaveQueue,
+}: {
+  code: string;
+  playerCount: number;
+  maxPlayers: number;
+  queuePos: number;
+  onSpectate: () => void;
+  onJoinQueue: (name: string) => void;
+  onLeaveQueue: () => void;
+}) {
+  const [name, setName] = useState("");
+  const queued = queuePos > 0;
+  return (
+    <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-6 animate-in fade-in duration-500">
+      <div className="w-full max-w-sm flex flex-col gap-6 text-center">
+        {code && (
+          <div className="mx-auto px-4 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">
+            Sala {code}
+          </div>
+        )}
+
+        <div className="flex flex-col items-center gap-2">
+          <div className="p-3 rounded-2xl bg-white/[0.06] ring-1 ring-white/10 text-zinc-300">
+            <Users className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-zinc-50">Sala llena</h2>
+          <p className="text-sm text-zinc-500 tabular-nums">
+            {playerCount}/{maxPlayers} jugadores
+          </p>
+        </div>
+
+        {queued ? (
+          <div className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
+            <Hourglass className="w-5 h-5 text-zinc-300 animate-pulse" />
+            <p className="text-sm text-zinc-300">
+              Estás en el puesto{" "}
+              <span className="text-zinc-50 font-black text-lg">#{queuePos}</span>
+            </p>
+            <p className="text-[11px] text-zinc-500">
+              Te sentaremos automáticamente cuando se libere un asiento.
+            </p>
             <button
               type="button"
-              onClick={() => setOptionsOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/10 text-zinc-500 hover:text-white transition"
+              onClick={onLeaveQueue}
+              className="mt-1 text-[11px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-200 transition"
             >
-              <CloseIcon className="w-5 h-5" />
+              Salir de la fila
             </button>
-            <h2 className="text-lg font-black uppercase tracking-tight text-white">
-              Mesa {code}
-            </h2>
-
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 ring-1 ring-white/10">
-              <div>
-                <p className="text-sm text-zinc-100 font-bold">Tu estado</p>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  {myLobbyEntry?.sittingOut ? "Sentado fuera" : "Activo"}
-                </p>
-              </div>
-              {!isOut && (
-                <button
-                  type="button"
-                  onClick={handleToggleSitOut}
-                  className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition btn-press ${
-                    myLobbyEntry?.sittingOut
-                      ? "bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/20"
-                      : "bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-300"
-                  }`}
-                >
-                  {myLobbyEntry?.sittingOut ? "Volver" : "Sentar fuera"}
-                </button>
-              )}
-            </div>
-
-            <div className="p-3 rounded-2xl bg-white/5 ring-1 ring-white/10 flex flex-col gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                Jugadores ({lobby.length})
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {lobby.map((p) => (
-                  <div
-                    key={p.uid}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 ring-1 ring-white/5 text-[11px] text-zinc-300"
-                  >
-                    <Avatar seed={p.seed} size={14} />
-                    {p.name}
-                    {p.uid === uid && " (Tú)"}
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
-        </div>
-      )}
-    </>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value.slice(0, 20))}
+              placeholder="Tu nombre"
+              className="w-full px-4 py-3 rounded-xl bg-white/[0.04] ring-1 ring-white/10 focus:ring-white/40 outline-none text-zinc-100 placeholder:text-zinc-600 text-center transition"
+            />
+            <button
+              type="button"
+              disabled={!name.trim()}
+              onClick={() => onJoinQueue(name.trim())}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 disabled:opacity-40 transition btn-press"
+            >
+              <Hourglass className="w-4 h-4" />
+              Hacer fila
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onSpectate}
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/[0.05] hover:bg-white/[0.1] ring-1 ring-white/10 text-zinc-200 font-bold text-sm uppercase tracking-widest transition btn-press"
+        >
+          <Eye className="w-4 h-4" />
+          Observar la mesa
+        </button>
+      </div>
+    </div>
   );
 }

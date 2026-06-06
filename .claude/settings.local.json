@@ -3,7 +3,11 @@
     "allow": [
       "Bash(npx tsc *)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix: all-in vote sync usa JSON diff + merge; habilitar auto-next-hand *)"
     ]
   }
 }

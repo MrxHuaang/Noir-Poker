@@ -34,7 +34,7 @@ export function EquityBadge({
     <span
       className={`equity-badge inline-flex items-center justify-center min-w-[3.2rem] px-2 py-0.5 rounded-full text-[11px] font-medium tabular-nums tracking-tight ring-1 transition ${
         highlight
-          ? "bg-amber-300/15 ring-amber-300/40 text-amber-100"
+          ? "bg-accent/15 ring-accent/40 text-accent"
           : "bg-black/55 ring-white/15 text-zinc-100"
       }`}
     >
