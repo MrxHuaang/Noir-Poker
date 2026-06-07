@@ -35,12 +35,6 @@ export type RunRecord = {
 
 const ALL_IN_VOTE_TIMEOUT_MS = 8_000;
 
-export type RunRecord = {
-  community: Card[];
-  winners: string[];
-  category: Category;
-};
-
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }

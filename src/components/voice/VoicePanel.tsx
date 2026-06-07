@@ -12,11 +12,15 @@ export default function VoicePanel({
   uid,
   displayName,
   seed,
+  canLeave = true,
 }: {
   code: string;
   uid: string | null;
   displayName: string;
   seed: string;
+  // En salas online/torneo no se permite terminar la llamada: solo silenciarse
+  // y mutear a otros participantes. Pasar false oculta el boton de salir.
+  canLeave?: boolean;
 }) {
   const [enabled, setEnabled] = useState(false);
   // Whether the user joined in listen-only mode (starts with mic muted).
@@ -184,15 +188,17 @@ export default function VoicePanel({
           >
             {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
-          <button
-            type="button"
-            onClick={() => setEnabled(false)}
-            className="p-2 rounded-full bg-white/5 ring-1 ring-white/10 text-zinc-300 hover:bg-rose-500/20 hover:text-rose-300 hover:ring-rose-400/40 transition btn-press"
-            title="Salir del canal de voz"
-            aria-label="Salir del canal de voz"
-          >
-            <PhoneOff className="w-4 h-4" />
-          </button>
+          {canLeave ? (
+            <button
+              type="button"
+              onClick={() => setEnabled(false)}
+              className="p-2 rounded-full bg-white/5 ring-1 ring-white/10 text-zinc-300 hover:bg-rose-500/20 hover:text-rose-300 hover:ring-rose-400/40 transition btn-press"
+              title="Salir del canal de voz"
+              aria-label="Salir del canal de voz"
+            >
+              <PhoneOff className="w-4 h-4" />
+            </button>
+          ) : null}
         </div>
       </header>
 

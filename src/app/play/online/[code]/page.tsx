@@ -134,7 +134,7 @@ export default function PlayOnlinePage() {
       />
 
       <div className="fixed bottom-4 left-4 z-40 flex flex-col gap-2">
-        <VoicePanel code={code ?? ""} uid={uid} displayName={name} seed={seed} />
+        <VoicePanel code={code ?? ""} uid={uid} displayName={name} seed={seed} canLeave={false} />
         <ChatPanel code={code} uid={uid} name={name} seed={seed} messages={chat} />
       </div>
     </main>

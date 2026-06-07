@@ -354,6 +354,7 @@ export default function HostTorneoPage() {
                 uid={uid}
                 displayName={myLobbyEntry.name}
                 seed={myLobbyEntry.seed}
+                canLeave={false}
               />
             )}
             <ChatPanel

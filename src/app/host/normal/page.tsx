@@ -361,6 +361,7 @@ export default function HostNormalPage() {
                 uid={uid}
                 displayName={myLobbyEntry.name}
                 seed={myLobbyEntry.seed}
+                canLeave={false}
               />
             )}
             <ChatPanel
@@ -427,11 +428,6 @@ export default function HostNormalPage() {
         gameState={gameState}
         result={result}
         onClickRequest={() => setDockOpen(true)}
-      />
-      <AllInVoteChip
-        gameState={gameState}
-        selfUid={uid}
-        onClick={() => setVoteModalOpen(true)}
       />
       <AllInVoteModal
         gameState={gameState}
