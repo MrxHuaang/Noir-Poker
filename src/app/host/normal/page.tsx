@@ -361,6 +361,7 @@ export default function HostNormalPage() {
                 uid={uid}
                 displayName={myLobbyEntry.name}
                 seed={myLobbyEntry.seed}
+                canLeave={false}
               />
             )}
             <ChatPanel
