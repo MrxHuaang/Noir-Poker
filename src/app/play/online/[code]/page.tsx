@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 // Server-backed online table (NEW mode). The game runs on the authoritative Go
 // server (NEXT_PUBLIC_GAME_WS_URL); this page only renders state + sends
 // actions. Voice + chat are mounted by room code, same as /play/normal. The
@@ -23,6 +24,16 @@ const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
 });
 
 export default function PlayOnlinePage() {
+  const params = useParams<{ code: string }>();
+  const code = params.code?.toUpperCase() ?? null;
+  return (
+    <DesktopOnlyGate roomCode={code ?? undefined}>
+      <PlayOnlinePageInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function PlayOnlinePageInner() {
   const params = useParams<{ code: string }>();
   const code = params.code?.toUpperCase() ?? null;
   const search = useSearchParams();

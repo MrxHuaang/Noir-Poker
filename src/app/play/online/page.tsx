@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 // Entry to the server-backed online mode: create a fresh room code or join one.
 // Also lists rooms currently open on the Go server (polled every 5 s).
 import { useRouter } from "next/navigation";
@@ -17,6 +18,14 @@ function genCode(): string {
 }
 
 export default function OnlineLandingPage() {
+  return (
+    <DesktopOnlyGate>
+      <OnlineLandingPageInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function OnlineLandingPageInner() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [sb, setSb] = useState(5);

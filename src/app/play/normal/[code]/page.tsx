@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
@@ -74,6 +75,16 @@ const EMPTY_BETTING: BettingRound = {
 };
 
 export default function PlayNormalPage() {
+  const params = useParams<{ code: string }>();
+  const code = params.code?.toUpperCase() ?? null;
+  return (
+    <DesktopOnlyGate roomCode={code ?? undefined}>
+      <PlayNormalPageInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function PlayNormalPageInner() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
   const code = params.code?.toUpperCase() ?? null;

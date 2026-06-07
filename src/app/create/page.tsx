@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -26,6 +27,14 @@ const GLOW = "0 0 82";
 const GLOW_COLORS = ["#ededf2", "#c4c4cc", "#8a8a93", "#52525b"];
 
 export default function CreateRoom() {
+  return (
+    <DesktopOnlyGate>
+      <CreateRoomInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function CreateRoomInner() {
   const { uid, loading } = useAuth();
   const router = useRouter();
 

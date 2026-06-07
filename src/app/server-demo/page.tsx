@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 // Minimal demo of the authoritative Go game server: connect over WebSocket,
 // deal, act, and watch public state + your private hole cards arrive separately.
 // Proves the server end-to-end without migrating the whole app. Point
@@ -7,6 +8,14 @@ import { useState } from "react";
 import { useGameSocket } from "@/hooks/useGameSocket";
 
 export default function ServerDemoPage() {
+  return (
+    <DesktopOnlyGate>
+      <ServerDemoPageInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function ServerDemoPageInner() {
   const [room, setRoom] = useState("");
   const [id, setId] = useState("");
   const [joined, setJoined] = useState(false);
