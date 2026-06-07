@@ -326,7 +326,7 @@ export function BorderGlow({
         />
       </span>
 
-      <div className="relative z-[1] flex min-h-0 min-w-0 flex-col overflow-auto">
+      <div className="relative z-[1] flex min-h-0 min-w-0 flex-col overflow-hidden">
         {children}
       </div>
     </div>

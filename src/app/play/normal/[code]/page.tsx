@@ -704,6 +704,7 @@ export default function PlayNormalPage() {
               uid={uid}
               displayName={myLobbyEntry?.name ?? mySeat?.name ?? ""}
               seed={myLobbyEntry?.seed ?? mySeat?.seed ?? ""}
+              canLeave={false}
             />
             <ChatPanel
               code={code}

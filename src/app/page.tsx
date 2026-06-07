@@ -11,6 +11,7 @@ import {
   ArrowRight,
   KeyRound,
   LayoutGrid,
+  Play,
 } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { PresencialTutorial } from "@/components/home/PresencialTutorial";
@@ -59,43 +60,62 @@ export default function Home() {
             Texas Hold&apos;em multi-dispositivo. Mesas públicas y privadas,
             modo presencial, sala online con fichas o torneo administrado.
           </p>
+          <Link
+            href="/jugar"
+            className="inline-flex items-center gap-2 rounded-full bg-accent-600 px-5 py-3 text-sm font-semibold text-white ring-1 ring-accent-400/35 transition hover:bg-accent-500 btn-press"
+          >
+            <Play className="h-4 w-4 fill-current" />
+            Jugar ahora
+          </Link>
+          <div className="h-px w-full max-w-2xl bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </header>
 
-        <section className="w-full grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <ModeCard
-            href="/host"
-            icon={<Tv className="w-5 h-5" />}
-            tier="one"
-            className="mode-card"
-            title="Presencial"
-            subtitle="Sin apuestas · Para mesa real"
-            description="Host abre la mesa en pantalla grande. Cada jugador ve sus cartas privadas en su teléfono. La mesa reparte, avanza calles y resuelve el showdown automáticamente."
-            features={["Hasta 9 jugadores", "All-in con run-out múltiple", "Historial de manos"]}
-            cta="Abrir mesa"
-            onInfo={() => setShowTutorial(true)}
-          />
-          <ModeCard
-            href="/create"
-            icon={<Coins className="w-5 h-5" />}
-            tier="two"
-            className="mode-card"
-            title="Online"
-            subtitle="Apuestas virtuales · Lobby"
-            description="Sala con fichas virtuales, ciegas y apuestas reales. Crea pública o privada, configura las reglas dentro de la sala y el lobby la lista en tiempo real."
-            features={["Fichas, ciegas y apuestas", "Pública o privada con lobby", "Side pots automáticos"]}
-            cta="Crear sala"
-          />
-          <ModeCard
-            href="/host/torneo"
-            icon={<Trophy className="w-5 h-5" />}
-            tier="three"
-            className="mode-card"
-            title="Torneo"
-            subtitle="Ciegas escalonadas · Admin"
-            description="Estructura con niveles de ciegas, antes y timer automático. El admin controla el torneo: pausa, avanza niveles y ve el ranking de eliminados en vivo."
-            features={["Niveles y timer automáticos", "Knockouts + ranking final", "Panel admin exclusivo"]}
-            cta="Crear torneo"
-          />
+        <section className="w-full flex flex-col gap-5">
+          <div className="max-w-2xl text-center lg:text-left">
+            <h2 className="text-2xl font-semibold tracking-tight text-primary">
+              Elige tu modo de juego
+            </h2>
+            <p className="mt-2 text-sm text-secondary sm:text-base">
+              Presencial para mesa real, online con fichas o torneo
+              administrado con control completo del host.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <ModeCard
+              href="/host"
+              icon={<Tv className="w-5 h-5" />}
+              tier="one"
+              className="mode-card"
+              title="Presencial"
+              subtitle="Sin apuestas · Para mesa real"
+              description="Host abre la mesa en pantalla grande. Cada jugador ve sus cartas privadas en su teléfono. La mesa reparte, avanza calles y resuelve el showdown automáticamente."
+              features={["Hasta 9 jugadores", "All-in con run-out múltiple", "Historial de manos"]}
+              cta="Abrir mesa"
+              onInfo={() => setShowTutorial(true)}
+            />
+            <ModeCard
+              href="/create"
+              icon={<Coins className="w-5 h-5" />}
+              tier="two"
+              className="mode-card"
+              title="Online"
+              subtitle="Apuestas virtuales · Lobby"
+              description="Sala con fichas virtuales, ciegas y apuestas reales. Crea pública o privada, configura las reglas dentro de la sala y el lobby la lista en tiempo real."
+              features={["Fichas, ciegas y apuestas", "Pública o privada con lobby", "Side pots automáticos"]}
+              cta="Crear sala"
+            />
+            <ModeCard
+              href="/host/torneo"
+              icon={<Trophy className="w-5 h-5" />}
+              tier="three"
+              className="mode-card"
+              title="Torneo"
+              subtitle="Ciegas escalonadas · Admin"
+              description="Estructura con niveles de ciegas, antes y timer automático. El admin controla el torneo: pausa, avanza niveles y ve el ranking de eliminados en vivo."
+              features={["Niveles y timer automáticos", "Knockouts + ranking final", "Panel admin exclusivo"]}
+              cta="Crear torneo"
+            />
+          </div>
         </section>
 
         <section className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">

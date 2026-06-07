@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Coins, LogOut, Trophy, Tv, User as UserIcon, X } from "lucide-react";
+import { ArrowRight, Coins, LogOut, Play, Trophy, Tv, User as UserIcon, X } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { PillNav } from "@/components/nav/PillNav";
 import { Avatar } from "@/components/players/Avatar";
@@ -279,6 +279,14 @@ export function Nav() {
               />
             </div>
           </BorderGlow>
+          <Link
+            href="/jugar"
+            aria-label="Jugar ahora"
+            className="inline-flex shrink-0 items-center gap-2 h-10 rounded-full bg-accent-600 px-3 sm:px-4 text-sm font-semibold text-white ring-1 ring-accent-400/35 transition hover:bg-accent-500 btn-press"
+          >
+            <Play className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Jugar ahora</span>
+          </Link>
           <UserPill />
         </div>
       </header>
