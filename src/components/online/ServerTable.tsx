@@ -4,7 +4,7 @@
 // actions. No game logic here — the server is authoritative. Reuses PlayingCard.
 // Desktop-first (landscape) layout: felt on the left, seats + betting dock right.
 import type { ReactNode } from "react";
-import { Pause, Play, RefreshCw, Trophy, Users, Wifi, WifiOff } from "lucide-react";
+import { MessageCircle, Pause, Play, RefreshCw, Trophy, Users, Wifi, WifiOff } from "lucide-react";
 import { cardFromId } from "@/lib/poker";
 import { formatChips } from "@/lib/betting";
 import { PlayingCard } from "@/components/cards/PlayingCard";
@@ -13,6 +13,7 @@ import { OnlineTurnTimer } from "@/components/online/OnlineTurnTimer";
 import type { ConnStatus, PublicState, RunResult } from "@/hooks/useGameSocket";
 import type { OnlineHandRecord } from "@/hooks/useOnlineHistory";
 import { categoryLabel } from "@/hooks/useOnlineHistory";
+import { useTableChat, CANNED_PHRASES } from "@/hooks/useTableChat";
 
 // ---------------------------------------------------------------------------
 // Small reusable pieces
@@ -25,6 +26,28 @@ function Cards({ ids }: { ids: string[] }) {
         const c = cardFromId(id);
         return c ? (
           <PlayingCard key={`${id}-${i}`} card={c} faceUp size="sm" dealIn={false} />
+        ) : null;
+      })}
+    </div>
+  );
+}
+
+// Hole cards for the current player in the online table.
+// Face-down by default; squeezable to peek. Revealed at showdown.
+function SqueezableHole({ ids, revealed }: { ids: string[]; revealed: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      {ids.map((id, i) => {
+        const c = cardFromId(id);
+        return c ? (
+          <PlayingCard
+            key={`hole-${id}-${i}`}
+            card={c}
+            faceUp={revealed}
+            size="md"
+            dealIn={false}
+            squeezable={!revealed}
+          />
         ) : null;
       })}
     </div>
@@ -117,6 +140,7 @@ const STATUS_UI: Record<ConnStatus, { label: string; icon: ReactNode; cls: strin
 // ---------------------------------------------------------------------------
 
 export function ServerTable({
+  code,
   state,
   hole,
   uid,
@@ -129,6 +153,7 @@ export function ServerTable({
   onPause,
   onResume,
 }: {
+  code?: string | null;
   state: PublicState | null;
   hole: string[] | null;
   uid: string | null;
@@ -141,6 +166,7 @@ export function ServerTable({
   onPause?: () => void;
   onResume?: () => void;
 }) {
+  const { send: chatSend, activePhrases } = useTableChat(code ?? null, uid);
   const myTurn = !!state && state.toAct === uid;
   const phase = state?.phase ?? "—";
   const idle = !state || state.phase === "idle" || state.phase === "showdown";
@@ -247,19 +273,26 @@ export function ServerTable({
                       : "bg-white/[0.03] ring-white/[0.06]"
                   } ${s.status === "folded" ? "opacity-40" : ""}`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm font-bold text-zinc-100 truncate">
-                      {s.name || s.id.slice(0, 6)}
-                      {s.id === uid && (
-                        <span className="ml-1 text-zinc-500 font-normal">(tú)</span>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-zinc-100 truncate">
+                        {s.name || s.id.slice(0, 6)}
+                        {s.id === uid && (
+                          <span className="ml-1 text-zinc-500 font-normal">(tú)</span>
+                        )}
+                      </span>
+                      {isActive && (
+                        <span className="text-[9px] uppercase tracking-widest font-black text-accent-300 shrink-0">
+                          turno
+                        </span>
                       )}
-                    </span>
-                    {isActive && (
-                      <span className="text-[9px] uppercase tracking-widest font-black text-accent-300 shrink-0">
-                        turno
+                      {reveal && <Cards ids={reveal} />}
+                    </div>
+                    {activePhrases[s.id] && (
+                      <span className="text-[10px] font-bold text-accent-200 bg-accent-500/15 ring-1 ring-accent-400/25 rounded-xl px-2 py-0.5 w-fit max-w-[180px] truncate">
+                        {activePhrases[s.id]}
                       </span>
                     )}
-                    {reveal && <Cards ids={reveal} />}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {s.bet > 0 && (
@@ -281,17 +314,38 @@ export function ServerTable({
             <BustRanking order={state.bustedOrder} nameOf={nameOf} />
           )}
 
-          {/* My hole cards */}
+          {/* My hole cards — shown face-down for privacy, squeeze to peek */}
           {!spectator && (
             <div className="flex items-center gap-3 px-1">
               <span className="text-[10px] uppercase tracking-widest font-black text-zinc-500 shrink-0">
                 Tus cartas
               </span>
               {hole && hole.length > 0 ? (
-                <Cards ids={hole} />
+                <SqueezableHole ids={hole} revealed={state?.phase === "showdown"} />
               ) : (
                 <span className="text-zinc-600 text-sm">—</span>
               )}
+            </div>
+          )}
+
+          {/* Canned-phrase picker */}
+          {!spectator && uid && (
+            <div className="flex flex-col gap-1.5 px-1">
+              <span className="text-[9px] uppercase tracking-widest font-black text-zinc-600 flex items-center gap-1.5">
+                <MessageCircle className="w-3 h-3" /> Reacciones
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {CANNED_PHRASES.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => chatSend(p)}
+                    className="text-[10px] font-bold px-2 py-1 rounded-xl bg-white/[0.04] ring-1 ring-white/[0.08] text-zinc-400 hover:bg-accent-500/15 hover:ring-accent-400/30 hover:text-accent-200 transition"
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

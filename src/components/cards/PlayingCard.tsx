@@ -6,6 +6,10 @@ import type { Card } from "@/lib/poker";
 import { rankLabel, suitColor, suitGlyph } from "@/lib/poker";
 import { getCardBack, type CardBackId, type CardFaceId } from "@/lib/themes";
 
+// Peek rotation used during a squeeze — far enough to show the card face
+// but visually distinct from a full flip (180 deg).
+const SQUEEZE_ROTEY = 155;
+
 type Size = "sm" | "md" | "lg";
 
 const SIZES: Record<Size, string> = {
@@ -22,6 +26,7 @@ export function PlayingCard({
   flipDelay = 0,
   dealDelay = 0,
   dealIn = true,
+  squeezable = false,
   cardBack,
   cardFace,
 }: {
@@ -32,11 +37,15 @@ export function PlayingCard({
   flipDelay?: number;
   dealDelay?: number;
   dealIn?: boolean;
+  /** Press-to-peek: hold pointer down to temporarily reveal the card face.
+   *  Only meaningful when faceUp=false (already face-up cards ignore it). */
+  squeezable?: boolean;
   cardBack?: CardBackId;
   cardFace?: CardFaceId;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const flipperRef = useRef<HTMLDivElement | null>(null);
+  const squeezeTweenRef = useRef<gsap.core.Tween | null>(null);
 
   useGSAP(
     () => {
@@ -56,22 +65,54 @@ export function PlayingCard({
   useGSAP(
     () => {
       if (!flipperRef.current) return;
+      // overwrite: true kills any in-progress squeeze tween so the flip wins.
       gsap.to(flipperRef.current, {
         rotateY: faceUp ? 180 : 0,
         duration: 1.05,
         ease: "expo.inOut",
         delay: flipDelay,
+        overwrite: true,
       });
     },
     { scope: wrapRef, dependencies: [faceUp, flipDelay] },
   );
 
+  function startSqueeze() {
+    if (!squeezable || faceUp || !flipperRef.current) return;
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    squeezeTweenRef.current?.kill();
+    squeezeTweenRef.current = gsap.to(flipperRef.current, {
+      rotateY: SQUEEZE_ROTEY,
+      duration: reduced ? 0 : 0.3,
+      ease: "power2.out",
+    });
+  }
+
+  function endSqueeze() {
+    if (!squeezable || faceUp || !flipperRef.current) return;
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    squeezeTweenRef.current?.kill();
+    squeezeTweenRef.current = gsap.to(flipperRef.current, {
+      rotateY: 0,
+      duration: reduced ? 0 : 0.2,
+      ease: "power2.in",
+    });
+  }
+
   return (
     <div
       ref={wrapRef}
-      className={`playing-card ${SIZES[size]} ${className}`}
+      className={`playing-card ${SIZES[size]} ${className} ${squeezable && !faceUp ? "cursor-pointer select-none touch-none" : ""}`}
       style={{ perspective: 1200 }}
       data-face-up={faceUp ? "1" : "0"}
+      onPointerDown={squeezable ? startSqueeze : undefined}
+      onPointerUp={squeezable ? endSqueeze : undefined}
+      onPointerLeave={squeezable ? endSqueeze : undefined}
+      onPointerCancel={squeezable ? endSqueeze : undefined}
     >
       <div
         ref={flipperRef}

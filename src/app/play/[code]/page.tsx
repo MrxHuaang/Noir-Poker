@@ -329,6 +329,7 @@ function PhoneGameView({
               <PlayingCard
                 card={hole[0]}
                 faceUp={peeking || mySeat.revealedCards[0] || revealing}
+                squeezable={!peeking && !mySeat.revealedCards[0] && !revealing}
                 size="lg"
                 dealIn={false}
                 cardBack={cardBack}
@@ -336,6 +337,7 @@ function PhoneGameView({
               <PlayingCard
                 card={hole[1]}
                 faceUp={peeking || mySeat.revealedCards[1] || revealing}
+                squeezable={!peeking && !mySeat.revealedCards[1] && !revealing}
                 size="lg"
                 dealIn={false}
                 cardBack={cardBack}

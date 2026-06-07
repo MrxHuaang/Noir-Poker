@@ -140,6 +140,7 @@ function PlayOnlinePageInner() {
       )}
 
       <ServerTable
+        code={code}
         state={state}
         hole={hole}
         uid={uid}
