@@ -428,11 +428,6 @@ export default function HostNormalPage() {
         result={result}
         onClickRequest={() => setDockOpen(true)}
       />
-      <AllInVoteChip
-        gameState={gameState}
-        selfUid={uid}
-        onClick={() => setVoteModalOpen(true)}
-      />
       <AllInVoteModal
         gameState={gameState}
         selfUid={uid}
