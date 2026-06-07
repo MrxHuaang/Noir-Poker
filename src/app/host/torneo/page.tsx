@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Play, Trophy } from "lucide-react";
@@ -79,6 +80,14 @@ const EMPTY_BETTING: BettingRound = {
 };
 
 export default function HostTorneoPage() {
+  return (
+    <DesktopOnlyGate>
+      <HostTorneoPageInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function HostTorneoPageInner() {
   const { uid, loading, profile } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);

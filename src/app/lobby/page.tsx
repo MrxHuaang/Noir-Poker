@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import Link from "next/link";
 import {
   Plus,
@@ -26,6 +27,14 @@ const STATUS: Record<OpenRoomSummary["status"], { label: string; cls: string }> 
 };
 
 export default function LobbyPage() {
+  return (
+    <DesktopOnlyGate>
+      <LobbyPageInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function LobbyPageInner() {
   const { uid } = useAuth();
   const { rooms, ready } = useOpenRooms(!!uid);
 

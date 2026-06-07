@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Trophy } from "lucide-react";
@@ -60,6 +61,14 @@ const EMPTY_BETTING: BettingRound = {
 };
 
 export default function HostNormalPage() {
+  return (
+    <DesktopOnlyGate>
+      <HostNormalPageInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function HostNormalPageInner() {
   const { uid, loading, profile } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});

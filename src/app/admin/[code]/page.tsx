@@ -1,4 +1,5 @@
 "use client";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -46,6 +47,16 @@ function LevelCountdown({
 }
 
 export default function AdminTorneoPage() {
+  const params = useParams<{ code: string }>();
+  const code = params.code?.toUpperCase() ?? null;
+  return (
+    <DesktopOnlyGate roomCode={code ?? undefined}>
+      <AdminTorneoPageInner />
+    </DesktopOnlyGate>
+  );
+}
+
+function AdminTorneoPageInner() {
   const params = useParams<{ code: string }>();
   const code = params.code?.toUpperCase() ?? null;
   const room = useNormalRoom(code);
