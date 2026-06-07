@@ -11,7 +11,6 @@ import {
   ArrowRight,
   KeyRound,
   LayoutGrid,
-  Play,
 } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { PresencialTutorial } from "@/components/home/PresencialTutorial";
@@ -60,24 +59,18 @@ export default function Home() {
             Texas Hold&apos;em multi-dispositivo. Mesas públicas y privadas,
             modo presencial, sala online con fichas o torneo administrado.
           </p>
-          <Link
-            href="/jugar"
-            className="inline-flex items-center gap-2 rounded-full bg-accent-600 px-5 py-3 text-sm font-semibold text-white ring-1 ring-accent-400/35 transition hover:bg-accent-500 btn-press"
-          >
-            <Play className="h-4 w-4 fill-current" />
-            Jugar ahora
-          </Link>
-          <div className="h-px w-full max-w-2xl bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </header>
 
-        <section className="w-full flex flex-col gap-5">
-          <div className="max-w-2xl text-center lg:text-left">
-            <h2 className="text-2xl font-semibold tracking-tight text-primary">
-              Elige tu modo de juego
+        <section className="w-full flex flex-col gap-6">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-500">
+              Modos de juego
+            </span>
+            <h2 className="text-2xl font-semibold tracking-tight text-primary sm:text-3xl">
+              Elige cómo quieres jugar
             </h2>
-            <p className="mt-2 text-sm text-secondary sm:text-base">
-              Presencial para mesa real, online con fichas o torneo
-              administrado con control completo del host.
+            <p className="max-w-lg text-sm text-muted">
+              Mesa presencial sin apuestas, sala online con fichas o torneo con admin completo.
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -222,7 +215,7 @@ function ModeCard({
           <ul className="flex flex-col gap-1.5">
             {features.map((f) => (
               <li key={f} className="flex items-center gap-2 text-xs text-zinc-400">
-                <span className="w-1 h-1 rounded-full bg-zinc-500" />
+                <span className="w-1 h-1 rounded-full bg-accent-500/50" />
                 {f}
               </li>
             ))}
