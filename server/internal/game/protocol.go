@@ -43,6 +43,17 @@ type PublicState struct {
 	// Runs is populated for run-it-N all-in outcomes (N > 1). Each entry is one
 	// board's result. Empty for single-run hands.
 	Runs []RunResult `json:"runs,omitempty"`
+	// SB / BB are the current blind levels (always set). Clients use them to
+	// display the blind level and compute pot-odds quick-sizes.
+	SB int `json:"sb"`
+	BB int `json:"bb"`
+	// Paused is true when the owner has suspended the game (tournament break).
+	// While paused, action messages are ignored.
+	Paused bool `json:"paused,omitempty"`
+	// BustedOrder contains the seat IDs of players eliminated from the table,
+	// in bust-out order (index 0 = first to bust out). Used for tournament
+	// finish rankings. Empty in cash-game mode.
+	BustedOrder []string `json:"bustedOrder,omitempty"`
 }
 
 type PublicSeat struct {

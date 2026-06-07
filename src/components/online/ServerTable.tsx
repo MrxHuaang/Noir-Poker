@@ -4,7 +4,7 @@
 // actions. No game logic here — the server is authoritative. Reuses PlayingCard.
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Play, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Pause, Play, RefreshCw, Trophy, Wifi, WifiOff } from "lucide-react";
 import { cardFromId } from "@/lib/poker";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import type { ConnStatus, PublicState, RunResult } from "@/hooks/useGameSocket";
@@ -82,6 +82,8 @@ export function ServerTable({
   spectator = false,
   onStart,
   onAction,
+  onPause,
+  onResume,
 }: {
   state: PublicState | null;
   hole: string[] | null;
@@ -91,6 +93,8 @@ export function ServerTable({
   spectator?: boolean;
   onStart: () => void;
   onAction: (action: string, amount?: number) => void;
+  onPause?: () => void;
+  onResume?: () => void;
 }) {
   const myTurn = !!state && state.toAct === uid;
   const phase = state?.phase ?? "—";
@@ -101,15 +105,31 @@ export function ServerTable({
 
   return (
     <div className="w-[min(720px,94vw)] mx-auto flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-widest font-black text-zinc-500">
-          {state ? `Mano #${state.handNum} · ${phase}` : "Sin mano"}
-        </span>
-        <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${connUI.cls}`}>
+      {/* Header row: hand info + blinds + conn status */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xs uppercase tracking-widest font-black text-zinc-500 shrink-0">
+            {state ? `Mano #${state.handNum} · ${phase}` : "Sin mano"}
+          </span>
+          {state && state.sb != null && state.bb != null && (
+            <span className="text-[10px] font-black text-zinc-600 tabular-nums">
+              Ciegas {state.sb}/{state.bb}
+            </span>
+          )}
+        </div>
+        <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest shrink-0 ${connUI.cls}`}>
           {connUI.icon}
           {connUI.label}
         </span>
       </div>
+
+      {/* Paused banner */}
+      {state?.paused && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-warn-500/10 ring-1 ring-warn-400/30 text-warn-200 text-xs font-black">
+          <Pause className="w-3.5 h-3.5 shrink-0" />
+          Partida en pausa
+        </div>
+      )}
 
       {/* Felt: board + pot */}
       <div className="rounded-3xl bg-accent-950/40 ring-1 ring-accent-400/15 shadow-[inset_0_2px_40px_rgba(0,0,0,0.5)] p-6 flex flex-col items-center gap-4 min-h-[8rem] justify-center">
@@ -165,6 +185,11 @@ export function ServerTable({
         })}
       </div>
 
+      {/* Bust-out ranking (tournament mode) */}
+      {state?.bustedOrder && state.bustedOrder.length > 0 && (
+        <BustRanking order={state.bustedOrder} nameOf={nameOf} />
+      )}
+
       {/* Your hole */}
       <div className="flex items-center gap-3">
         <span className="text-[10px] uppercase tracking-widest font-black text-zinc-500">Tus cartas</span>
@@ -172,7 +197,34 @@ export function ServerTable({
       </div>
 
       {/* Controls — hidden for spectators */}
-      {!spectator && <Controls idle={idle} myTurn={myTurn} onStart={onStart} onAction={onAction} />}
+      {!spectator && (
+        <Controls
+          idle={idle}
+          myTurn={myTurn}
+          paused={state?.paused ?? false}
+          onStart={onStart}
+          onAction={onAction}
+          onPause={onPause}
+          onResume={onResume}
+        />
+      )}
+    </div>
+  );
+}
+
+function BustRanking({ order, nameOf }: { order: string[]; nameOf: (id: string) => string }) {
+  return (
+    <div className="rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.06] px-3 py-2 flex flex-col gap-1">
+      <span className="text-[9px] uppercase tracking-widest font-black text-zinc-500 flex items-center gap-1.5">
+        <Trophy className="w-3 h-3" /> Eliminados
+      </span>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+        {order.map((id, i) => (
+          <span key={id} className="text-[10px] tabular-nums text-zinc-400">
+            {i + 1}. {nameOf(id)}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -180,13 +232,19 @@ export function ServerTable({
 function Controls({
   idle,
   myTurn,
+  paused,
   onStart,
   onAction,
+  onPause,
+  onResume,
 }: {
   idle: boolean;
   myTurn: boolean;
+  paused: boolean;
   onStart: () => void;
   onAction: (action: string, amount?: number) => void;
+  onPause?: () => void;
+  onResume?: () => void;
 }) {
   const btn =
     "px-3 py-2 rounded-xl text-xs font-bold ring-1 transition disabled:opacity-30 disabled:cursor-not-allowed";
@@ -199,6 +257,23 @@ function Controls({
       >
         <Play className="w-3.5 h-3.5" /> {idle ? "Repartir mano" : "Reiniciar"}
       </button>
+      {paused ? (
+        <button
+          type="button"
+          onClick={onResume}
+          className={`${btn} bg-success-500/15 ring-success-400/30 text-success-200 inline-flex items-center gap-1.5`}
+        >
+          <Play className="w-3.5 h-3.5" /> Reanudar
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onPause}
+          className={`${btn} bg-warn-500/15 ring-warn-400/30 text-warn-200 inline-flex items-center gap-1.5`}
+        >
+          <Pause className="w-3.5 h-3.5" /> Pausar
+        </button>
+      )}
       <button type="button" disabled={!myTurn} onClick={() => onAction("fold")} className={`${btn} bg-white/5 ring-white/10 text-zinc-200`}>Fold</button>
       <button type="button" disabled={!myTurn} onClick={() => onAction("check")} className={`${btn} bg-white/5 ring-white/10 text-zinc-200`}>Check</button>
       <button type="button" disabled={!myTurn} onClick={() => onAction("call")} className={`${btn} bg-white/5 ring-white/10 text-zinc-200`}>Call</button>

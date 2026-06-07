@@ -39,7 +39,7 @@ function PlayOnlinePageInner() {
   const search = useSearchParams();
   const isSpectator = search.get("spectator") === "1";
 
-  const { connected, status, state, hole, uid, name, seed, error, start, action, config, token } =
+  const { connected, status, state, hole, uid, name, seed, error, start, action, config, pause, resume, token } =
     useServerGame(code, isSpectator);
   const chat = useChat(code);
   const configSent = useRef(false);
@@ -143,6 +143,8 @@ function PlayOnlinePageInner() {
         spectator={isSpectator}
         onStart={start}
         onAction={action}
+        onPause={pause}
+        onResume={resume}
       />
 
       <div className="fixed bottom-4 left-4 z-40 flex flex-col gap-2">

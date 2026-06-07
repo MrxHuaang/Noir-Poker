@@ -121,6 +121,16 @@ func (m *Manager) OnMessage(c *hub.Client, data []byte) {
 			return
 		}
 		m.handleConfig(c.Room, p)
+	case "pause":
+		if c.Spectator || !m.isOwner(c.Room, c.ID) {
+			return
+		}
+		m.handlePause(c.Room, true)
+	case "resume":
+		if c.Spectator || !m.isOwner(c.Room, c.ID) {
+			return
+		}
+		m.handlePause(c.Room, false)
 	}
 }
 
@@ -346,6 +356,27 @@ func (m *Manager) resetBlindTicker(code string, r *game.Room) {
 			m.broadcast(code, pub)
 		}
 	}()
+}
+
+// handlePause pauses or resumes the game. Cancels the turn timer when pausing
+// (no auto-fold during a break); re-arms it on resume if there is an active actor.
+func (m *Manager) handlePause(code string, pause bool) {
+	m.mu.Lock()
+	r := m.games[code]
+	if r == nil {
+		m.mu.Unlock()
+		return
+	}
+	if pause {
+		r.Pause()
+		m.cancelTimerLocked(code)
+	} else {
+		r.Resume()
+		m.armTimerLocked(code, r)
+	}
+	pub := r.PublicMsg()
+	m.mu.Unlock()
+	m.broadcast(code, pub)
 }
 
 func (m *Manager) broadcast(code string, msg game.ServerMsg) {

@@ -45,6 +45,9 @@ type Room struct {
 	// config
 	runItN         int // how many times to run out the board on all-in (1–3)
 	blindLevelSecs int // >0: escalate blinds this often (tournaments)
+
+	paused      bool     // true while owner has suspended play (tournament break)
+	bustedOrder []string // seat IDs in bust-out order (index 0 = first eliminated)
 }
 
 const defaultStartStack = 1000
@@ -97,6 +100,15 @@ func (r *Room) BlindLevelSecs() int { return r.blindLevelSecs }
 
 // Blinds returns the current sb and bb.
 func (r *Room) Blinds() (int, int) { return r.sb, r.bb }
+
+// Pause suspends the game: Action calls are rejected until Resume is called.
+func (r *Room) Pause() { r.paused = true }
+
+// Resume lifts the suspension set by Pause.
+func (r *Room) Resume() { r.paused = false }
+
+// IsPaused reports whether the room is currently suspended.
+func (r *Room) IsPaused() bool { return r.paused }
 
 // SetName records a player's display name (shown in PublicSeat).
 func (r *Room) SetName(id, name string) {
@@ -260,6 +272,9 @@ func (r *Room) startHandWithDeck(deck []poker.Card) error {
 
 // Action applies a betting action and advances the hand (street / showdown).
 func (r *Room) Action(id, action string, amount int) error {
+	if r.paused {
+		return errors.New("game is paused")
+	}
 	if r.phase == PhaseShowdown || r.phase == PhaseIdle || r.betting == nil {
 		return errors.New("no active betting")
 	}
@@ -432,10 +447,15 @@ func (r *Room) PublicMsg() ServerMsg {
 			reveals[id] = []string{h[0].ID(), h[1].ID()}
 		}
 	}
+	var bustedOrder []string
+	if len(r.bustedOrder) > 0 {
+		bustedOrder = append([]string(nil), r.bustedOrder...)
+	}
 	msg, _ := encode("state", PublicState{
 		HandNum: r.handNum, Phase: string(r.phase), Board: board,
 		Pot: pot, ToAct: toAct, Deadline: r.deadline, Seats: seats,
 		Winners: r.winners, Reveals: reveals, Runs: r.runs,
+		SB: r.sb, BB: r.bb, Paused: r.paused, BustedOrder: bustedOrder,
 	})
 	return msg
 }
@@ -454,11 +474,24 @@ func (r *Room) HoleMsgs() map[string]ServerMsg {
 // applyWinnings credits winners back into persistent stacks. Losers' committed
 // chips already left their stacks during betting (Chips was decremented), so we
 // only add winnings here, then sync remaining table chips back to r.chips.
+// It also records any newly busted-out players into bustedOrder (for tournament
+// finish rankings). A player is bust-out when their total chips reach zero after
+// all pots are settled.
 func (r *Room) applyWinnings() {
 	for _, s := range r.betting.Seats {
 		r.chips[s.ID] = s.Chips
 	}
 	for _, w := range r.winners {
 		r.chips[w.ID] += w.Amount
+	}
+	// Record newly busted seats (chips == 0, not already in bustedOrder).
+	bustedSet := make(map[string]bool, len(r.bustedOrder))
+	for _, id := range r.bustedOrder {
+		bustedSet[id] = true
+	}
+	for _, s := range r.betting.Seats {
+		if r.chips[s.ID] == 0 && !bustedSet[s.ID] {
+			r.bustedOrder = append(r.bustedOrder, s.ID)
+		}
 	}
 }

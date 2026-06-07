@@ -28,6 +28,10 @@ export type PublicState = {
   winners?: GameWinner[];
   reveals?: Record<string, string[]>; // seatId -> 2 card ids, at showdown
   runs?: RunResult[]; // populated for run-it-N all-in outcomes (N > 1)
+  sb?: number; // current small blind
+  bb?: number; // current big blind
+  paused?: boolean; // true during a tournament break
+  bustedOrder?: string[]; // seat IDs in bust-out order (tournament rankings)
 };
 
 export type RunResult = {
@@ -47,6 +51,8 @@ export type GameSocket = {
   start: () => void;
   action: (action: string, amount?: number) => void;
   config: (sb: number, bb: number, stack: number, runItN?: number, blindLevelSecs?: number) => void;
+  pause: () => void;
+  resume: () => void;
 };
 
 export function useGameSocket(room: string | null, id: string, name = "", token?: string, spectator = false): GameSocket {
@@ -156,6 +162,8 @@ export function useGameSocket(room: string | null, id: string, name = "", token?
       }),
     [send],
   );
+  const pause = useCallback(() => send("pause"), [send]);
+  const resume = useCallback(() => send("resume"), [send]);
 
-  return { connected: status === "connected", status, error, state, hole, start, action, config };
+  return { connected: status === "connected", status, error, state, hole, start, action, config, pause, resume };
 }
