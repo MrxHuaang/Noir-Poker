@@ -223,6 +223,8 @@ firebase deploy --only firestore:rules
 
 ## Documentación
 
+- [Contexto de producto para agentes](PRODUCT.md)
+- [Contexto de diseño para agentes](DESIGN.md)
 - [Plan de migración](docs/plan-migracion.md)
 - [Roadmap y contribución](CONTRIBUTING.md)
 - [Servidor Go](server/README.md)
