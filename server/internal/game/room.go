@@ -576,9 +576,20 @@ func (r *Room) PublicMsg() ServerMsg {
 		inHand := make(map[string]bool, len(r.betting.Seats))
 		for i, s := range r.betting.Seats {
 			inHand[s.ID] = true
+			chips := s.Chips
+			if r.phase == PhaseShowdown {
+				// Winnings are applied to the persistent stacks at settlement;
+				// show those so the winner's stack updates with the result.
+				// A player who already stood up keeps their parting stack.
+				if c, ok := r.chips[s.ID]; ok {
+					chips = c
+				} else if c, ok := r.departed[s.ID]; ok {
+					chips = c
+				}
+			}
 			seats[i] = PublicSeat{
 				ID: s.ID, Name: r.names[s.ID], Seed: r.seeds[s.ID],
-				Chips: s.Chips, Bet: s.Bet, TotalBet: s.TotalBet, Status: string(s.Status),
+				Chips: chips, Bet: s.Bet, TotalBet: s.TotalBet, Status: string(s.Status),
 				HasCards: s.Status != StatusFolded && s.Status != StatusOut,
 			}
 		}

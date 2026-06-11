@@ -39,60 +39,10 @@ export async function writeHandRecord(
   });
 }
 
-// writeOnlineHandRecord persists a hand from the server-backed online mode to
-// onlineRooms/{code}/hands. Reuses the same HandRecord shape so aggregateHud
-// and the history UI work without changes.
-export async function writeOnlineHandRecord(
-  code: string,
-  rec: Omit<HandRecord, "id" | "ts">,
-): Promise<void> {
-  const db = getDb();
-  await addDoc(collection(db, "onlineRooms", code, "hands"), {
-    ...rec,
-    ts: serverTimestamp(),
-  });
-}
-
-export function subscribeOnlineHandHistory(
-  code: string,
-  cb: (recs: HandRecord[]) => void,
-): () => void {
-  const db = getDb();
-  const q = query(
-    collection(db, "onlineRooms", code, "hands"),
-    orderBy("ts", "desc"),
-    limit(200),
-  );
-  return onSnapshot(
-    q,
-    (snap) => {
-      const out: HandRecord[] = [];
-      snap.forEach((d) => {
-        const data = d.data() as Record<string, unknown>;
-        const tsRaw = data.ts as { toMillis?: () => number } | number | null;
-        const ts =
-          tsRaw && typeof tsRaw === "object" && typeof tsRaw.toMillis === "function"
-            ? tsRaw.toMillis()
-            : typeof tsRaw === "number"
-              ? tsRaw
-              : Date.now();
-        out.push({
-          id: d.id,
-          handNum: Number(data.handNum ?? 0),
-          winners: (data.winners as HandRecord["winners"]) ?? [],
-          category: data.category as import("./handEval").Category,
-          pot: Number(data.pot ?? 0),
-          community: (data.community as string[]) ?? [],
-          ts,
-          dealtIds: (data.dealtIds as string[]) ?? [],
-          showdownIds: (data.showdownIds as string[]) ?? [],
-        });
-      });
-      cb(out);
-    },
-    () => cb([]),
-  );
-}
+// NOTE: online-mode (server-backed) hand history does NOT live here. The Go
+// server persists it to Supabase (online_hand_records); see useOnlineHistory.
+// A previous client-side write to onlineRooms/{code}/hands was dead code:
+// firestore.rules never matched that collection, so every write was denied.
 
 export function subscribeHandHistory(
   code: string,
