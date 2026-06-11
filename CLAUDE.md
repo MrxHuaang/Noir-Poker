@@ -11,7 +11,7 @@ Multi-device Texas Hold'em simulator. Big screen runs the table, phones see priv
 ## Two backends — pick the right one
 
 - **Legacy host-authoritative mode** (`/play/normal`, `/host/normal`, `useNormalGame`): the host browser runs the game and syncs to Firestore. Has the full feature set (economy/escrow, tournaments, queue/spectators, run-it-twice). UNCHANGED — keep it working.
-- **Server-backed online mode** (`/play/online/[code]`, NEW): the game runs on the **Go server** (`server/`). Client connects via `useGameSocket`/`useServerGame` over `NEXT_PUBLIC_GAME_WS_URL`; the server deals, validates, and pushes per-seat private holes. Trustless. Cash game only for now (no economy/tournaments yet). Voice/chat are mounted by room code, same as legacy. A terminal client (`cli/`) speaks the same protocol.
+- **Server-backed online mode** (`/play/online/[code]`): the game runs on the **Go server** (`server/`). Client connects via `useGameSocket`/`useServerGame` over `NEXT_PUBLIC_GAME_WS_URL`; the server deals, validates, and pushes per-seat private holes. Renders on the same rich table as legacy (`TableShell`/`RoundPokerTable` + `BettingDock`) through the pure adapter `src/lib/onlineTable.ts`. Entry is observer-first (no forms): "Sentarme" seats you, or queues you when the 9-seat table is full (arrival order, auto-promotion). Economy is closed end-to-end: buy-in escrow = the server's `startStack`, cash-out reads the final stack from the Go server (`GET /stacks`), XP/history count verified hands from Supabase `online_hand_records` (written only by the Go server). Coin buy-ins require a non-anonymous account; guests spectate. Voice/chat mount by room code, same as legacy. A terminal client (`cli/`) speaks the same protocol (dev-only: prod WS requires Firebase tokens).
 - When adding online-mode features, port to the Go server (`server/internal/game`) + the WS protocol — do NOT add game logic to the client. The web client only renders state + sends actions.
 
 ## Repo conventions
@@ -71,8 +71,10 @@ hardcode amber/gold/green/blue chrome again.
 | `src/app/host/page.tsx`                       | Auto-creates room, subscribes lobby, mounts host PokerTable   |
 | `src/app/play/[code]/page.tsx`                | Phone: lobby form, then private game view                     |
 | `server/`                                     | Go authoritative game server. `internal/game` (Betting/Settle/Room), `internal/hub` (WS), `internal/auth` (Firebase token), `internal/session` (wiring). Deployed on Render; CI in `.github/workflows/server.yml`. |
-| `src/hooks/useGameSocket.ts` / `useServerGame.ts` | Client WS to the Go server (state/hole in, start/action/config out). |
-| `src/components/online/ServerTable.tsx` + `src/app/play/online/`  | Server-backed online table UI + routes (create/join + table).  |
+| `src/hooks/useGameSocket.ts` / `useServerGame.ts` | Client WS to the Go server (state/hole in, start/action/config out). Token is an async getter, re-resolved per reconnect. |
+| `src/lib/onlineTable.ts`                      | Pure adapter PublicState → NormalSeat[]/BettingRound/Cards for the rich table. NO game rules here. |
+| `src/app/play/online/`                        | Online routes: landing (create/join) + observer-first table page (sit/queue/spectate, economy settle on leave/pagehide). |
+| `src/lib/economyServer.ts` + `/api/economy`   | Server-authoritative wallet/XP. Online cash-out asks the Go server (`/stacks`); online XP counts Supabase hand records. |
 | `engine/`                                     | Rust→WASM equity engine; built in CI, bundled in `src/lib/engine/`, used by `useEquity`. |
 | `cli/`                                        | Terminal poker client (same WS protocol as the web online mode). `npm run play -- CODE Name`. |
 

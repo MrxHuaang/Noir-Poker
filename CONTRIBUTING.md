@@ -229,12 +229,12 @@ Estas reglas no son negociables:
 | WebSocket rooms | Hecho | Estado público + holes privados por asiento |
 | Auth Firebase WS | Implementado, opcional | Depende de `FIREBASE_PROJECT_ID` en Render |
 | Timer server-side | Hecho | Auto-check/auto-fold con deadline publicado al cliente |
-| Economía/escrow | Parcial | Buy-in/cash-out existe, pero online aún no liquida ganancias/pérdidas desde el stack del Go |
+| Economía/escrow | Hecho | Cash-out lee el stack final del Go (`GET /stacks`); XP/historial cuentan manos verificadas de Supabase; buy-in exige cuenta real |
 | Lobby de salas online | Hecho básico | `GET /rooms` lista salas activas del hub; falta metadata rica |
 | Run-it-N | Hecho básico | Configurable 1-3 runs desde creación; falta negociación/votación por mano |
-| Historial y stats del server | Parcial | Cliente escribe `onlineRooms/{code}/hands`; falta escritura autoritativa desde Go y categoría real |
+| Historial y stats del server | Hecho | El Go escribe `online_hand_records` en Supabase con categoría real; el cliente solo lee |
 | Torneos | Parcial | Go tiene escalado simple de ciegas; faltan niveles configurables, knockouts, ranking y payouts |
-| Espectadores/cola | Parcial | Espectador básico implementado; falta cola y UX completa |
+| Espectadores/cola | Hecho | Entrada observer-first; cupo de 9 asientos con fila por orden de llegada y promoción automática |
 | Deprecar legacy | Bloqueado | Solo cuando Go alcance paridad |
 
 ### Producto y calidad
@@ -254,9 +254,8 @@ Estas reglas no son negociables:
 | --- | --- | --- |
 | Media | SeatPicker no aparece en modo Torneo | El jugador puede jugar; la selección visual de asiento queda limitada |
 | Baja | Dealer button puede superponerse con fichas en mesa heads-up | Visual, no afecta lógica |
-| Media | Online cash-out server-backed todavía no usa el stack final del Go | La economía online funciona como escrow/refund, no como win/loss real |
-| Baja | Historial online guarda categoría placeholder | El replayer/HUD no tiene categoría real de mano desde Go |
-| Media | Render free duerme por inactividad | Cold start aproximado de un minuto |
+| Media | Render free duerme por inactividad | Cold start aproximado de un minuto (mitigado con keep-alive ping) |
+| Baja | Reconexión con la sala llena te manda al final de la fila | El asiento se libera al desconectar entre manos; al volver entras a la cola |
 
 ## Documentos relacionados
 
