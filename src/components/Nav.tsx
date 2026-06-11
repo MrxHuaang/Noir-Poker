@@ -238,7 +238,10 @@ export function Nav() {
   if (
     path?.startsWith("/host") ||
     path?.startsWith("/play/normal") ||
-    path?.startsWith("/play/torneo")
+    path?.startsWith("/play/torneo") ||
+    // Online table is a fixed full-screen view (TableShell); the nav would
+    // overlap the felt. The /play/online landing keeps the nav.
+    path?.startsWith("/play/online/")
   ) {
     return null;
   }
@@ -325,14 +328,14 @@ export function Nav() {
                 onNavigate={() => setShowModal(false)}
               />
               <ModeCard
-                href="/create"
+                href="/play/online"
                 icon={<Coins className="w-5 h-5" />}
                 accent="two"
                 title="Online"
-                subtitle="Apuestas virtuales · Lobby"
-                description="Sala con fichas virtuales, ciegas y apuestas. Crea pública o privada; configura las reglas dentro de la sala."
-                features={["Fichas, ciegas y apuestas", "Pública o privada con lobby", "Side pots automáticos"]}
-                cta="Crear sala"
+                subtitle="Servidor autoritativo · Solo PC"
+                description="Cash game donde el servidor reparte y valida cada acción. Monedas y XP de tu perfil; comparte el código y listo."
+                features={["Monedas y XP de tu perfil", "Run-it-twice y side pots", "Historial de manos real"]}
+                cta="Crear mesa"
                 onNavigate={() => setShowModal(false)}
               />
               <ModeCard

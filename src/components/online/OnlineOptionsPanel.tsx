@@ -4,7 +4,7 @@
 // hand history persisted by the server in Supabase. Presentational: every
 // mutation goes out as a WS message; nothing is decided client-side.
 import { useState } from "react";
-import { Check, Copy, History, Settings, Share2, X } from "lucide-react";
+import { Check, Copy, History, LogOut, Settings, Share2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { formatChips } from "@/lib/betting";
 import { categoryLabel, type OnlineHandRecord } from "@/hooks/useOnlineHistory";
@@ -18,6 +18,7 @@ export function OnlineOptionsPanel({
   startStack,
   history,
   onConfig,
+  onStandUp,
   onClose,
 }: {
   code: string;
@@ -28,6 +29,7 @@ export function OnlineOptionsPanel({
   startStack: number;
   history: OnlineHandRecord[];
   onConfig: (sb: number, bb: number, stack: number, runItN?: number, blindLevelSecs?: number) => void;
+  onStandUp?: () => void;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -148,6 +150,23 @@ export function OnlineOptionsPanel({
             >
               {applied ? "Aplicado" : "Aplicar"}
             </button>
+          </section>
+        )}
+
+        {/* Levantarse: liquida el stack y sigue mirando */}
+        {onStandUp && (
+          <section className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={onStandUp}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 font-bold text-xs btn-press"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Levantarme (seguir mirando)
+            </button>
+            <p className="text-[10px] text-zinc-600">
+              Tu stack se convierte en monedas al levantarte.
+            </p>
           </section>
         )}
 

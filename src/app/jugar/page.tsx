@@ -159,18 +159,18 @@ export default function JugarPage() {
                     cta="Abrir mesa"
                   />
                   <ModeCard
-                    href="/create"
+                    href="/play/online"
                     icon={<Coins className="h-5 w-5" />}
                     tier="two"
                     title="Online"
-                    subtitle="Apuestas virtuales · Lobby"
-                    description="Sala con fichas virtuales, ciegas y reglas configurables dentro del flujo online."
+                    subtitle="Servidor autoritativo · Solo PC"
+                    description="Cash game donde el servidor reparte y valida. Monedas y XP de tu perfil."
                     features={[
-                      "Pública o privada",
-                      "Side pots automáticos",
-                      "Lobby en tiempo real",
+                      "Monedas y XP de tu perfil",
+                      "Run-it-twice y side pots",
+                      "Historial de manos real",
                     ]}
-                    cta="Crear sala"
+                    cta="Crear mesa"
                   />
                   <ModeCard
                     href="/host/torneo"

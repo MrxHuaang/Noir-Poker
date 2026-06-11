@@ -4,7 +4,10 @@
 // it just relays messages within a room.
 package hub
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 // Client is one connected participant in a room. send is its outbound queue;
 // the WebSocket writer goroutine drains it.
@@ -13,7 +16,8 @@ type Client struct {
 	Name      string // display name (from ?name=); ID stays the unique key
 	Seed      string // avatar seed (from ?seed=); cosmetic only
 	Room      string
-	Spectator bool // true: receives state broadcasts but cannot act or be dealt in
+	Spectator bool  // true: receives state broadcasts but cannot act or be dealt in
+	JoinSeq   int64 // monotonic arrival order; the seating/queue order is first-come
 	send      chan []byte
 }
 
@@ -21,8 +25,9 @@ type Client struct {
 func (c *Client) Outbound() <-chan []byte { return c.send }
 
 type Hub struct {
-	mu    sync.RWMutex
-	rooms map[string]map[*Client]struct{}
+	mu      sync.RWMutex
+	rooms   map[string]map[*Client]struct{}
+	joinSeq int64 // monotonic counter for Client.JoinSeq
 
 	// AllowedOrigins, when non-empty, restricts the WS upgrade to these origin
 	// hosts (see ws.go). Empty means allow any origin (dev). Set once at startup
@@ -36,7 +41,11 @@ func New() *Hub {
 
 // Join registers a new client in room and returns it.
 func (h *Hub) Join(room, id, name string) *Client {
-	c := &Client{ID: id, Name: name, Room: room, send: make(chan []byte, 32)}
+	c := &Client{
+		ID: id, Name: name, Room: room,
+		JoinSeq: atomic.AddInt64(&h.joinSeq, 1),
+		send:    make(chan []byte, 32),
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.rooms[room] == nil {

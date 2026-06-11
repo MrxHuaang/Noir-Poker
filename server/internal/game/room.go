@@ -59,6 +59,7 @@ type Room struct {
 
 	paused      bool     // true while owner has suspended play (tournament break)
 	bustedOrder []string // seat IDs in bust-out order (index 0 = first eliminated)
+	waiting     []string // connected players without a seat (table full), arrival order
 
 	// handCategories maps each revealed seat ID to its best 5-card hand category
 	// (0 = high-card … 8 = straight-flush). Populated at showdown alongside reveals.
@@ -196,13 +197,24 @@ func (r *Room) Stacks() map[string]int {
 	return out
 }
 
-// SyncSeats sets the active roster to exactly `ids` (the currently connected
-// players). New ids get startStack; returning ids keep their persisted stack;
+// MaxSeated is the table capacity (the view renders 9 seats around the felt).
+// Connected players beyond it wait in arrival order and are auto-seated on the
+// next roster sync after a seat frees up.
+const MaxSeated = 9
+
+// SyncSeats sets the active roster from `ids` (the currently connected players
+// in arrival order): the first MaxSeated get seats, the rest go to the waiting
+// list. New ids get startStack; returning ids keep their persisted stack;
 // disconnected ids drop from the roster (their stack is retained in case they
 // return). Call before StartHand so left players aren't dealt in.
 func (r *Room) SyncSeats(ids []string) {
 	r.seatIDs = nil
+	r.waiting = nil
 	for _, id := range ids {
+		if len(r.seatIDs) >= MaxSeated {
+			r.waiting = append(r.waiting, id)
+			continue
+		}
 		if _, ok := r.chips[id]; !ok {
 			r.chips[id] = r.startStack
 		}
@@ -211,6 +223,15 @@ func (r *Room) SyncSeats(ids []string) {
 		delete(r.departed, id)
 		r.seatIDs = append(r.seatIDs, id)
 	}
+}
+
+// Waiting returns the queue of connected players without a seat (table full),
+// in arrival order.
+func (r *Room) Waiting() []string {
+	if len(r.waiting) == 0 {
+		return nil
+	}
+	return append([]string(nil), r.waiting...)
 }
 
 // LeaveFold folds a player who left mid-hand and advances the hand. Returns true
@@ -594,9 +615,14 @@ func (r *Room) PublicMsg() ServerMsg {
 			}
 		}
 		// At showdown, also list players who joined while the hand ran so they
-		// see themselves seated (they are dealt in on the next hand).
+		// see themselves seated (they are dealt in on the next hand). Capped at
+		// MaxSeated rows: the view renders 9 seats, and the finished hand's
+		// participants take display priority over fresh arrivals.
 		if r.phase == PhaseShowdown {
 			for _, id := range r.seatIDs {
+				if len(seats) >= MaxSeated {
+					break
+				}
 				if !inHand[id] {
 					seats = append(seats, PublicSeat{ID: id, Name: r.names[id], Seed: r.seeds[id], Chips: r.chips[id], Status: string(StatusActive)})
 				}
@@ -632,7 +658,7 @@ func (r *Room) PublicMsg() ServerMsg {
 		SB: r.sb, BB: r.bb, StartStack: r.startStack,
 		CurrentBet: currentBet, MinRaise: minRaise,
 		Dealer: r.dealerID, Owner: r.owner, LastAction: r.lastAction,
-		Paused: r.paused, BustedOrder: bustedOrder,
+		Paused: r.paused, BustedOrder: bustedOrder, Waiting: r.Waiting(),
 		HandCategories: r.HandCategories(),
 	})
 	return msg

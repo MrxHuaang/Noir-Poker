@@ -87,15 +87,15 @@ export default function Home() {
               onInfo={() => setShowTutorial(true)}
             />
             <ModeCard
-              href="/create"
+              href="/play/online"
               icon={<Coins className="w-5 h-5" />}
               tier="two"
               className="mode-card"
               title="Online"
-              subtitle="Apuestas virtuales · Lobby"
-              description="Sala con fichas virtuales, ciegas y apuestas reales. Crea pública o privada, configura las reglas dentro de la sala y el lobby la lista en tiempo real."
-              features={["Fichas, ciegas y apuestas", "Pública o privada con lobby", "Side pots automáticos"]}
-              cta="Crear sala"
+              subtitle="Servidor autoritativo · Solo PC"
+              description="Cash game donde el servidor reparte y valida cada acción. Juega con las monedas de tu perfil: buy-in al sentarte, cash-out al salir y XP por cada mano."
+              features={["Monedas y XP de tu perfil", "Run-it-twice y side pots", "Historial de manos real"]}
+              cta="Crear mesa"
             />
             <ModeCard
               href="/host/torneo"

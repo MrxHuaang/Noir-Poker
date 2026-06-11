@@ -10,6 +10,7 @@ package session
 import (
 	"encoding/json"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
@@ -114,18 +115,32 @@ func (m *Manager) roomLocked(code string) *game.Room {
 }
 
 // connectedPlayerIDs returns the de-duplicated non-spectator client ids in the
-// room (a player with two open tabs shares one seat, never two).
+// room in ARRIVAL order (a player with two open tabs shares one seat and keeps
+// the earliest arrival). The order matters: the room seats the first MaxSeated
+// and queues the rest, so first-come must be first-served deterministically.
 func (m *Manager) connectedPlayerIDs(code string) []string {
+	return m.connectedPlayerIDsExcept(code, nil)
+}
+
+// connectedPlayerIDsExcept is connectedPlayerIDs ignoring one specific client
+// connection (the one currently disconnecting — the hub still counts it during
+// OnLeave). A second open tab of the same uid still keeps the player present.
+func (m *Manager) connectedPlayerIDsExcept(code string, except *hub.Client) []string {
 	clients := m.hub.Clients(code)
-	ids := make([]string, 0, len(clients))
-	seen := make(map[string]bool, len(clients))
+	earliest := make(map[string]int64, len(clients))
 	for _, c := range clients {
-		if c.Spectator || seen[c.ID] {
+		if c.Spectator || c == except {
 			continue
 		}
-		seen[c.ID] = true
-		ids = append(ids, c.ID)
+		if seq, ok := earliest[c.ID]; !ok || c.JoinSeq < seq {
+			earliest[c.ID] = c.JoinSeq
+		}
 	}
+	ids := make([]string, 0, len(earliest))
+	for id := range earliest {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return earliest[ids[i]] < earliest[ids[j]] })
 	return ids
 }
 
@@ -331,9 +346,22 @@ func (m *Manager) OnLeave(c *hub.Client) {
 				m.pruneDisconnectedLocked(c.Room, r, c.ID)
 			}
 		}
-		if betweenHands(r) && !r.InHand(c.ID) {
-			// Standing up outside a live hand: park the stack for cash-out.
-			r.RemoveSeat(c.ID)
+		if betweenHands(r) {
+			ids := m.connectedPlayerIDsExcept(c.Room, c)
+			stillHere := false
+			for _, id := range ids {
+				if id == c.ID {
+					stillHere = true // another tab of the same uid remains
+					break
+				}
+			}
+			if !stillHere {
+				// Standing up outside a live hand: park the stack for cash-out.
+				r.RemoveSeat(c.ID)
+			}
+			// Re-sync the roster: drops the leaver from the waiting list too
+			// and promotes the head of the queue into the freed seat.
+			r.SyncSeats(ids)
 		}
 	}
 

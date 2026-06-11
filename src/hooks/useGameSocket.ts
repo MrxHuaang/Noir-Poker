@@ -47,6 +47,7 @@ export type PublicState = {
   lastAction?: LastAction; // most recent successful action (for UI feedback)
   paused?: boolean; // true during a tournament break
   bustedOrder?: string[]; // seat IDs in bust-out order (tournament rankings)
+  waiting?: string[]; // players queued for a seat (table full), arrival order
   handCategories?: Record<string, number>; // seatId -> 0-8 at showdown
 };
 

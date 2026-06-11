@@ -175,6 +175,40 @@ func TestStacksAndDepartedLifecycle(t *testing.T) {
 	}
 }
 
+// The table caps at MaxSeated; later arrivals queue in order and are promoted
+// (with a fresh stack) when a seat frees up.
+func TestSyncSeatsCapAndQueue(t *testing.T) {
+	r := NewRoom(5, 10)
+	ids := make([]string, 0, MaxSeated+2)
+	for i := 0; i < MaxSeated+2; i++ {
+		ids = append(ids, string(rune('a'+i)))
+	}
+	r.SyncSeats(ids)
+	if got := len(r.Seats()); got != MaxSeated {
+		t.Fatalf("seated = %d, want %d", got, MaxSeated)
+	}
+	w := r.Waiting()
+	if len(w) != 2 || w[0] != ids[MaxSeated] || w[1] != ids[MaxSeated+1] {
+		t.Fatalf("waiting = %v, want %v", w, ids[MaxSeated:])
+	}
+	// Waiting players hold no stack yet.
+	if r.Chips(ids[MaxSeated]) != 0 {
+		t.Fatalf("queued player should have no chips yet")
+	}
+	// First seat leaves: queue head takes the seat on the next sync.
+	r.RemoveSeat(ids[0])
+	r.SyncSeats(append(append([]string(nil), ids[1:MaxSeated]...), ids[MaxSeated], ids[MaxSeated+1]))
+	if got := len(r.Seats()); got != MaxSeated {
+		t.Fatalf("after promotion seated = %d, want %d", got, MaxSeated)
+	}
+	if r.Chips(ids[MaxSeated]) != r.StartStack() {
+		t.Fatalf("promoted player stack = %d, want startStack", r.Chips(ids[MaxSeated]))
+	}
+	if len(r.Waiting()) != 1 {
+		t.Fatalf("waiting after promotion = %v, want 1 entry", r.Waiting())
+	}
+}
+
 // Folding to one player ends the hand immediately; that player wins the blinds.
 func TestFoldEndsHand(t *testing.T) {
 	r := NewRoom(5, 10)
