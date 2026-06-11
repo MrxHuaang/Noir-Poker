@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export type OnlineRoom = { code: string; players: number };
+export type OnlineRoom = { code: string; players: number; casual?: boolean };
 
 // Polls GET /rooms on the Go server every 5 s. Returns [] when the server URL
 // is not configured or the request fails.

@@ -49,6 +49,7 @@ export type PublicState = {
   bustedOrder?: string[]; // seat IDs in bust-out order (tournament rankings)
   waiting?: string[]; // players queued for a seat (table full), arrival order
   handCategories?: Record<string, number>; // seatId -> 0-8 at showdown
+  casual?: boolean; // no-coin mode: free rebuys, guests can sit
 };
 
 export type RunResult = {
@@ -72,7 +73,7 @@ export type GameSocket = {
   hole: string[] | null;
   start: () => void;
   action: (action: string, amount?: number) => void;
-  config: (sb: number, bb: number, stack: number, runItN?: number, blindLevelSecs?: number) => void;
+  config: (sb: number, bb: number, stack: number, runItN?: number, blindLevelSecs?: number, casual?: boolean) => void;
   pause: () => void;
   resume: () => void;
 };
@@ -197,11 +198,12 @@ export function useGameSocket(
     [send],
   );
   const config = useCallback(
-    (sb: number, bb: number, stack: number, runItN?: number, blindLevelSecs?: number) =>
+    (sb: number, bb: number, stack: number, runItN?: number, blindLevelSecs?: number, casual?: boolean) =>
       send("config", {
         sb, bb, stack,
         ...(runItN !== undefined ? { runItN } : {}),
         ...(blindLevelSecs !== undefined ? { blindLevelSecs } : {}),
+        ...(casual !== undefined ? { casual } : {}),
       }),
     [send],
   );
