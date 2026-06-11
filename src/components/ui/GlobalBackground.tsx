@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import Grainient from "./Grainient";
 import { ACCENT_GRAINIENT } from "@/lib/brand";
 
-const GAME_PREFIXES = ["/host", "/play", "/admin"];
+const GAME_PREFIXES = ["/host", "/admin"];
+// Lobby pages under /play that are NOT game tables (should show background)
+const PLAY_LOBBY_PAGES = ["/play/online"];
 const BACKGROUND_OVERLAY =
   "radial-gradient(ellipse 100% 72% at 50% 44%, transparent 0%, rgba(8,6,14,0.58) 58%, rgba(6,5,11,0.9) 100%), linear-gradient(180deg, rgba(6,5,11,0.56) 0%, transparent 22%, transparent 78%, rgba(6,5,11,0.64) 100%)";
 
@@ -38,7 +40,10 @@ export function GlobalBackground() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  const isGamePage = GAME_PREFIXES.some((p) => pathname.startsWith(p));
+  const isPlayLobby = PLAY_LOBBY_PAGES.some((p) => pathname === p);
+  const isGamePage =
+    !isPlayLobby &&
+    (GAME_PREFIXES.some((p) => pathname.startsWith(p)) || pathname.startsWith("/play"));
   if (isGamePage) return null;
 
   const showLive = mode === "live" || mode === "mobile-live";
