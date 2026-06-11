@@ -3,10 +3,11 @@ import { useCallback, useEffect, useState } from "react";
 import {
   GithubAuthProvider,
   GoogleAuthProvider,
-  linkWithPopup,
+  getRedirectResult,
+  linkWithRedirect,
   onAuthStateChanged,
   signInAnonymously,
-  signInWithPopup,
+  signInWithRedirect,
   signOut as fbSignOut,
   type AuthProvider as FbAuthProvider,
   type User,
@@ -21,6 +22,8 @@ export function useAuth() {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
+    // Consume any pending redirect result (after Google/GitHub OAuth redirect).
+    getRedirectResult(auth).catch(() => { /* silent — onAuthStateChanged handles the user */ });
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         try {
@@ -55,27 +58,15 @@ export function useAuth() {
   }, [user]);
 
   // Enlaza la cuenta anonima con un proveedor social para conservar el uid.
-  // Si la credencial ya pertenece a otra cuenta, hace login normal (best-effort).
+  // Usa redirect (no popup) para evitar bloqueos por Cross-Origin-Opener-Policy.
   const linkOrSignIn = useCallback(async (provider: FbAuthProvider) => {
     const auth = getFirebaseAuth();
     const current = auth.currentUser;
-    try {
-      if (current?.isAnonymous) {
-        await linkWithPopup(current, provider);
-        return;
-      }
-    } catch (err) {
-      const code = (err as { code?: string })?.code ?? "";
-      // La cuenta social ya existe: caer a login normal mas abajo.
-      if (
-        code !== "auth/credential-already-in-use" &&
-        code !== "auth/email-already-in-use" &&
-        code !== "auth/provider-already-linked"
-      ) {
-        throw err;
-      }
+    if (current?.isAnonymous) {
+      await linkWithRedirect(current, provider);
+      return;
     }
-    await signInWithPopup(auth, provider);
+    await signInWithRedirect(auth, provider);
   }, []);
 
   const signInWithGoogle = useCallback(
