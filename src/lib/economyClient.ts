@@ -20,3 +20,27 @@ export async function callEconomy(
   }
   return data;
 }
+
+// Fire-and-forget variant for pagehide/tab-close: `keepalive` lets the request
+// outlive the document, so the cash-out still lands when the user closes the
+// tab instead of navigating within the SPA. Errors are intentionally swallowed
+// (there is no UI left to report to); reconciliation can settle later.
+export function callEconomyKeepalive(
+  token: string,
+  action: string,
+  params: Record<string, unknown> = {},
+): void {
+  try {
+    void fetch("/api/economy", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action, ...params }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* no-op */
+  }
+}

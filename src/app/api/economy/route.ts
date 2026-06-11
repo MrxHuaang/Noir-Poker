@@ -75,6 +75,7 @@ export async function POST(req: Request) {
           handsWon: Number(s.handsWon ?? 0),
           net: Number(s.net ?? 0),
           biggestPot: Number(s.biggestPot ?? 0),
+          mode: s.mode === "online" ? "online" : "normal",
         });
         return NextResponse.json({ ok: true });
       }
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error interno";
     // Errores de negocio esperados (saldo insuficiente, monto invalido) -> 400.
-    const known = ["Saldo insuficiente", "Monto invalido", "Perfil inexistente"];
+    const known = ["Saldo insuficiente", "Monto invalido", "Perfil inexistente", "Cuenta de invitado"];
     const status = known.includes(message) ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }

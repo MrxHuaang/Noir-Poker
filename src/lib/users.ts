@@ -195,6 +195,7 @@ export async function recordSession(
     net: number;
     biggestPot: number;
     xpGained: number; // ignorado por el servidor: el XP se recalcula server-side
+    mode?: "normal" | "online"; // de donde cuenta el servidor las manos verificadas
   },
 ): Promise<void> {
   await callEconomy("record-session", { session: data }, uid);

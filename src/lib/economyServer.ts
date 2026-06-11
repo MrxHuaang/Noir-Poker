@@ -189,6 +189,12 @@ export async function buyIn(
 ): Promise<number> {
   const amt = Math.floor(amount);
   if (!(amt > 0) || amt > MAX_BUYIN) throw new Error("Monto invalido");
+  // Las salas con monedas exigen cuenta real: un invitado anonimo que pierde
+  // el wallet lo "resetea" cerrando la pestana (cuenta nueva = grant nuevo).
+  const userRecord = await adminAuth().getUser(uid);
+  if ((userRecord.providerData?.length ?? 0) === 0) {
+    throw new Error("Cuenta de invitado");
+  }
   const ref = userRef(uid);
   const lref = ledgerRef(code);
   return adminDb().runTransaction(async (tx) => {
@@ -241,23 +247,57 @@ export async function refundBuyIn(uid: string, code: string, amount: number): Pr
   });
 }
 
-// Cash-out autoritativo. lobby.chips lo controla el host (autoridad de stacks),
-// pero NO puede acunar monedas: el credito se recorta al bote real de la sala
-// (totalIn - totalOut) via cappedCredit. Asi el host puede repartir quien gana
-// o pierde, pero el total que sale de la sala jamas supera lo que entro. Si la
+// Lee el stack final de un jugador en una sala online directamente del servidor
+// Go (GET /stacks), que es la autoridad del juego. Devuelve null si el servidor
+// no responde o la sala ya expiro (fallback conservador: devolver el escrow).
+async function fetchOnlineStack(code: string, uid: string): Promise<number | null> {
+  const base = process.env.GAME_SERVER_URL || process.env.NEXT_PUBLIC_GAME_WS_URL;
+  if (!base) return null;
+  try {
+    const url = `${base.replace(/\/$/, "")}/stacks?room=${encodeURIComponent(code)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000), cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { stacks?: Record<string, number> };
+    const chips = data.stacks?.[uid];
+    return typeof chips === "number" ? Math.max(0, Math.floor(chips)) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Cash-out autoritativo. La autoridad de stacks depende del modo de la sala:
+//   - normal: lobby.chips lo controla el host.
+//   - online: el servidor Go reporta el stack final via GET /stacks.
+// Ninguna autoridad puede acunar monedas: el credito se recorta al bote real de
+// la sala (totalIn - totalOut) via cappedCredit. Asi se reparte quien gana o
+// pierde, pero el total que sale de la sala jamas supera lo que entro. Si la
 // sala no tiene libro (creada antes de esta version), el tope conservador es el
 // propio escrow del jugador: nunca paga mas de lo que ese jugador aporto.
 export async function cashOut(uid: string, code: string): Promise<number | null> {
   const db = adminDb();
-  const lobbySnap = await db
-    .collection("normalRooms").doc(code)
-    .collection("lobby").doc(uid)
-    .get();
-  const lobbyChips = lobbySnap.exists
-    ? Math.max(0, Math.floor((lobbySnap.data() as { chips?: number }).chips ?? 0))
-    : null;
-
   const ref = userRef(uid);
+
+  // Determinar el modo del escrow antes de la transaccion (los fetch externos
+  // no pueden vivir dentro de ella).
+  const preSnap = await ref.get();
+  if (!preSnap.exists) return null;
+  const pre = preSnap.data() as UserProfile;
+  if (!(code in (pre.escrows ?? {}))) return null; // ya liquidado
+  const isOnline = pre.escrowModes?.[code] === "online";
+
+  let authorityChips: number | null = null;
+  if (isOnline) {
+    authorityChips = await fetchOnlineStack(code, uid);
+  } else {
+    const lobbySnap = await db
+      .collection("normalRooms").doc(code)
+      .collection("lobby").doc(uid)
+      .get();
+    authorityChips = lobbySnap.exists
+      ? Math.max(0, Math.floor((lobbySnap.data() as { chips?: number }).chips ?? 0))
+      : null;
+  }
+  const lobbyChips = authorityChips;
   const lref = ledgerRef(code);
   return db.runTransaction(async (tx) => {
     const [snap, lsnap] = await Promise.all([tx.get(ref), tx.get(lref)]);
@@ -350,10 +390,50 @@ async function countVerifiedHands(
   return { played: played.size, won: won.size };
 }
 
+// Cuenta manos jugadas/ganadas de una sala ONLINE desde Supabase
+// online_hand_records, que escribe SOLO el servidor Go (service role; RLS
+// bloquea INSERT de clientes). Mismo contrato que countVerifiedHands: el
+// cliente no puede inflar el conteo. Dedup por hand_num.
+async function countVerifiedOnlineHands(
+  code: string,
+  uid: string,
+): Promise<{ played: number; won: number }> {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!base || !key) return { played: 0, won: 0 };
+  const url =
+    `${base.replace(/\/$/, "")}/rest/v1/online_hand_records` +
+    `?room=eq.${encodeURIComponent(code)}&select=hand_num,seat_ids,winners` +
+    `&limit=${MAX_HANDS_PER_SESSION}`;
+  const res = await fetch(url, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    signal: AbortSignal.timeout(6000),
+    cache: "no-store",
+  });
+  if (!res.ok) return { played: 0, won: 0 };
+  const rows = (await res.json()) as {
+    hand_num?: number;
+    seat_ids?: string[];
+    winners?: { id: string }[];
+  }[];
+  const played = new Set<number>();
+  const won = new Set<number>();
+  for (const h of rows) {
+    const n = Number(h.hand_num ?? -1);
+    if (n < 0 || !Array.isArray(h.seat_ids) || !h.seat_ids.includes(uid)) continue;
+    played.add(n);
+    if (Array.isArray(h.winners) && h.winners.some((w) => w.id === uid)) won.add(n);
+  }
+  return { played: played.size, won: won.size };
+}
+
 // Registra una sesion: stats + XP + historial. handsPlayed/handsWon NO se toman
 // del cliente: se cuentan server-side desde las manos autoritativas de la sala
-// y se acreditan por DELTA (marcador por sala) para que repetir record-session o
-// inflar los contadores no forje XP. El XP se recalcula con sessionXp().
+// (Firestore hands del host en modo normal; Supabase online_hand_records del
+// servidor Go en modo online) y se acreditan por DELTA (marcador por sala) para
+// que repetir record-session o inflar los contadores no forje XP. El XP se
+// recalcula con sessionXp().
 export async function recordSession(
   uid: string,
   data: {
@@ -363,6 +443,7 @@ export async function recordSession(
     handsWon: number;
     net: number;
     biggestPot: number;
+    mode?: RoomMode;
   },
 ): Promise<void> {
   const code = String(data.code ?? "").slice(0, 64);
@@ -371,12 +452,17 @@ export async function recordSession(
   const biggestPot = Math.max(0, Math.floor(Number.isFinite(data.biggestPot) ? data.biggestPot : 0));
   if (!code) return;
 
-  // Verdad server-side: manos realmente registradas por el host para esta sala.
-  const verified = await countVerifiedHands(code, uid);
+  // Verdad server-side: manos realmente registradas para esta sala.
+  const isOnline = data.mode === "online";
+  const verified = isOnline
+    ? await countVerifiedOnlineHands(code, uid)
+    : await countVerifiedHands(code, uid);
 
   const db = adminDb();
   const ref = userRef(uid);
-  const creditRef = ref.collection("sessionCredits").doc(code);
+  // Marcador por sala; las online llevan prefijo para no chocar con una sala
+  // normal que reutilice el mismo codigo.
+  const creditRef = ref.collection("sessionCredits").doc(isOnline ? `online-${code}` : code);
 
   const granted = await db.runTransaction(async (tx) => {
     const [snap, creditSnap] = await Promise.all([tx.get(ref), tx.get(creditRef)]);
