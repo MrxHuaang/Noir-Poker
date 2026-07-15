@@ -49,6 +49,7 @@ type Manager struct {
 	timers   map[string]*roomTimer
 	blinds   map[string]*blindTicker // per-room blind escalation tickers
 	owners   map[string]string       // room code -> uid allowed to start/configure
+	creators map[string]string       // room code -> first-ever player; reclaims ownership on reconnect
 	cleanups map[string]*time.Timer  // per-room delayed teardown when emptied
 	store    *store.SupabaseStore    // nil when SUPABASE_URL/SUPABASE_SERVICE_KEY unset
 }
@@ -60,6 +61,7 @@ func NewManager(h *hub.Hub) *Manager {
 		timers:   make(map[string]*roomTimer),
 		blinds:   make(map[string]*blindTicker),
 		owners:   make(map[string]string),
+		creators: make(map[string]string),
 		cleanups: make(map[string]*time.Timer),
 		store:    store.New(),
 	}
@@ -296,9 +298,17 @@ func (m *Manager) OnJoin(c *hub.Client) {
 		t.Stop()
 		delete(m.cleanups, c.Room)
 	}
-	// First non-spectator to join owns the room (start/config authority).
-	if !c.Spectator && m.owners[c.Room] == "" {
-		m.owners[c.Room] = c.ID
+	// First non-spectator to join owns the room (start/config authority) and is
+	// remembered as its creator: if the creator drops (reload, network blip) the
+	// ownership passes to another player, but the creator RECLAIMS it on
+	// reconnect so a refresh never leaves the room without its host.
+	if !c.Spectator {
+		if m.creators[c.Room] == "" {
+			m.creators[c.Room] = c.ID
+		}
+		if m.owners[c.Room] == "" || m.creators[c.Room] == c.ID {
+			m.owners[c.Room] = c.ID
+		}
 	}
 	r := m.roomLocked(c.Room)
 	// Mirror the owner into the (possibly pre-existing) room: roomLocked only
@@ -447,6 +457,7 @@ func (m *Manager) scheduleTeardownLocked(code string) {
 		m.stopBlindTickerLocked(code)
 		delete(m.games, code)
 		delete(m.owners, code)
+		delete(m.creators, code)
 	})
 }
 
