@@ -7,23 +7,59 @@ import {
   linkWithRedirect,
   onAuthStateChanged,
   signInAnonymously,
+  signInWithCredential,
   signInWithRedirect,
   signOut as fbSignOut,
   type AuthProvider as FbAuthProvider,
+  type OAuthCredential,
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth, githubProvider, googleProvider } from "@/lib/firebase";
 import { ensureUserProfile, reconcileEscrows, subscribeUserProfile, type UserProfile } from "@/lib/users";
 
+// Credential embedded in a failed-link error (see extractCredential below).
+// Firebase's typings don't expose it, but both Google/GitHub OAuth errors
+// carry it on `customData._tokenResponse` — read it defensively.
+function credentialFromLinkError(error: unknown): OAuthCredential | null {
+  return (
+    GoogleAuthProvider.credentialFromError(error as never) ??
+    GithubAuthProvider.credentialFromError(error as never) ??
+    null
+  );
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
     // Consume any pending redirect result (after Google/GitHub OAuth redirect).
-    getRedirectResult(auth).catch(() => { /* silent — onAuthStateChanged handles the user */ });
+    // linkWithRedirect fails here (not at call time — the page already
+    // navigated away) when the chosen account was already used before: the
+    // Google/GitHub credential is tied to a DIFFERENT (earlier) account than
+    // this session's fresh anonymous one, so Firebase rejects the link with
+    // credential-already-in-use. Previously this error was swallowed, leaving
+    // the user anonymous forever — every retry repeated the same failed link,
+    // looping back to /login. Recover by signing into that existing account
+    // with the credential Firebase hands back in the error.
+    getRedirectResult(auth).catch(async (err) => {
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/credential-already-in-use" || code === "auth/email-already-in-use") {
+        const cred = credentialFromLinkError(err);
+        if (cred) {
+          try {
+            await signInWithCredential(auth, cred);
+            return;
+          } catch {
+            /* fall through to error message below */
+          }
+        }
+      }
+      setAuthError("No se pudo iniciar sesion. Intenta de nuevo.");
+    });
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
         try {
@@ -60,6 +96,7 @@ export function useAuth() {
   // Enlaza la cuenta anonima con un proveedor social para conservar el uid.
   // Usa redirect (no popup) para evitar bloqueos por Cross-Origin-Opener-Policy.
   const linkOrSignIn = useCallback(async (provider: FbAuthProvider) => {
+    setAuthError(null);
     const auth = getFirebaseAuth();
     const current = auth.currentUser;
     if (current?.isAnonymous) {
@@ -92,6 +129,7 @@ export function useAuth() {
     profile,
     loading,
     isGuest,
+    authError,
     signInWithGoogle,
     signInWithGithub,
     signOut,
