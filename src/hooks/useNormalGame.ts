@@ -329,6 +329,9 @@ export function useNormalGame(
       ...gameState,
       seats: newSeats,
       phase: "showdown",
+      // Pot a 0 al repartirlo: si este settle se re-ejecuta (write fallido,
+      // efecto re-disparado) la redistribución suma 0 en vez de duplicar fichas.
+      betting: { ...gameState.betting, pot: 0 },
     };
     setGameState(newState);
 
@@ -744,6 +747,8 @@ export function useNormalGame(
             seats: finalSeats,
             phase: "showdown",
             allInNegotiation: undefined,
+            // Pot repartido: a 0 para que un settle repetido no duplique fichas.
+            betting: { ...s.betting, pot: 0 },
           };
           runItNResolvedHandRef.current = thisHand;
           resolvedShowdownHandRef.current = thisHand;

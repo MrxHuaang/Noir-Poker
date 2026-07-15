@@ -450,6 +450,31 @@ function toPublicState(gs: NormalGameState): PublicNormalState {
   return { ...rest, deckCount: deck.length };
 }
 
+// Firestore rechaza `undefined` como valor de campo y el write COMPLETO falla
+// (p. ej. el settle de run-it-N marca `allInNegotiation: undefined`). Limpiar
+// recursivamente los `undefined` antes de escribir. Solo se reconstruyen
+// objetos planos: sentinels de Firestore (serverTimestamp, Timestamp, etc.)
+// pasan intactos.
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  if (typeof v !== "object" || v === null) return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => stripUndefined(v)) as unknown as T;
+  }
+  if (isPlainObject(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v !== undefined) out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 export async function writeNormalDealt(
   code: string,
   gs: NormalGameState,
@@ -481,7 +506,7 @@ export async function writeNormalDealt(
 
   const batch = writeBatch(db);
   batch.update(doc(db, "normalRooms", code), {
-    state: toPublicState(gs),
+    state: stripUndefined(toPublicState(gs)),
     result: null,
     runResults: null,
     pendingAction: null,
@@ -498,7 +523,7 @@ export async function patchNormalRoom(
   patch: Record<string, unknown>,
 ): Promise<void> {
   const db = getDb();
-  await updateDoc(doc(db, "normalRooms", code), patch);
+  await updateDoc(doc(db, "normalRooms", code), stripUndefined(patch));
 }
 
 export async function postPlayerAction(
