@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, UserRound } from "lucide-react";
 import { BorderGlow } from "@/components/ui/BorderGlow";
@@ -38,10 +38,33 @@ function GithubMark() {
 }
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
-  const { signInWithGoogle, signInWithGithub, isGuest, user } = useAuth();
+  const searchParams = useSearchParams();
+  const { signInWithGoogle, signInWithGithub, isGuest, user, authError } = useAuth();
   const [busy, setBusy] = useState<"google" | "github" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Solo rutas internas (evita open-redirect via ?next=https://evil.example).
+  const rawNext = searchParams.get("next");
+  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/perfil";
+
+  const alreadyLoggedIn = !!user && !isGuest;
+
+  // El redirect de Google/GitHub vuelve a ESTA pagina (no a `next`) — una vez
+  // que useAuth confirma la sesion real (no anonima), saltar a donde el
+  // usuario queria ir (p. ej. de vuelta a la mesa online que lo mando a
+  // loguearse) en vez de dejarlo varado en /login.
+  useEffect(() => {
+    if (alreadyLoggedIn) router.replace(next);
+  }, [alreadyLoggedIn, next, router]);
 
   async function handle(provider: "google" | "github") {
     setError(null);
@@ -49,7 +72,9 @@ export default function LoginPage() {
     try {
       if (provider === "google") await signInWithGoogle();
       else await signInWithGithub();
-      router.push("/perfil");
+      // No-op en el flujo real: signInWithRedirect navega fuera de la pagina
+      // antes de que esto se ejecute. El regreso lo maneja el useEffect de arriba.
+      router.push(next);
     } catch (err) {
       const code = (err as { code?: string })?.code ?? "";
       if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
@@ -61,8 +86,6 @@ export default function LoginPage() {
       setBusy(null);
     }
   }
-
-  const alreadyLoggedIn = !!user && !isGuest;
 
   return (
     <div className="relative isolate min-h-full w-full flex items-center justify-center px-4 py-12">
@@ -97,10 +120,10 @@ export default function LoginPage() {
                   Ya tienes una sesion activa.
                 </p>
                 <Link
-                  href="/perfil"
+                  href={next}
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 transition btn-press"
                 >
-                  Ver mi perfil
+                  {next === "/perfil" ? "Ver mi perfil" : "Continuar"}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -134,8 +157,8 @@ export default function LoginPage() {
                   Continuar con GitHub
                 </button>
 
-                {error && (
-                  <p className="text-center text-xs text-rose-400/90">{error}</p>
+                {(error || authError) && (
+                  <p className="text-center text-xs text-rose-400/90">{error ?? authError}</p>
                 )}
 
                 <div className="flex items-center gap-3 py-1">
@@ -147,7 +170,7 @@ export default function LoginPage() {
                 </div>
 
                 <Link
-                  href="/"
+                  href={rawNext ? next : "/"}
                   className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-zinc-400 hover:text-zinc-200 ring-1 ring-white/10 hover:ring-white/20 bg-white/[0.02] hover:bg-white/[0.05] text-sm font-semibold transition btn-press"
                 >
                   <UserRound className="w-4 h-4" />

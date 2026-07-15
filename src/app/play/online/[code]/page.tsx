@@ -332,7 +332,7 @@ function PlayOnlinePageInner() {
               </p>
               <div className="flex gap-2">
                 <Link
-                  href="/login"
+                  href={`/login?next=${encodeURIComponent(`/play/online/${code}`)}`}
                   className="px-4 py-2 rounded-xl bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 font-bold text-sm btn-press"
                 >
                   Iniciar sesión
