@@ -100,6 +100,10 @@ function PlayOnlinePageInner() {
 
   // Aplicar config de sala una vez al conectar (solo el enlace del creador trae
   // estos params; los joins normales usan los defaults del servidor).
+  // Reintentar hasta que el state del servidor REFLEJE la config: send() es
+  // silencioso si el WS aún no está OPEN (churn de reconexiones al cargar el
+  // perfil), así que un solo intento se perdía y la sala quedaba sin `casual`,
+  // con blinds default, etc. Solo se reintenta en fase idle (nunca mid-hand).
   const configSent = useRef(false);
   useEffect(() => {
     if (!connected || configSent.current || asSpectator) return;
@@ -108,11 +112,27 @@ function PlayOnlinePageInner() {
     const stack = Number(search.get("stack"));
     const runItN = Number(search.get("runItN")) || undefined;
     const blindLevelSecs = Number(search.get("blindLevelSecs")) || undefined;
-    if (sb > 0 || bb > 0 || stack > 0 || runItN || blindLevelSecs || urlCasual) {
-      config(sb || 0, bb || 0, stack || 0, runItN, blindLevelSecs, urlCasual || undefined);
+    const wantsConfig = sb > 0 || bb > 0 || stack > 0 || runItN || blindLevelSecs || urlCasual;
+    if (!wantsConfig) {
       configSent.current = true;
+      return;
     }
-  }, [connected, search, config, asSpectator, urlCasual]);
+    if (!state) return; // espera el primer snapshot para poder verificar el echo
+    if (state.phase !== "idle") {
+      configSent.current = true; // la mano ya empezó: no tocar la config
+      return;
+    }
+    const applied =
+      (!urlCasual || !!state.casual) &&
+      (!(sb > 0) || state.sb === sb) &&
+      (!(bb > 0) || state.bb === bb) &&
+      (!(stack > 0) || state.startStack === stack);
+    if (applied) {
+      configSent.current = true;
+      return;
+    }
+    config(sb || 0, bb || 0, stack || 0, runItN, blindLevelSecs, urlCasual || undefined);
+  }, [connected, state, search, config, asSpectator, urlCasual]);
 
   // --- Posición propia ------------------------------------------------------
   const amSeated = !!(uid && state?.seats.some((s) => s.id === uid) && !asSpectator);
@@ -140,7 +160,11 @@ function PlayOnlinePageInner() {
 
   useEffect(() => {
     if (!amSeated || !code || !uid || !state || escrowRef.current) return;
-    if (state.casual) return; // modo casual: sin compra de fichas
+    // Modo casual: sin compra de fichas. Se usa isCasual (URL + confirmación del
+    // server) y no state.casual a secas: el creador guest llegaba con casual=1
+    // pero el primer snapshot aún no traía el flag, el buy-in corría, fallaba
+    // con 400 y lo bajaba a espectador (perdiendo asiento y autoridad de sala).
+    if (isCasual) return;
     const amount = state.startStack || 1000;
     escrowRef.current = { code, amount };
     settledRef.current = false;
@@ -159,7 +183,7 @@ function PlayOnlinePageInner() {
         setWantSeat(false);
       }
     })();
-  }, [amSeated, code, uid, state, getToken]);
+  }, [amSeated, code, uid, state, getToken, isCasual]);
 
   // Stack y bote más grande visibles, para net/stats del record-session.
   useEffect(() => {
