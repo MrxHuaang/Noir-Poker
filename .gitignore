@@ -49,3 +49,5 @@ next-env.d.ts
 /engine/target
 /engine/pkg
 server/bin/
+# go server local binary (see .env.local — modo online sin Render)
+server/server-local.exe

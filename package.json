@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "play": "tsx cli/index.ts"
+    "play": "tsx cli/index.ts",
+    "server": "node scripts/run-game-server.mjs"
   },
   "dependencies": {
     "@dicebear/collection": "^9.4.2",
