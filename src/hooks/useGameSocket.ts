@@ -150,7 +150,10 @@ export function useGameSocket(
       };
 
       ws.onclose = () => {
-        wsRef.current = null;
+        // Solo limpiar si wsRef sigue apuntando a ESTE socket: el close de un
+        // socket viejo (matado por una reconexión) llega asíncrono y pisaba la
+        // referencia del socket nuevo — se recibía estado pero ningún send salía.
+        if (wsRef.current === ws) wsRef.current = null;
         if (!dead) {
           setStatus("reconnecting");
           scheduleRetry();
