@@ -163,6 +163,8 @@ function ApproveRow({
             type="button"
             onClick={() => setShowReject(true)}
             disabled={loading}
+            title="Rechazar"
+            aria-label="Rechazar solicitud"
             className="p-1.5 rounded-lg glass ring-1 ring-white/8 text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 transition"
           >
             <X className="w-3.5 h-3.5" />
@@ -171,6 +173,8 @@ function ApproveRow({
             type="button"
             onClick={handleApprove}
             disabled={loading}
+            title="Aprobar"
+            aria-label="Aprobar solicitud"
             className="p-1.5 rounded-lg bg-accent-500/10 ring-1 ring-accent-400/25 text-accent-300 hover:bg-accent-500/18 disabled:opacity-40 transition"
           >
             <Check className="w-3.5 h-3.5" />
