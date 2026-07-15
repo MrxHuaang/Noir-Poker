@@ -344,20 +344,21 @@ function PlayerRow({
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {!isOut && (
-            <button
-              type="button"
-              onClick={() => setStackOpen((v) => !v)}
-              title="Ajustar stack"
-              className={`p-1.5 rounded-lg ring-1 transition ${
-                stackOpen
-                  ? "bg-accent-500/10 ring-accent-400/25 text-accent-300"
-                  : "bg-white/5 ring-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
-              }`}
-            >
-              <Coins className="w-3.5 h-3.5" />
-            </button>
-          )}
+          {/* Disponible tambien para jugadores eliminados: darles fichas los revive
+              (status out -> waiting en useNormalGame) — clave en modo casual. */}
+          <button
+            type="button"
+            onClick={() => setStackOpen((v) => !v)}
+            title="Ajustar stack"
+            aria-label="Ajustar stack"
+            className={`p-1.5 rounded-lg ring-1 transition ${
+              stackOpen
+                ? "bg-accent-500/10 ring-accent-400/25 text-accent-300"
+                : "bg-white/5 ring-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+            }`}
+          >
+            <Coins className="w-3.5 h-3.5" />
+          </button>
           <button
             type="button"
             onClick={handleToggleSitOut}
@@ -383,7 +384,7 @@ function PlayerRow({
         </div>
       </div>
 
-      {stackOpen && !isOut && (
+      {stackOpen && (
         <div className="px-3 pb-3 flex flex-col gap-2 animate-in slide-in-from-top-1 fade-in duration-200">
           {economy === "coins" && wallet !== undefined && (
             <div className="flex items-center justify-between gap-2 text-[10px]">

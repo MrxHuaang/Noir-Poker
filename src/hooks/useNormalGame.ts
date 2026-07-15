@@ -387,11 +387,14 @@ export function useNormalGame(
       if (!code) return;
       setGameState((prev) => {
         if (!prev) return prev;
-        const seats = prev.seats.map((s) =>
-          s.id === playerId
-            ? { ...s, chips: Math.max(0, s.chips + delta) }
-            : s,
-        );
+        const seats = prev.seats.map((s) => {
+          if (s.id !== playerId) return s;
+          const chips = Math.max(0, s.chips + delta);
+          // Darle fichas a un jugador eliminado lo revive: entra a la
+          // siguiente mano como "waiting" (clave para recompras en casual).
+          const status = s.status === "out" && chips > 0 ? ("waiting" as const) : s.status;
+          return { ...s, chips, status };
+        });
         const next = { ...prev, seats };
         patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {});
         return next;
@@ -406,11 +409,15 @@ export function useNormalGame(
       // Update game seats when a hand is active
       setGameState((prev) => {
         if (!prev) return prev;
-        const seats = prev.seats.map((s) =>
-          s.status !== "out" && s.status !== "sitting-out"
-            ? { ...s, chips: amount }
-            : s,
-        );
+        const seats = prev.seats.map((s) => {
+          if (s.status === "sitting-out") return s;
+          // "Igualar stack" tambien revive a los eliminados (out -> waiting):
+          // en casual el host resetea la mesa completa con un solo boton.
+          if (s.status === "out") {
+            return amount > 0 ? { ...s, chips: amount, status: "waiting" as const } : s;
+          }
+          return { ...s, chips: amount };
+        });
         const next = { ...prev, seats };
         patchNormalRoom(code, { state: toPublicState(next) }).catch(() => {});
         return next;
