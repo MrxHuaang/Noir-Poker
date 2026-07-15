@@ -238,7 +238,6 @@ export function Nav() {
   if (
     path?.startsWith("/host") ||
     path?.startsWith("/play/normal") ||
-    path?.startsWith("/play/torneo") ||
     // Online table is a fixed full-screen view (TableShell); the nav would
     // overlap the felt. The /play/online landing keeps the nav.
     path?.startsWith("/play/online/")
