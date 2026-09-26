@@ -4,7 +4,6 @@ import {
   connectAuthEmulator,
   getAuth,
   GoogleAuthProvider,
-  GithubAuthProvider,
   type Auth,
 } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
@@ -63,8 +62,4 @@ export function googleProvider(): GoogleAuthProvider {
   const p = new GoogleAuthProvider();
   p.setCustomParameters({ prompt: "select_account" });
   return p;
-}
-
-export function githubProvider(): GithubAuthProvider {
-  return new GithubAuthProvider();
 }
