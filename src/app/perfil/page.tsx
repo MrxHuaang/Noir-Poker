@@ -35,7 +35,7 @@ import { formatChips } from "@/lib/betting";
 import { randomSeed } from "@/lib/dicebear";
 
 export default function PerfilPage() {
-  const { user, profile, isGuest, signOut } = useAuth();
+  const { user, profile, isGuest, loading, signOut } = useAuth();
   const scope = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
   const [draftNick, setDraftNick] = useState("");
@@ -78,6 +78,15 @@ export default function PerfilPage() {
     },
     { scope, dependencies: [prog?.ratio, prog?.level] },
   );
+
+  // Cuenta real con el perfil aun cargando: no mostrar "Crea tu cuenta".
+  if ((loading || (user && !isGuest)) && !profile) {
+    return (
+      <div className="flex-1 flex items-center justify-center py-24 text-sm text-muted">
+        Cargando perfil…
+      </div>
+    );
+  }
 
   if (isGuest || !profile) {
     return (

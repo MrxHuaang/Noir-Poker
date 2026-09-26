@@ -37,6 +37,25 @@ function GithubMark() {
   );
 }
 
+// Solo rutas internas. Un prefijo "/" no basta: "/%09/evil.example" o
+// "/\evil.example" pasan ese chequeo y el parser de URL los resuelve a otro
+// origen (open redirect). Se resuelve contra el origen propio y se exige que
+// siga siendo el mismo.
+function safeNext(raw: string | null): string {
+  const fallback = "/perfil";
+  if (!raw || !raw.startsWith("/") || /[\u0000-\u001f\\]/.test(raw)) return fallback;
+  try {
+    // Base ficticia: mismo resultado en servidor y cliente (sin hydration
+    // mismatch); lo que importa es que el destino no cambie de origen.
+    const base = "http://self.invalid";
+    const url = new URL(raw, base);
+    if (url.origin !== base) return fallback;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
@@ -52,9 +71,8 @@ function LoginPageInner() {
   const [busy, setBusy] = useState<"google" | "github" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Solo rutas internas (evita open-redirect via ?next=https://evil.example).
   const rawNext = searchParams.get("next");
-  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/perfil";
+  const next = safeNext(rawNext);
 
   const alreadyLoggedIn = !!user && !isGuest;
 

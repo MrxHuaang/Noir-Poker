@@ -108,6 +108,10 @@ function ModeCard({
 
 function UserPill() {
   const { profile, isGuest, signOut } = useAuth();
+  const pathname = usePathname();
+  // Volver a esta misma pagina tras iniciar sesion.
+  const loginHref =
+    pathname && pathname !== "/login" ? `/login?next=${encodeURIComponent(pathname)}` : "/login";
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -124,7 +128,7 @@ function UserPill() {
   if (!profile) {
     return (
       <Link
-        href="/login"
+        href={loginHref}
         className="inline-flex shrink-0 items-center gap-2 h-10 px-3.5 rounded-full bg-white/[0.06] ring-1 ring-white/12 text-zinc-200 hover:bg-white/[0.1] hover:ring-white/25 transition btn-press text-[13px] font-medium"
         aria-label="Iniciar sesion"
       >
@@ -182,7 +186,7 @@ function UserPill() {
           </div>
           {isGuest ? (
             <Link
-              href="/login"
+              href={loginHref}
               role="menuitem"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-zinc-200 hover:bg-white/[0.07] transition"
