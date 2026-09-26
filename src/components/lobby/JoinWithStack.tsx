@@ -1,9 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { AlertCircle, ArrowRight, Loader2, Shuffle } from "lucide-react";
 import { Avatar } from "@/components/players/Avatar";
-import { BorderGlow } from "@/components/ui/BorderGlow";
-import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 import { randomSeed } from "@/lib/dicebear";
 
 type Props = {
@@ -11,13 +9,22 @@ type Props = {
   suggestedStack?: number;
   mode?: "join" | "rebuy";
   locked?: boolean;
-  // When true (join flow): show avatar picker + BorderGlow + room code header.
+  // When true (join flow): show avatar picker + room code header as a full page.
   showAvatar?: boolean;
   roomCode?: string;
   // Saldo disponible del wallet: el stack no puede excederlo.
   maxStack?: number;
   onSubmit: (name: string, stack: number, seed: string) => Promise<void>;
 };
+
+function FieldError({ id, children }: { id?: string; children: React.ReactNode }) {
+  return (
+    <p id={id} className="flex items-center gap-1.5 text-xs text-rose-300">
+      <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      {children}
+    </p>
+  );
+}
 
 export function JoinWithStack({
   defaultName = "",
@@ -37,6 +44,11 @@ export function JoinWithStack({
   const [seed, setSeed] = useState(() => randomSeed());
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const fid = useId();
+  const nameId = `${fid}-name`;
+  const nameErrorId = `${fid}-name-error`;
+  const stackId = `${fid}-stack`;
+  const stackHintId = `${fid}-stack-hint`;
 
   const overCap = cap !== undefined && stack > cap;
   const broke = cap !== undefined && cap <= 0;
@@ -58,48 +70,50 @@ export function JoinWithStack({
   const isRebuy = mode === "rebuy";
 
   const fields = (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {/* Avatar picker — only in join mode with showAvatar */}
       {showAvatar && !isRebuy && (
-        <div className="flex flex-col items-center gap-3 pt-1">
-          <Avatar seed={seed} size={100} />
-          <button
-            type="button"
-            onClick={() => setSeed(randomSeed())}
-            className="glass-button glass-button-ghost btn-press inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs"
-          >
-            <Shuffle className="w-3.5 h-3.5" />
-            Otro avatar
-          </button>
+        <div className="flex items-center gap-4">
+          <Avatar seed={seed} size={72} className="rounded-[14px]! bg-bone!" />
+          <div className="flex flex-col items-start gap-2">
+            <span className="eyebrow">Tu avatar</span>
+            <button type="button" onClick={() => setSeed(randomSeed())} className="btn-quiet">
+              <Shuffle className="h-4 w-4" aria-hidden />
+              Otro avatar
+            </button>
+          </div>
         </div>
       )}
 
       {!isRebuy && (
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-[0.15em] text-muted">Tu nombre</span>
+        <div className="flex flex-col gap-2">
+          <label htmlFor={nameId} className="eyebrow">
+            Tu nombre
+          </label>
           <input
+            id={nameId}
             value={name}
             onChange={(e) => { setName(e.target.value); }}
             placeholder="Apodo o nombre"
             maxLength={20}
             autoFocus={!isRebuy}
+            autoComplete="nickname"
             disabled={loading || locked}
-            className={`px-4 py-3 rounded-2xl bg-black/40 ring-1 text-zinc-100 text-center text-lg outline-none disabled:opacity-40 ${nameError ? "ring-rose-400/60" : "ring-white/10 focus:ring-accent-500/40"}`}
+            aria-invalid={nameError}
+            aria-describedby={nameError ? nameErrorId : undefined}
+            className={`field disabled:opacity-40 ${nameError ? "border-rose-400/60!" : ""}`}
           />
-          {nameError && (
-            <span className="flex items-center gap-1 text-[11px] text-rose-400">
-              <AlertCircle className="w-3 h-3 flex-shrink-0" /> El nombre es requerido
-            </span>
-          )}
+          {nameError && <FieldError id={nameErrorId}>El nombre es requerido</FieldError>}
         </div>
       )}
 
-      <div className="flex flex-col gap-1">
-        <span className="text-[11px] uppercase tracking-[0.15em] text-muted">
+      <div className="flex flex-col gap-2">
+        <label htmlFor={stackId} className="eyebrow">
           {isRebuy ? "Cantidad de fichas" : "Stack de entrada"}
-        </span>
+        </label>
         <div className="flex items-center gap-2">
           <input
+            id={stackId}
             type="text"
             inputMode="numeric"
             value={stack === 0 ? "" : stack}
@@ -108,7 +122,11 @@ export function JoinWithStack({
               setStack(val === "" ? 0 : Number(val));
             }}
             disabled={loading || locked}
-            className="flex-1 px-4 py-3 rounded-2xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-center text-lg outline-none focus:ring-accent-500/40 tabular-nums disabled:opacity-40"
+            aria-invalid={stackError || overCap || broke}
+            aria-describedby={cap !== undefined ? stackHintId : undefined}
+            className={`field numeric min-w-0 flex-1 disabled:opacity-40 ${
+              stackError || overCap || broke ? "border-rose-400/60!" : ""
+            }`}
             placeholder="Fichas…"
           />
           {suggestedStack > 0 && (
@@ -117,7 +135,9 @@ export function JoinWithStack({
               onClick={() =>
                 setStack(cap !== undefined ? Math.min(suggestedStack, cap) : suggestedStack)
               }
-              className="glass-button glass-button-ghost btn-press rounded-2xl px-3 py-3 text-xs text-zinc-300"
+              title="Stack sugerido"
+              aria-label="×1, stack sugerido"
+              className="btn-quiet numeric shrink-0"
             >
               ×1
             </button>
@@ -126,102 +146,87 @@ export function JoinWithStack({
             <button
               type="button"
               onClick={() => setStack(cap)}
-              className="glass-button glass-button-ghost btn-press rounded-2xl px-3 py-3 text-xs text-zinc-300"
+              title="Todo tu saldo"
+              className="btn-quiet shrink-0"
             >
               Máx
             </button>
           )}
         </div>
         {cap !== undefined && (
-          <p className="text-[11px] text-muted tabular-nums">
-            Saldo disponible: {cap.toLocaleString("es")} monedas
+          <p id={stackHintId} className="text-xs text-muted">
+            Saldo disponible:{" "}
+            <span className="numeric text-secondary">{cap.toLocaleString("es")}</span> monedas
           </p>
         )}
-        {stackError && (
-          <span className="flex items-center gap-1 text-[11px] text-rose-400">
-            <AlertCircle className="w-3 h-3 flex-shrink-0" /> Ingresa un monto mayor a 0
-          </span>
-        )}
-        {overCap && !broke && (
-          <span className="flex items-center gap-1 text-[11px] text-rose-400">
-            <AlertCircle className="w-3 h-3 flex-shrink-0" /> No tienes monedas suficientes
-          </span>
-        )}
-        {broke && (
-          <span className="flex items-center gap-1 text-[11px] text-rose-400">
-            <AlertCircle className="w-3 h-3 flex-shrink-0" /> Sin monedas. Vuelve al lobby para el rescate diario.
-          </span>
-        )}
+        {stackError && <FieldError>Ingresa un monto mayor a 0</FieldError>}
+        {overCap && !broke && <FieldError>No tienes monedas suficientes</FieldError>}
+        {broke && <FieldError>Sin monedas. Vuelve al lobby para el rescate diario.</FieldError>}
         {!showAvatar && (
-          <p className="text-[11px] text-zinc-600">
-            El dueño puede ajustar el monto antes de aceptar.
-          </p>
+          <p className="text-xs text-muted">El dueño puede ajustar el monto antes de aceptar.</p>
         )}
       </div>
 
       {locked && !isRebuy && (
-        <p className="text-xs text-rose-300 text-center">
-          Mesa cerrada · No se aceptan nuevos jugadores.
+        <p role="status" className="text-sm text-rose-300">
+          Mesa cerrada: no se aceptan nuevos jugadores.
         </p>
       )}
 
       <button
         type="submit"
         disabled={!name.trim() || stack <= 0 || loading || locked || overCap || broke}
-        className="glass-button glass-button-accent btn-press inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 font-medium text-accent-100 disabled:opacity-30"
+        className={`${isRebuy ? "btn-accent" : "btn-primary"} w-full`}
       >
         {loading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            <span className="sr-only">Enviando</span>
+          </>
         ) : (
           <>
             {isRebuy ? "Solicitar" : "Entrar a la mesa"}
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="h-4 w-4" aria-hidden />
           </>
         )}
       </button>
     </div>
   );
 
-  // Full presencial-style layout when showAvatar = true
+  // Full-page join layout when showAvatar = true
   if (showAvatar && !isRebuy) {
     return (
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md mx-auto px-4 py-10 flex flex-col gap-6"
+        className="mx-auto flex w-full max-w-md flex-col gap-8 px-5 py-12 sm:py-16"
       >
         {roomCode && (
-          <header className="text-center">
-            <h1 className="text-xl text-zinc-100">Sala {roomCode}</h1>
-            <p className="text-sm text-muted mt-1">Elige tu apodo y avatar.</p>
+          <header>
+            <p className="eyebrow mb-4 flex items-center gap-2">
+              <span className="suit text-sm" aria-hidden>
+                ♠
+              </span>
+              Antes de sentarte
+            </p>
+            <h1 className="display text-4xl text-primary sm:text-5xl">
+              Toma <em className="text-accent-200">asiento</em>.
+            </h1>
+            <p className="mt-4 max-w-[40ch] text-sm leading-relaxed text-secondary">
+              Sala{" "}
+              <span className="numeric tracking-[0.12em] text-primary">{roomCode}</span>. Elige tu
+              apodo, tu avatar y con cuántas fichas entras.
+            </p>
           </header>
         )}
-        <BorderGlow
-          className="w-full lg-blur"
-          edgeSensitivity={26}
-          glowColor={ACCENT_GLOW_HSL}
-          backgroundColor="var(--lg-bg)"
-          borderRadius={20}
-          glowRadius={30}
-          glowIntensity={1}
-          coneSpread={24}
-          animated={false}
-          colors={ACCENT_GLOW_COLORS}
-          fillOpacity={0.45}
-        >
-          <div className="p-5">{fields}</div>
-        </BorderGlow>
+        <div className="sheet p-5 sm:p-6">{fields}</div>
       </form>
     );
   }
 
-  // Compact layout for rebuy / simple embed
+  // Compact layout for rebuy / simple embed (sits on the game surface)
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6 rounded-2xl glass">
-      {!isRebuy && (
-        <div className="flex flex-col gap-1">
-          <h2 className="text-base font-semibold text-zinc-100">Unirse a la sala</h2>
-        </div>
-      )}
+    <form onSubmit={handleSubmit} className="glass-panel flex flex-col gap-5 rounded-[20px] p-5">
+      {!isRebuy && <h2 className="display text-2xl text-primary">Unirse a la sala</h2>}
       {fields}
     </form>
   );

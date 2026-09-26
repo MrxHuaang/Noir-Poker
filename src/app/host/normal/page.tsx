@@ -296,7 +296,7 @@ function HostNormalPageInner() {
 
   if (loading || !code) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#0b0b0b] text-zinc-500 text-sm">
+      <div className="fixed inset-0 flex items-center justify-center bg-ink-900 text-muted text-sm">
         Creando sala…
       </div>
     );
@@ -307,7 +307,7 @@ function HostNormalPageInner() {
       {showDealControls && (
         <div className="flex flex-col items-center gap-4">
           {lobby.length < 2 || (!!gameState && !canDeal) ? (
-            <div className="px-6 py-3 rounded-2xl bg-zinc-900/80 backdrop-blur-md ring-1 ring-white/10 text-zinc-400 text-sm font-bold uppercase tracking-widest shadow-2xl">
+            <div className="eyebrow px-6 py-3 rounded-2xl bg-ink-850/80 backdrop-blur-md ring-1 ring-line text-sm shadow-2xl">
               Esperando jugadores ({Math.min(lobby.length, 2)}/2)
             </div>
           ) : (
@@ -318,7 +318,7 @@ function HostNormalPageInner() {
                 void startNewHand();
                 setDockOpen(false);
               }}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-accent-700 hover:bg-accent-600 disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-accent-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-accent-700/25 btn-press animate-in zoom-in fade-in duration-500"
+              className="font-semibold inline-flex items-center gap-3 px-8 py-4 rounded-full bg-accent-700 hover:bg-accent-600 disabled:bg-ink-800 disabled:text-secondary disabled:ring-1 disabled:ring-line disabled:cursor-not-allowed text-accent-100 text-sm transition shadow-2xl shadow-accent-700/25 btn-press animate-in zoom-in fade-in duration-500"
             >
               <Play className="w-5 h-5 fill-current" /> Repartir
             </button>
@@ -327,7 +327,7 @@ function HostNormalPageInner() {
             <button
               type="button"
               onClick={() => void handleJoinAsHost()}
-              className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+              className="text-xs font-semibold px-4 py-2 rounded-full bg-bone/[0.04] hover:bg-bone/[0.07] ring-1 ring-line transition btn-press"
             >
               Unirme como jugador
             </button>
@@ -337,11 +337,11 @@ function HostNormalPageInner() {
 
       {result && gameState && (
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500">
-          <div className="px-8 py-4 rounded-[28px] bg-zinc-900/95 backdrop-blur-xl ring-2 ring-accent-400/50 shadow-[0_20px_80px_-20px_rgba(167,139,250,0.5)] flex flex-col items-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent-400 mb-1">
+          <div className="px-8 py-4 rounded-[28px] bg-ink-850/95 backdrop-blur-xl ring-1 ring-line-strong shadow-[0_30px_80px_-30px_oklch(0.05_0.005_60/0.9)] flex flex-col items-center">
+            <span className="eyebrow text-[11px] text-accent-400 mb-1">
               Mano terminada
             </span>
-            <h4 className="text-xl font-black text-white flex items-center gap-2">
+            <h4 className="text-xl font-semibold text-primary flex items-center gap-2">
               <Trophy className="w-5 h-5 text-accent-400" />
               {result.winners
                 .map((id) => gameState.seats.find((s) => s.id === id)?.name ?? id)

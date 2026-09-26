@@ -41,15 +41,15 @@ export function PlayerSeat({
         <HoleCards seat={seat} onToggle={onToggle} cardBack={cardBack} cardFace={cardFace} />
         {seat.folded ? (
           <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="px-2 py-0.5 rounded-full bg-black/70 text-rose-300 text-[10px] tracking-[0.2em] uppercase ring-1 ring-rose-300/30">
+            <span className="eyebrow text-[11px] px-2 py-0.5 rounded-full bg-black/70 text-rose-300 ring-1 ring-rose-300/30">
               Fold
             </span>
           </span>
         ) : null}
       </div>
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm ring-1 ring-white/10">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm ring-1 ring-line">
         <Avatar seed={seat.player.seed} size={28} />
-        <span className="text-sm text-zinc-100 max-w-[10rem] truncate">
+        <span className="text-sm text-primary max-w-[10rem] truncate">
           {seat.player.name}
         </span>
         {!showdownDone ? (
@@ -58,8 +58,8 @@ export function PlayerSeat({
             onClick={onFoldToggle}
             className={`p-1 rounded-full ring-1 transition ${
               seat.folded
-                ? "bg-white/5 ring-white/10 text-zinc-200 hover:bg-white/10"
-                : "bg-transparent ring-white/10 text-zinc-400 hover:text-rose-300 hover:bg-rose-500/10"
+                ? "bg-bone/[0.04] ring-line text-primary hover:bg-bone/[0.07]"
+                : "bg-transparent ring-line text-secondary hover:text-rose-300 hover:bg-rose-500/10"
             }`}
             title={seat.folded ? "Reactivar" : "Foldear"}
             aria-label={seat.folded ? "Reactivar" : "Foldear"}

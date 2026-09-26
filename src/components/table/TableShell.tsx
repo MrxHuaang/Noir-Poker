@@ -77,8 +77,8 @@ export function TableShell({
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden select-none" style={{ background: bg.gradient }}>
       {isSpectator && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-3 py-1.5 rounded-full bg-white/[0.08] ring-1 ring-white/15 backdrop-blur-md text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-300 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-1.5 rounded-lg bg-ink-800/90 px-3 py-1.5 text-xs font-medium text-secondary ring-1 ring-line backdrop-blur-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-bone/70 motion-safe:animate-pulse" aria-hidden />
           Modo espectador
         </div>
       )}

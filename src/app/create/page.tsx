@@ -1,30 +1,15 @@
 "use client";
 import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import { QRCodeSVG } from "qrcode.react";
-import {
-  ArrowLeft,
-  Globe,
-  Lock,
-  Loader2,
-  ArrowRight,
-  Copy,
-  Check,
-  Share2,
-  Link2,
-  LayoutGrid,
-  Coins,
-  Users2,
-} from "lucide-react";
-import { BorderGlow } from "@/components/ui/BorderGlow";
+import { ArrowLeft, ArrowRight, Check, Copy, Link2, Loader2, Share2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { createNormalRoom } from "@/lib/normalRooms";
 import { DEFAULT_CONFIG } from "@/lib/betting";
-
-const GLOW = "0 0 82";
-const GLOW_COLORS = ["#ededf2", "#c4c4cc", "#8a8a93", "#52525b"];
 
 export default function CreateRoom() {
   return (
@@ -37,6 +22,7 @@ export default function CreateRoom() {
 function CreateRoomInner() {
   const { uid, loading } = useAuth();
   const router = useRouter();
+  const scope = useRef<HTMLDivElement>(null);
 
   const [isPublic, setIsPublic] = useState(true);
   const [economy, setEconomy] = useState<"coins" | "casual">("coins");
@@ -46,6 +32,24 @@ function CreateRoomInner() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.from(".rise", {
+          opacity: 0,
+          y: 16,
+          duration: 0.6,
+          ease: "power3.out",
+          stagger: 0.07,
+          clearProps: "all",
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope, dependencies: [] },
+  );
 
   const joinUrl =
     code && typeof window !== "undefined"
@@ -88,253 +92,240 @@ function CreateRoomInner() {
   }
 
   return (
-    <div className="relative z-[2] w-full max-w-md mx-auto px-4 py-12 flex flex-col gap-7">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/lobby"
-          className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-zinc-100 transition"
-          aria-label="Volver al lobby"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-primary">
-            Crear mesa
-          </h1>
-          <p className="text-sm text-muted">
-            Las ciegas, stack y tiempo se ajustan dentro de la sala.
-          </p>
-        </div>
-      </div>
+    <div ref={scope} className="relative z-[2] mx-auto w-full max-w-6xl px-5 pt-8 pb-24 sm:px-8 sm:pt-12">
+      <Link
+        href="/lobby"
+        className="rise btn-link inline-flex min-h-11 items-center gap-1.5 text-sm"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Volver al lobby
+      </Link>
 
-      {code ? (
-        /* Success: show the generated code */
-        <BorderGlow
-          className="w-full lg-blur"
-          glowColor={GLOW}
-          colors={GLOW_COLORS}
-          backgroundColor="var(--lg-bg)"
-          borderRadius={22}
-          glowRadius={34}
-          glowIntensity={1.05}
-          coneSpread={22}
-          fillOpacity={0.42}
-          animated
-        >
-          <div className="flex flex-col items-center gap-5 p-7 text-center">
-            <span className="text-[10px] uppercase tracking-[0.4em] text-muted font-bold">
-              {isPublic ? "Mesa pública creada" : "Mesa privada creada"}
+      <div className="mt-8 grid grid-cols-1 gap-12 sm:mt-10 lg:grid-cols-12 lg:gap-8">
+        <header className="lg:col-span-5">
+          <p className="rise eyebrow mb-5 flex items-center gap-2">
+            <span className="suit suit-red text-sm" aria-hidden>
+              ♦
             </span>
-
-            {/* QR */}
-            {joinUrl && (
-              <div className="p-3 bg-white rounded-2xl">
-                <QRCodeSVG value={joinUrl} size={150} />
-              </div>
+            {code ? (isPublic ? "Mesa pública creada" : "Mesa privada creada") : "Nueva mesa"}
+          </p>
+          <h1 className="rise display text-5xl text-primary sm:text-6xl">
+            {code ? (
+              <>
+                La mesa está <em className="text-accent-200">servida</em>.
+              </>
+            ) : (
+              <>
+                Abre una <em className="text-accent-200">mesa</em>.
+              </>
             )}
+          </h1>
+          <p className="rise mt-5 max-w-[42ch] text-[15px] leading-relaxed text-secondary">
+            {code
+              ? isPublic
+                ? "Ya aparece en el lobby. Comparte el código, el enlace o el QR con tu grupo."
+                : "Es privada: solo entra quien tenga el código o el enlace."
+              : "Las ciegas, el stack y el tiempo por jugada se ajustan dentro de la sala."}
+          </p>
+        </header>
 
-            {/* Code — click to copy */}
-            <button
-              type="button"
-              onClick={() => copy(code!, setCopied)}
-              title="Copiar código"
-              className="flex items-center gap-2 hover:opacity-80 transition"
-            >
-              <span className="text-5xl font-mono font-black tracking-[0.25em] text-zinc-50">
-                {code}
-              </span>
-              {copied ? (
-                <Check className="w-5 h-5 text-zinc-300" />
-              ) : (
-                <Copy className="w-5 h-5 text-zinc-600" />
-              )}
-            </button>
-
-            <p className="text-xs text-muted -mt-1">
-              {isPublic
-                ? "Ya aparece en el lobby. Comparte el código, el enlace o el QR."
-                : "Sala privada: solo con el código o el enlace pueden entrar."}
-            </p>
-
-            {/* Share row */}
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => copy(code!, setCopied)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                Código
-              </button>
-              <button
-                type="button"
-                onClick={() => copy(joinUrl, setCopiedLink)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
-              >
-                {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Link2 className="w-3.5 h-3.5" />}
-                Enlace
-              </button>
-              {canShare && (
+        <div className="rise lg:col-span-7">
+          {code ? (
+            <div className="flex flex-col gap-10 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="eyebrow">Código de sala</p>
                 <button
                   type="button"
-                  onClick={share}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+                  onClick={() => copy(code, setCopied)}
+                  title="Copiar código"
+                  aria-label={`Copiar código ${code}`}
+                  className="group mt-2 inline-flex items-center gap-4 text-left"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  Compartir
+                  <span className="numeric text-6xl font-medium tracking-[0.14em] text-primary sm:text-7xl">
+                    {code}
+                  </span>
+                  {copied ? (
+                    <Check className="h-5 w-5 shrink-0 text-accent-300" />
+                  ) : (
+                    <Copy className="h-5 w-5 shrink-0 text-muted transition-colors group-hover:text-primary" />
+                  )}
                 </button>
+
+                <div className="mt-7 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => copy(code, setCopied)} className="btn-quiet">
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copied ? "Código copiado" : "Copiar código"}
+                  </button>
+                  <button type="button" onClick={() => copy(joinUrl, setCopiedLink)} className="btn-quiet">
+                    {copiedLink ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                    {copiedLink ? "Enlace copiado" : "Copiar enlace"}
+                  </button>
+                  {canShare && (
+                    <button type="button" onClick={share} className="btn-quiet">
+                      <Share2 className="h-4 w-4" />
+                      Compartir
+                    </button>
+                  )}
+                </div>
+                <span className="sr-only" aria-live="polite">
+                  {copied ? "Código copiado" : copiedLink ? "Enlace copiado" : ""}
+                </span>
+
+                <div className="rule mt-9" />
+                <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-4">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/host/normal?code=${code}`)}
+                    className="btn-primary"
+                  >
+                    Entrar a la mesa
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <Link href="/lobby" className="btn-link text-sm">
+                    Ver el lobby
+                  </Link>
+                </div>
+              </div>
+
+              {joinUrl && (
+                <figure className="shrink-0">
+                  <div className="w-fit rounded-2xl bg-bone p-3.5">
+                    <QRCodeSVG value={joinUrl} size={148} bgColor="transparent" />
+                  </div>
+                  <figcaption className="eyebrow mt-3">Escanéalo para entrar</figcaption>
+                </figure>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={() => router.push(`/host/normal?code=${code}`)}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 transition btn-press"
-            >
-              Entrar a la mesa
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
-            <Link
-              href="/lobby"
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              Volver al lobby
-            </Link>
-          </div>
-        </BorderGlow>
-      ) : (
-        <>
-          {/* Room name */}
-          <BorderGlow
-            className="w-full lg-blur"
-            glowColor={GLOW}
-            colors={GLOW_COLORS}
-            backgroundColor="var(--lg-bg)"
-            borderRadius={18}
-            glowRadius={26}
-            glowIntensity={0.75}
-            coneSpread={24}
-            fillOpacity={0.35}
-            animated={false}
-          >
-            <label className="flex flex-col gap-1.5 p-4">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-muted font-bold">
-                Nombre de la mesa
-              </span>
-              <input
-                type="text"
-                maxLength={32}
-                placeholder="Mesa sin nombre"
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                className="bg-transparent text-zinc-100 text-sm outline-none placeholder:text-zinc-600 caret-white"
-              />
-            </label>
-          </BorderGlow>
-
-          {/* Economy + Visibility — compact segmented selectors */}
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-muted font-bold px-0.5">
-                Modo
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                <OptionPill
-                  active={economy === "coins"}
-                  onClick={() => setEconomy("coins")}
-                  icon={<Coins className="w-4 h-4" />}
-                  label="Con monedas"
-                  sub="Buy-in · XP"
-                />
-                <OptionPill
-                  active={economy === "casual"}
-                  onClick={() => setEconomy("casual")}
-                  icon={<Users2 className="w-4 h-4" />}
-                  label="Casual"
-                  sub="Stack libre"
+          ) : (
+            <div className="sheet p-5 sm:p-7">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="room-name" className="eyebrow">
+                  Nombre de la mesa
+                </label>
+                <input
+                  id="room-name"
+                  type="text"
+                  maxLength={32}
+                  placeholder="Mesa sin nombre"
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  autoComplete="off"
+                  className="field"
                 />
               </div>
-            </div>
 
-            <div className="flex flex-col gap-2">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-muted font-bold px-0.5">
-                Visibilidad
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                <OptionPill
-                  active={isPublic}
-                  onClick={() => setIsPublic(true)}
-                  icon={<Globe className="w-4 h-4" />}
-                  label="Pública"
-                  sub="En el lobby"
+              <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 sm:gap-6">
+                <ChoiceGroup
+                  legend="Modo"
+                  name="economy"
+                  value={economy}
+                  onChange={setEconomy}
+                  options={[
+                    { value: "coins", label: "Con monedas", sub: "Buy-in con tu saldo, suma XP" },
+                    { value: "casual", label: "Casual", sub: "Stack libre, sin monedas" },
+                  ]}
                 />
-                <OptionPill
-                  active={!isPublic}
-                  onClick={() => setIsPublic(false)}
-                  icon={<Lock className="w-4 h-4" />}
-                  label="Privada"
-                  sub="Solo con código"
+                <ChoiceGroup
+                  legend="Visibilidad"
+                  name="visibility"
+                  value={isPublic ? "public" : "private"}
+                  onChange={(v) => setIsPublic(v === "public")}
+                  options={[
+                    { value: "public", label: "Pública", sub: "Aparece en el lobby" },
+                    { value: "private", label: "Privada", sub: "Solo con el código" },
+                  ]}
                 />
               </div>
+
+              <div className="rule mt-8" />
+
+              <div className="mt-6 flex flex-col-reverse gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="max-w-[34ch] text-xs leading-relaxed text-muted">
+                  Hasta <span className="numeric text-secondary">9</span> jugadores. Tú haces de
+                  anfitrión.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={loading || !uid || creating}
+                  className="btn-primary w-full sm:w-auto"
+                >
+                  {creating && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {creating ? "Creando…" : "Crear mesa"}
+                </button>
+              </div>
+
+              {error ? (
+                <p role="alert" className="mt-4 text-sm text-rose-300">
+                  {error}
+                </p>
+              ) : null}
             </div>
-          </div>
-
-          {error ? (
-            <p className="text-sm text-rose-400 text-center">{error}</p>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={loading || !uid || creating}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-100 disabled:opacity-40 transition btn-press shadow-[0_2px_24px_rgba(255,255,255,0.12)]"
-          >
-            {creating && <Loader2 className="w-4 h-4 animate-spin" />}
-            {creating ? "Creando…" : "Crear mesa"}
-          </button>
-        </>
-      )}
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-function OptionPill({
-  active,
-  onClick,
-  icon,
-  label,
-  sub,
+type Choice<T extends string> = { value: T; label: string; sub: string };
+
+// A segmented choice as hairline rows: native radios for keyboard and screen
+// readers, the accent only marks the selected row.
+function ChoiceGroup<T extends string>({
+  legend,
+  name,
+  value,
+  options,
+  onChange,
 }: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  sub: string;
+  legend: string;
+  name: string;
+  value: T;
+  options: Choice<T>[];
+  onChange: (v: T) => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center gap-3 px-4 py-3 rounded-2xl ring-1 text-left btn-press transition-all ${
-        active
-          ? "bg-white/[0.10] ring-white/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]"
-          : "bg-white/[0.03] ring-white/[0.08] hover:bg-white/[0.06] hover:ring-white/15"
-      }`}
-      style={{ transitionDuration: "var(--duration-micro)" }}
-    >
-      <span className={`shrink-0 ${active ? "text-accent-400" : "text-zinc-500"}`}>
-        {icon}
-      </span>
-      <span className="flex flex-col min-w-0">
-        <span className={`text-sm font-medium leading-tight ${active ? "text-zinc-50" : "text-zinc-300"}`}>
-          {label}
-        </span>
-        <span className={`text-[11px] leading-tight mt-0.5 ${active ? "text-zinc-400" : "text-zinc-600"}`}>
-          {sub}
-        </span>
-      </span>
-    </button>
+    <fieldset className="min-w-0">
+      <legend className="eyebrow mb-2">{legend}</legend>
+      <div className="border-t border-line">
+        {options.map((o) => {
+          const active = o.value === value;
+          return (
+            <label
+              key={o.value}
+              className="flex min-h-14 cursor-pointer items-center gap-3.5 border-b border-line px-1.5 py-3 transition-colors duration-200 hover:bg-bone/[0.03] has-[:focus-visible]:bg-bone/[0.04] has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-accent-300"
+            >
+              <input
+                type="radio"
+                name={name}
+                value={o.value}
+                checked={active}
+                onChange={() => onChange(o.value)}
+                className="sr-only"
+              />
+              <span
+                aria-hidden
+                className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-colors duration-200 ${
+                  active ? "border-accent-400" : "border-line-strong"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full bg-accent-400 transition-opacity duration-200 ${
+                    active ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              </span>
+              <span className="min-w-0">
+                <span className={`block text-sm font-medium ${active ? "text-primary" : "text-secondary"}`}>
+                  {o.label}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted">{o.sub}</span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }

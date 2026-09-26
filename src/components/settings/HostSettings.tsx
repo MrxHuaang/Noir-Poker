@@ -118,20 +118,20 @@ export function HostSettings(props: Props) {
             className="flex items-center gap-2 hover:opacity-80 transition"
             title="Copiar código"
           >
-            <span className="text-4xl font-mono font-black tracking-[0.25em] text-zinc-50">
+            <span className="text-4xl font-mono font-semibold tracking-[0.25em] text-primary">
               {code ?? "—"}
             </span>
             {copied ? (
-              <Check className="w-5 h-5 text-zinc-300" />
+              <Check className="w-5 h-5 text-secondary" />
             ) : (
-              <Copy className="w-5 h-5 text-zinc-600" />
+              <Copy className="w-5 h-5 text-muted" />
             )}
           </button>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <button
               type="button"
               onClick={() => copy(code ?? "", setCopied)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+              className="text-xs font-semibold inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-bone/[0.07] ring-1 ring-line transition btn-press"
             >
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               Código
@@ -139,7 +139,7 @@ export function HostSettings(props: Props) {
             <button
               type="button"
               onClick={() => copy(joinUrl, setCopiedLink)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+              className="text-xs font-semibold inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-bone/[0.07] ring-1 ring-line transition btn-press"
             >
               {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Link2 className="w-3.5 h-3.5" />}
               Enlace
@@ -152,7 +152,7 @@ export function HostSettings(props: Props) {
                     .share({ title: "Noir", text: `Únete (${code})`, url: joinUrl })
                     .catch(() => {})
                 }
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+                className="text-xs font-semibold inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.05] hover:bg-bone/[0.07] ring-1 ring-line transition btn-press"
               >
                 <Share2 className="w-3.5 h-3.5" />
                 Compartir
@@ -195,13 +195,13 @@ export function HostSettings(props: Props) {
             <button
               type="button"
               onClick={() => exportHistory(history, code)}
-              className="self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-100 hover:bg-white/10 text-[10px] font-bold uppercase tracking-widest transition"
+              className="eyebrow text-[11px] self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bone/[0.04] ring-1 ring-line hover:text-primary hover:bg-bone/[0.07] transition"
             >
               <Download className="w-3 h-3" /> Exportar JSON
             </button>
           )}
           {(!history || history.length === 0) && (
-            <div className="text-center py-10 text-zinc-600 text-sm">
+            <div className="text-center py-10 text-muted text-sm">
               Sin manos jugadas
             </div>
           )}
@@ -213,23 +213,23 @@ export function HostSettings(props: Props) {
               className="text-left p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.08] flex flex-col gap-1.5 hover:bg-white/[0.06] hover:ring-accent-400/30 transition"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-widest font-black text-zinc-500">
+                <span className="eyebrow text-[11px]">
                   Mano #{h.handNum}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="text-[10px] tabular-nums text-zinc-300 font-black">
+                  <span className="text-[10px] tabular-nums text-secondary font-semibold">
                     {formatChips(h.pot)}
                   </span>
                   <PlayCircle className="w-3.5 h-3.5 text-accent-300/70" />
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Trophy className="w-3 h-3 text-zinc-300 flex-shrink-0" />
-                <span className="text-xs text-zinc-100 font-bold truncate">
+                <Trophy className="w-3 h-3 text-secondary flex-shrink-0" />
+                <span className="text-xs text-primary font-bold truncate">
                   {h.winners.map((w) => `${w.name} +${formatChips(w.amount)}`).join(" · ")}
                 </span>
               </div>
-              <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+              <div className="eyebrow text-[11px]">
                 {CATEGORY_LABEL[h.category]}
               </div>
             </button>
@@ -317,8 +317,8 @@ export function HostSettings(props: Props) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="p-4 rounded-2xl bg-black/30 ring-1 ring-white/5 flex flex-col gap-2">
-      <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">
+    <div className="p-4 rounded-2xl bg-black/30 ring-1 ring-line flex flex-col gap-2">
+      <span className="eyebrow text-[11px]">
         {title}
       </span>
       {children}

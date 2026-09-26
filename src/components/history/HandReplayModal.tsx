@@ -62,14 +62,14 @@ export function HandReplayModal({
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-[min(540px,94vw)] rounded-3xl bg-zinc-950/95 ring-1 ring-white/10 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.8)] p-5 sm:p-6 flex flex-col gap-5">
+      <div className="w-[min(540px,94vw)] rounded-3xl bg-ink-900/95 ring-1 ring-line shadow-[0_40px_120px_-20px_rgba(0,0,0,0.8)] p-5 sm:p-6 flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest font-black text-zinc-500">
+            <span className="eyebrow text-[11px]">
               Mano #{hand.handNum}
             </span>
             {hand.runTotal && hand.runTotal > 1 && (
-              <span className="text-[10px] uppercase tracking-widest font-black text-accent-300">
+              <span className="eyebrow text-[11px] text-accent-300">
                 Corrida {(hand.runIndex ?? 0) + 1}/{hand.runTotal}
               </span>
             )}
@@ -78,21 +78,21 @@ export function HandReplayModal({
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="p-2 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-100 hover:bg-white/10 transition"
+            className="p-2 rounded-xl bg-bone/[0.04] ring-1 ring-line text-secondary hover:text-primary hover:bg-bone/[0.07] transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="flex items-center justify-center">
-          <span className="text-xs uppercase tracking-[0.2em] font-black text-zinc-400">
+          <span className="eyebrow">
             {current.label}
           </span>
         </div>
 
         <div className="flex items-center justify-center gap-1.5 sm:gap-2 min-h-[5.5rem]">
           {visible.length === 0 ? (
-            <span className="text-zinc-600 text-sm">Sin cartas comunitarias</span>
+            <span className="text-muted text-sm">Sin cartas comunitarias</span>
           ) : (
             visible.map((c) => (
               <PlayingCard key={c.id} card={c} faceUp size="sm" cardBack={cardBack} />
@@ -103,16 +103,16 @@ export function HandReplayModal({
         {current.result && (
           <div className="flex flex-col gap-2 rounded-2xl bg-white/[0.03] ring-1 ring-white/[0.08] p-4">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-widest font-black text-zinc-500">
+              <span className="eyebrow text-[11px]">
                 Bote
               </span>
-              <span className="text-sm tabular-nums text-zinc-100 font-black">
+              <span className="text-sm tabular-nums text-primary font-semibold">
                 {formatChips(hand.pot)}
               </span>
             </div>
             <div className="flex items-start gap-2">
               <Trophy className="w-4 h-4 text-accent-300 flex-shrink-0 mt-0.5" />
-              <span className="text-sm text-zinc-100 font-bold">
+              <span className="text-sm text-primary font-bold">
                 {hand.winners.length > 0
                   ? hand.winners
                       .map((w) => `${w.name} +${formatChips(w.amount)}`)
@@ -120,7 +120,7 @@ export function HandReplayModal({
                   : "Sin ganador registrado"}
               </span>
             </div>
-            <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+            <div className="eyebrow text-[11px]">
               {CATEGORY_LABEL[hand.category] ?? "—"}
             </div>
           </div>
@@ -135,7 +135,7 @@ export function HandReplayModal({
             }}
             disabled={step === 0}
             aria-label="Anterior"
-            className="p-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-300 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="p-2.5 rounded-xl bg-bone/[0.04] ring-1 ring-line text-secondary hover:bg-bone/[0.07] disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -146,7 +146,7 @@ export function HandReplayModal({
               setPlaying((p) => !p);
             }}
             aria-label={playing ? "Pausar" : "Reproducir"}
-            className="px-5 py-2.5 rounded-xl bg-accent-500/15 ring-1 ring-accent-400/40 text-accent-200 hover:bg-accent-500/25 transition inline-flex items-center gap-2 font-bold text-xs uppercase tracking-widest"
+            className="eyebrow px-5 py-2.5 rounded-xl bg-accent-500/15 ring-1 ring-accent-400/40 text-accent-200 hover:bg-accent-500/25 transition inline-flex items-center gap-2"
           >
             {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             {playing ? "Pausa" : step >= last ? "Repetir" : "Reproducir"}
@@ -159,7 +159,7 @@ export function HandReplayModal({
             }}
             disabled={step >= last}
             aria-label="Siguiente"
-            className="p-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-300 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            className="p-2.5 rounded-xl bg-bone/[0.04] ring-1 ring-line text-secondary hover:bg-bone/[0.07] disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -170,7 +170,7 @@ export function HandReplayModal({
             <span
               key={s.label}
               className={`h-1 rounded-full transition-all ${
-                i <= step ? "w-6 bg-accent-400/80" : "w-3 bg-white/10"
+                i <= step ? "w-6 bg-accent-400/80" : "w-3 bg-bone/[0.07]"
               }`}
             />
           ))}

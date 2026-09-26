@@ -29,7 +29,7 @@ export function PlayerPicker({
   if (players.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <p className="text-zinc-400 text-sm">
+        <p className="text-secondary text-sm">
           Aún no hay jugadores. Crea al menos 2 para empezar.
         </p>
         <Link
@@ -46,10 +46,10 @@ export function PlayerPicker({
   return (
     <div className="w-full max-w-3xl mx-auto flex flex-col gap-6 py-10">
       <header className="text-center">
-        <h2 className="text-xl tracking-tight text-zinc-100">
+        <h2 className="text-xl tracking-tight text-primary">
           Elige de 2 a 9 jugadores
         </h2>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-secondary mt-1">
           Seleccionados: {chosen.length}
         </p>
       </header>
@@ -64,11 +64,11 @@ export function PlayerPicker({
                 className={`w-full flex items-center gap-3 p-3 rounded-2xl ring-1 transition text-left ${
                   on
                     ? "bg-accent/10 ring-accent/40"
-                    : "bg-white/[0.02] ring-white/10 hover:bg-white/[0.04]"
+                    : "bg-white/[0.02] ring-line hover:bg-white/[0.04]"
                 }`}
               >
                 <Avatar seed={p.seed} size={40} />
-                <span className="text-sm text-zinc-100 truncate">{p.name}</span>
+                <span className="text-sm text-primary truncate">{p.name}</span>
               </button>
             </li>
           );
@@ -79,13 +79,13 @@ export function PlayerPicker({
           type="button"
           disabled={!valid}
           onClick={() => onDeal(chosen)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent/85 hover:bg-accent disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-accent-contrast font-medium text-sm transition"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent/85 hover:bg-accent disabled:bg-ink-800 disabled:text-secondary disabled:ring-1 disabled:ring-line disabled:cursor-not-allowed text-accent-contrast font-medium text-sm transition"
         >
           Repartir
         </button>
         <Link
           href="/players"
-          className="text-sm text-zinc-400 hover:text-zinc-200 transition"
+          className="text-sm text-secondary hover:text-primary transition"
         >
           Administrar jugadores →
         </Link>

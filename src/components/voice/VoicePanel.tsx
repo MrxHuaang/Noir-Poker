@@ -126,7 +126,7 @@ export default function VoicePanel({
         <button
           type="button"
           onClick={() => { setListenOnly(false); setEnabled(true); }}
-          className="p-3 rounded-2xl glass ring-1 ring-white/10 text-zinc-300 hover:bg-white/10 hover:text-zinc-100 transition btn-press shadow-xl"
+          className="p-3 rounded-2xl glass ring-1 ring-line text-secondary hover:bg-bone/[0.07] hover:text-primary transition btn-press shadow-xl"
           title="Unirme con micrófono"
           aria-label="Unirme con micrófono"
         >
@@ -136,7 +136,7 @@ export default function VoicePanel({
         <button
           type="button"
           onClick={() => { setListenOnly(true); setEnabled(true); }}
-          className="p-3 rounded-2xl glass ring-1 ring-white/10 text-zinc-300 hover:bg-white/10 transition btn-press shadow-xl"
+          className="p-3 rounded-2xl glass ring-1 ring-line text-secondary hover:bg-bone/[0.07] transition btn-press shadow-xl"
           title="Solo escuchar (sin micrófono)"
           aria-label="Solo escuchar (sin micrófono)"
         >
@@ -165,11 +165,11 @@ export default function VoicePanel({
       className="rounded-2xl glass p-3 flex flex-col gap-3"
     >
       <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+        <div className="eyebrow text-[11px] flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-zinc-300 animate-pulse" />
           Voz · {Object.keys(participants).length} en sala
           {listenOnly && (
-            <span className="flex items-center gap-0.5 text-zinc-500">
+            <span className="flex items-center gap-0.5 text-muted">
               <Headphones className="w-2.5 h-2.5" /> escucha
             </span>
           )}
@@ -181,7 +181,7 @@ export default function VoicePanel({
             className={`p-2 rounded-full ring-1 transition btn-press ${
               isMuted
                 ? "bg-rose-500/20 ring-rose-400/40 text-rose-200"
-                : "bg-white/5 ring-white/10 text-zinc-200 hover:bg-white/10"
+                : "bg-bone/[0.04] ring-line text-primary hover:bg-bone/[0.07]"
             }`}
             title={isMuted ? "Activar micrófono (M)" : "Silenciar micrófono (M)"}
             aria-label={isMuted ? "Activar micrófono" : "Silenciar micrófono"}
@@ -192,7 +192,7 @@ export default function VoicePanel({
             <button
               type="button"
               onClick={() => setEnabled(false)}
-              className="p-2 rounded-full bg-white/5 ring-1 ring-white/10 text-zinc-300 hover:bg-rose-500/20 hover:text-rose-300 hover:ring-rose-400/40 transition btn-press"
+              className="p-2 rounded-full bg-bone/[0.04] ring-1 ring-line text-secondary hover:bg-rose-500/20 hover:text-rose-300 hover:ring-rose-400/40 transition btn-press"
               title="Salir del canal de voz"
               aria-label="Salir del canal de voz"
             >
@@ -255,20 +255,20 @@ function ParticipantRow({
   const talking = !participant.isMuted && level > 0.12;
   const ringClass = talking
     ? "ring-zinc-200/80 shadow-[0_0_12px_-2px_rgba(244,244,245,0.35)]"
-    : "ring-white/10";
+    : "ring-line";
   const connLabel = !isLocal ? describeConnState(connectionState) : null;
 
   return (
-    <li className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/[0.02] ring-1 ring-white/5">
+    <li className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/[0.02] ring-1 ring-line">
       <span className={`rounded-full ring-2 ${ringClass} transition`}>
         <Avatar seed={participant.seed} size={28} />
       </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm text-zinc-100 truncate">
+          <span className="text-sm text-primary truncate">
             {participant.displayName}
             {isLocal ? (
-              <span className="ml-1 text-[10px] text-zinc-500">(tú)</span>
+              <span className="ml-1 text-[10px] text-muted">(tú)</span>
             ) : null}
           </span>
           {participant.isMuted ? (
@@ -276,14 +276,14 @@ function ParticipantRow({
           ) : null}
         </div>
         {connLabel ? (
-          <p className="text-[10px] text-zinc-500 truncate">{connLabel}</p>
+          <p className="text-[10px] text-muted truncate">{connLabel}</p>
         ) : null}
       </div>
       {!isLocal ? (
         <button
           type="button"
           onClick={onToggleListenerMute}
-          className="p-1.5 rounded-full text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition"
+          className="p-1.5 rounded-full text-secondary hover:text-primary hover:bg-bone/[0.04] transition"
           title={isMutedByListener ? "Reactivar audio" : "Silenciar para mí"}
           aria-label={isMutedByListener ? "Reactivar audio" : "Silenciar para mí"}
         >

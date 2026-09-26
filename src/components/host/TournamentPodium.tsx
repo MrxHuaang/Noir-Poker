@@ -85,8 +85,8 @@ export function TournamentPodium({ ranking, onClose }: Props) {
     >
       <div className="relative z-10 flex flex-col items-center gap-8 px-4 w-full max-w-lg">
         <div className="flex flex-col items-center gap-1">
-          <Trophy className="w-8 h-8 text-zinc-300" />
-          <h2 className="text-3xl font-black tracking-tight text-zinc-50">Torneo terminado</h2>
+          <Trophy className="w-8 h-8 text-secondary" />
+          <h2 className="text-3xl font-semibold tracking-tight text-primary">Torneo terminado</h2>
         </div>
 
         {/* Podium */}
@@ -101,21 +101,21 @@ export function TournamentPodium({ ranking, onClose }: Props) {
             return (
               <div key={player.id} className="flex flex-col items-center gap-2 flex-1 min-w-0">
                 <div className="flex flex-col items-center gap-1">
-                  <span className={`text-sm font-bold truncate max-w-[80px] ${isFirst ? "text-zinc-100" : "text-zinc-400"}`}>
+                  <span className={`text-sm font-bold truncate max-w-[80px] ${isFirst ? "text-primary" : "text-secondary"}`}>
                     {player.name}
                   </span>
                   {isFirst && (
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Campeón</span>
+                    <span className="eyebrow text-[11px]">Campeón</span>
                   )}
                 </div>
                 <div
                   className={`${barH} w-full rounded-t-xl flex items-center justify-center ${
                     isFirst
                       ? "bg-zinc-200 text-zinc-900"
-                      : "bg-zinc-800 text-zinc-400"
-                  } ring-1 ring-white/10`}
+                      : "bg-ink-800 text-secondary"
+                  } ring-1 ring-line`}
                 >
-                  <span className="text-2xl font-black">{label}</span>
+                  <span className="text-2xl font-semibold">{label}</span>
                 </div>
               </div>
             );
@@ -126,9 +126,9 @@ export function TournamentPodium({ ranking, onClose }: Props) {
         {ranking.length > 3 && (
           <div className="w-full flex flex-col gap-1">
             {ranking.slice(3).map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/[0.03] ring-1 ring-white/5">
-                <span className="text-xs font-bold text-zinc-600 w-5 text-right">{i + 4}</span>
-                <span className="text-sm text-zinc-400">{p.name}</span>
+              <div key={p.id} className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/[0.03] ring-1 ring-line">
+                <span className="text-xs font-bold text-muted w-5 text-right">{i + 4}</span>
+                <span className="text-sm text-secondary">{p.name}</span>
               </div>
             ))}
           </div>

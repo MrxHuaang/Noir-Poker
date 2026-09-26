@@ -33,19 +33,19 @@ export function RunResults({
       aria-modal="true"
     >
       <div
-        className="custom-scrollbar pointer-events-auto w-[min(420px,calc(100vw-1.5rem))] max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-2xl bg-zinc-950/95 ring-1 ring-white/10 p-4 flex flex-col gap-4 shadow-2xl"
+        className="custom-scrollbar pointer-events-auto w-[min(420px,calc(100vw-1.5rem))] max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-2xl bg-ink-900/95 ring-1 ring-line p-4 flex flex-col gap-4 shadow-2xl"
       >
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Crown className="w-5 h-5 text-accent-300" />
-              <h2 className="text-sm font-black tracking-tight text-zinc-100">
+              <h2 className="text-sm font-semibold tracking-tight text-primary">
                 Resultados de {runs.length} run{runs.length === 1 ? "" : "s"}
               </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-white/5 text-zinc-400 transition"
+            className="p-1.5 rounded-full hover:bg-bone/[0.04] text-secondary transition"
             aria-label="Cerrar"
           >
             <X className="w-4 h-4" />
@@ -54,7 +54,7 @@ export function RunResults({
 
         {ranked.length > 0 ? (
           <section className="flex flex-col gap-2">
-            <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+            <span className="eyebrow">
               Agregado
             </span>
             <ul className="flex flex-wrap gap-2">
@@ -64,7 +64,7 @@ export function RunResults({
                   className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ring-1 ${
                     i === 0
                       ? "bg-accent-300/10 ring-accent-300/40 text-accent-100"
-                      : "bg-white/[0.03] ring-white/10 text-zinc-100"
+                      : "bg-white/[0.03] ring-line text-primary"
                   }`}
                 >
                   <Avatar seed={player!.seed} size={22} />
@@ -86,14 +86,14 @@ export function RunResults({
             return (
               <li
                 key={i}
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] ring-1 ring-white/10"
+                className="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] ring-1 ring-line"
                 style={{ animationDelay: `${i * 70}ms`, animationFillMode: "both" }}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-zinc-500 shrink-0 tabular-nums">
+                  <span className="text-xs text-muted shrink-0 tabular-nums">
                     Run {i + 1}
                   </span>
-                  <span className="text-[11px] text-zinc-400 truncate">
+                  <span className="text-[11px] text-secondary truncate">
                     {CATEGORY_LABEL[r.category as Category]}
                   </span>
                 </div>

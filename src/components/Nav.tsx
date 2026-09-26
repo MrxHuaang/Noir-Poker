@@ -3,105 +3,25 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Coins, LogOut, Play, Trophy, Tv, User as UserIcon, X } from "lucide-react";
-import { BorderGlow } from "@/components/ui/BorderGlow";
-import { PillNav } from "@/components/nav/PillNav";
+import { Coins, LogOut, Menu, Trophy, User as UserIcon, X } from "lucide-react";
 import { Avatar } from "@/components/players/Avatar";
+import { ModeList } from "@/components/home/ModeList";
 import { useAuth } from "@/hooks/useAuth";
 import { availableCoins } from "@/lib/economy";
 import { formatChips } from "@/lib/betting";
 
-const ACCENTS = {
-  one: {
-    badge: "bg-white/[0.06] text-zinc-300 ring-white/12",
-    cta: "bg-white/[0.07] text-zinc-100 ring-1 ring-white/15 hover:bg-white/[0.12] hover:ring-white/25 hover:shadow-[0_0_22px_rgba(255,255,255,0.08)]",
-    iconBg: "bg-white/[0.06] text-zinc-200 ring-white/15",
-    glow: "0 0 82",
-    glowColors: ["#a78bfa", "#7c5cbf", "#3d2a6b"],
-    bg: "rgba(10,8,18,0.9)",
-  },
-  two: {
-    badge: "bg-white/[0.06] text-zinc-300 ring-white/12",
-    cta: "bg-white/[0.07] text-zinc-100 ring-1 ring-white/15 hover:bg-white/[0.12] hover:ring-white/25",
-    iconBg: "bg-white/[0.06] text-zinc-200 ring-white/15",
-    glow: "0 0 75",
-    glowColors: ["#9b7ff5", "#7356af", "#2e1f55"],
-    bg: "rgba(9,7,16,0.9)",
-  },
-  three: {
-    badge: "bg-white/[0.05] text-zinc-400 ring-white/10",
-    cta: "bg-white/[0.07] text-zinc-100 ring-1 ring-white/15 hover:bg-white/[0.12] hover:ring-white/25",
-    iconBg: "bg-white/[0.06] text-zinc-300 ring-white/10",
-    glow: "0 0 60",
-    glowColors: ["#8b6fe8", "#6548a0", "#261747"],
-    bg: "rgba(8,6,14,0.9)",
-  },
-} as const;
+function isActive(path: string | null, href: string) {
+  if (!path) return false;
+  return path === href || path.startsWith(`${href}/`);
+}
 
-type AccentKey = keyof typeof ACCENTS;
-
-function ModeCard({
-  href,
-  icon,
-  accent,
-  title,
-  subtitle,
-  description,
-  features,
-  cta,
-  onNavigate,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  accent: AccentKey;
-  title: string;
-  subtitle: string;
-  description: string;
-  features: string[];
-  cta: string;
-  onNavigate: () => void;
-}) {
-  const a = ACCENTS[accent];
+function Wordmark() {
   return (
-    <Link href={href} className="group block h-full btn-press" onClick={onNavigate}>
-      <BorderGlow
-        className="h-full w-full lg-blur"
-        edgeSensitivity={26}
-        glowColor={a.glow}
-        backgroundColor="var(--lg-bg)"
-        borderRadius={24}
-        glowRadius={36}
-        glowIntensity={1.05}
-        coneSpread={22}
-        animated={false}
-        colors={a.glowColors as unknown as string[]}
-        fillOpacity={0.4}
-      >
-        <div className="flex h-full flex-col gap-4 p-6">
-          <div className="flex items-center justify-between">
-            <div className={`p-2.5 rounded-xl ring-1 ${a.iconBg}`}>{icon}</div>
-          </div>
-          <div>
-            <h3 className="text-xl text-primary font-semibold tracking-tight">{title}</h3>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted mt-1">{subtitle}</p>
-          </div>
-          <p className="text-sm text-secondary/90">{description}</p>
-          <ul className="flex flex-col gap-1.5">
-            {features.map((f) => (
-              <li key={f} className="flex items-center gap-2 text-xs text-muted">
-                <span className="w-1 h-1 rounded-full bg-zinc-500" />
-                {f}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-auto pt-1">
-            <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition ${a.cta}`}>
-              {cta}
-              <ArrowRight className="w-4 h-4" />
-            </span>
-          </div>
-        </div>
-      </BorderGlow>
+    <Link href="/" className="group flex items-baseline gap-2 outline-none" aria-label="Noir, inicio">
+      <span className="font-display text-[1.7rem] leading-none text-primary">Noir</span>
+      <span className="suit text-base transition-colors duration-300 group-hover:text-accent-300" aria-hidden>
+        ♠
+      </span>
     </Link>
   );
 }
@@ -120,20 +40,22 @@ function UserPill() {
     function onClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   // Perfil aun cargando: CTA simple de inicio de sesion.
   if (!profile) {
     return (
-      <Link
-        href={loginHref}
-        className="inline-flex shrink-0 items-center gap-2 h-10 px-3.5 rounded-full bg-white/[0.06] ring-1 ring-white/12 text-zinc-200 hover:bg-white/[0.1] hover:ring-white/25 transition btn-press text-[13px] font-medium"
-        aria-label="Iniciar sesion"
-      >
-        <UserIcon className="w-4 h-4" />
-        <span className="hidden sm:inline">Entrar</span>
+      <Link href={loginHref} className="text-sm font-medium text-secondary hover:text-primary transition-colors">
+        Entrar
       </Link>
     );
   }
@@ -143,23 +65,25 @@ function UserPill() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 h-10 pl-1.5 pr-3 rounded-full bg-white/[0.06] ring-1 ring-white/12 hover:bg-white/[0.1] hover:ring-white/25 transition btn-press"
+        className="inline-flex h-10 items-center gap-2.5 rounded-xl pl-1 pr-3 transition-colors hover:bg-bone/[0.05]"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Tu cuenta"
       >
         {profile.photoURL ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={profile.photoURL}
             alt=""
-            className="w-7 h-7 rounded-full ring-1 ring-white/15 object-cover"
+            className="h-8 w-8 rounded-[10px] object-cover"
             referrerPolicy="no-referrer"
           />
         ) : (
-          <Avatar seed={profile.avatarSeed} size={28} />
+          <span className="overflow-hidden rounded-[10px]">
+            <Avatar seed={profile.avatarSeed} size={32} />
+          </span>
         )}
-        <span className="hidden sm:inline-flex items-center gap-1 text-[12px] font-semibold text-zinc-200 tabular-nums">
-          <Coins className="w-3.5 h-3.5 text-zinc-400" />
+        <span className="numeric hidden text-[13px] text-primary sm:inline">
           {formatChips(availableCoins(profile))}
         </span>
       </button>
@@ -167,58 +91,61 @@ function UserPill() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-[48px] z-50 w-56 rounded-2xl border border-white/[0.08] bg-[rgb(12,14,18)]/97 p-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.5)] backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+          className="sheet absolute right-0 top-12 z-50 w-64 p-1.5 shadow-[0_24px_60px_-20px_oklch(0.05_0.005_60/0.9)] animate-in fade-in slide-in-from-top-1 duration-150"
         >
-          <div className="px-3 py-2.5 border-b border-white/[0.06]">
-            <div className="text-sm font-semibold text-zinc-100 truncate">
+          <div className="px-3 pt-2.5 pb-3">
+            <div className="truncate text-sm font-semibold text-primary">
               {isGuest ? "Invitado" : profile.nickname}
             </div>
             {!isGuest && (
-              <div className="text-[11px] text-muted flex items-center gap-1.5 mt-0.5">
-                <Trophy className="w-3 h-3" />
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+                <Trophy className="h-3 w-3" />
                 Nivel {profile.level} · {profile.title}
               </div>
             )}
-            <div className="text-[11px] text-muted flex items-center gap-1.5 mt-1">
-              <Coins className="w-3 h-3" />
-              {formatChips(availableCoins(profile))} monedas
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+              <Coins className="h-3 w-3" />
+              <span className="numeric">{formatChips(availableCoins(profile))}</span> monedas
             </div>
           </div>
-          {isGuest ? (
-            <Link
-              href={loginHref}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-zinc-200 hover:bg-white/[0.07] transition"
-            >
-              <UserIcon className="w-4 h-4 text-zinc-400" />
-              Crear cuenta / Entrar
-            </Link>
-          ) : (
-            <>
+          <div className="rule mx-1.5" />
+          <div className="pt-1">
+            {isGuest ? (
               <Link
-                href="/perfil"
+                href={loginHref}
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-zinc-200 hover:bg-white/[0.07] transition"
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-primary transition-colors hover:bg-bone/[0.05]"
               >
-                <UserIcon className="w-4 h-4 text-zinc-400" />
-                Mi perfil
+                <UserIcon className="h-4 w-4 text-muted" />
+                Crear cuenta o entrar
               </Link>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  signOut();
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-zinc-300 hover:bg-white/[0.07] transition"
-              >
-                <LogOut className="w-4 h-4 text-zinc-400" />
-                Cerrar sesion
-              </button>
-            </>
-          )}
+            ) : (
+              <>
+                <Link
+                  href="/perfil"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-primary transition-colors hover:bg-bone/[0.05]"
+                >
+                  <UserIcon className="h-4 w-4 text-muted" />
+                  Mi perfil
+                </Link>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    signOut();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-secondary transition-colors hover:bg-bone/[0.05] hover:text-primary"
+                >
+                  <LogOut className="h-4 w-4 text-muted" />
+                  Cerrar sesión
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -227,17 +154,21 @@ function UserPill() {
 
 export function Nav() {
   const path = usePathname();
-  const [showModal, setShowModal] = useState(false);
+  const [showModes, setShowModes] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Close the create modal with Escape (WCAG dialog standard).
+  // Close overlays with Escape (WCAG dialog standard).
   useEffect(() => {
-    if (!showModal) return;
+    if (!showModes && !menuOpen) return;
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setShowModal(false);
+      if (e.key === "Escape") {
+        setShowModes(false);
+        setMenuOpen(false);
+      }
     }
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [showModal]);
+  }, [showModes, menuOpen]);
 
   if (
     path?.startsWith("/host") ||
@@ -249,110 +180,106 @@ export function Nav() {
     return null;
   }
 
-  const navItems = [
+  const links = [
     { href: "/lobby", label: "Lobby" },
-    { href: "#", label: "Crear sala", onClick: () => setShowModal(true) },
     { href: "/join", label: "Unirse" },
   ];
+  const openModes = () => {
+    setMenuOpen(false);
+    setShowModes(true);
+  };
+
+  const linkClass = (href: string) =>
+    `relative py-1 text-sm transition-colors ${
+      isActive(path, href)
+        ? "text-primary after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:bg-accent-400"
+        : "text-secondary hover:text-primary"
+    }`;
 
   return (
     <>
-      <header className="sticky top-0 z-30">
-        <div className="mx-auto max-w-6xl px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3">
-          <BorderGlow
-            className="flex-1 min-w-0 !border-white/10"
-            edgeSensitivity={20}
-            glowColor="272 80 74"
-            backgroundColor="rgba(9, 7, 16, 0.9)"
-            borderRadius={999}
-            glowRadius={22}
-            glowIntensity={0.85}
-            coneSpread={28}
-            animated={false}
-            colors={["#a78bfa", "#7c5cbf", "#4a3580", "#261747"]}
-            fillOpacity={0.3}
-          >
-            <div className="min-h-0 rounded-[inherit] px-2 py-1.5 sm:px-3 sm:py-2">
-              <PillNav
-                logo="/logonav.png"
-                logoAlt="Noir Poker"
-                logoHref="/"
-                items={navItems}
-                activePath={path}
-              />
-            </div>
-          </BorderGlow>
-          <Link
-            href="/jugar"
-            aria-label="Jugar ahora"
-            className="inline-flex shrink-0 items-center gap-1.5 h-9 rounded-full bg-accent-500/10 px-3 sm:px-4 text-[13px] font-semibold text-accent-200 ring-1 ring-accent-400/25 transition hover:bg-accent-500/20 hover:text-accent-100 hover:ring-accent-400/40 btn-press"
-          >
-            <Play className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Jugar ahora</span>
-          </Link>
-          <UserPill />
+      <header className="sticky top-0 z-30 border-b border-line bg-ink-900/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5 sm:px-8">
+          <Wordmark />
+          <nav aria-label="Principal" className="hidden items-center gap-7 md:flex">
+            {links.map((l) => (
+              <Link key={l.href} href={l.href} className={linkClass(l.href)}>
+                {l.label}
+              </Link>
+            ))}
+            <button type="button" onClick={openModes} className={linkClass("/create")}>
+              Crear sala
+            </button>
+          </nav>
+          <div className="ml-auto flex items-center gap-2 sm:gap-4">
+            <Link href="/jugar" className="btn-primary hidden h-9 rounded-[10px] px-4 text-[13px] sm:inline-flex">
+              Jugar
+            </Link>
+            <UserPill />
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-secondary transition-colors hover:bg-bone/[0.05] hover:text-primary md:hidden"
+              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
+
+        {menuOpen && (
+          <nav
+            aria-label="Principal"
+            className="border-t border-line px-5 pb-5 pt-2 md:hidden animate-in fade-in slide-in-from-top-1 duration-150"
+          >
+            {[{ href: "/jugar", label: "Jugar" }, ...links].map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center justify-between border-b border-line py-3.5 font-display text-2xl text-primary"
+              >
+                {l.label}
+              </Link>
+            ))}
+            <button
+              type="button"
+              onClick={openModes}
+              className="flex w-full items-center justify-between py-3.5 text-left font-display text-2xl text-primary"
+            >
+              Crear sala
+            </button>
+          </nav>
+        )}
       </header>
 
-      {showModal ? (
+      {showModes ? (
         <div
-          className="fixed inset-0 z-50 flex items-start sm:items-center overflow-y-auto bg-black/75 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink-950/80 p-4 backdrop-blur-sm sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-label="Crear sala"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowModal(false);
+            if (e.target === e.currentTarget) setShowModes(false);
           }}
         >
-          <div className="w-full max-w-4xl mx-auto flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200 py-2 sm:py-0">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
-                Elige un modo
-              </h2>
+          <div className="sheet w-full max-w-3xl p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="eyebrow">Crear sala</p>
+                <h2 className="display mt-1 text-4xl text-primary">¿A qué jugamos?</h2>
+              </div>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
-                className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-zinc-200 transition"
+                onClick={() => setShowModes(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-muted transition-colors hover:bg-bone/[0.05] hover:text-primary"
                 aria-label="Cerrar"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <ModeCard
-                href="/host"
-                icon={<Tv className="w-5 h-5" />}
-                accent="one"
-                title="Presencial"
-                subtitle="Sin apuestas · Para mesa real"
-                description="Host abre la mesa en pantalla grande. Cada jugador ve sus cartas privadas en su teléfono. La mesa reparte, avanza calles y resuelve el showdown."
-                features={["Hasta 9 jugadores", "All-in con run-out múltiple", "Historial de manos"]}
-                cta="Abrir mesa"
-                onNavigate={() => setShowModal(false)}
-              />
-              <ModeCard
-                href="/play/online"
-                icon={<Coins className="w-5 h-5" />}
-                accent="two"
-                title="Online"
-                subtitle="Servidor autoritativo · Solo PC"
-                description="Cash game donde el servidor reparte y valida cada acción. Monedas y XP de tu perfil; comparte el código y listo."
-                features={["Monedas y XP de tu perfil", "Run-it-twice y side pots", "Historial de manos real"]}
-                cta="Crear mesa"
-                onNavigate={() => setShowModal(false)}
-              />
-              <ModeCard
-                href="/host/torneo"
-                icon={<Trophy className="w-5 h-5" />}
-                accent="three"
-                title="Torneo"
-                subtitle="Ciegas escalonadas · Admin"
-                description="Estructura con niveles de ciegas, antes y timer automático. Admin controla el torneo y ve el ranking de eliminados en vivo."
-                features={["Niveles y timer automáticos", "Knockouts + ranking final", "Panel admin exclusivo"]}
-                cta="Crear torneo"
-                onNavigate={() => setShowModal(false)}
-              />
-            </div>
+            <ModeList compact onNavigate={() => setShowModes(false)} />
           </div>
         </div>
       ) : null}

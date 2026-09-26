@@ -1,3 +1,5 @@
+import { accentAlpha } from "./brand";
+
 export type TableThemeId =
   | "noir"
   | "emerald"
@@ -19,11 +21,12 @@ export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
   noir: {
     id: "noir",
     label: "Noir",
+    // Warm charcoal felt under a single lamp; bone rail, violet-ink accent.
     feltGradient:
-      "radial-gradient(ellipse at center, #18152a 0%, #0e0b18 55%, #060410 100%)",
-    ringColor: "rgba(167,139,250,0.18)",
-    accent: "#a78bfa",
-    accentSoft: "rgba(167,139,250,0.10)",
+      "radial-gradient(ellipse at 50% 40%, #22201c 0%, #151411 55%, #090807 100%)",
+    ringColor: "rgba(239,235,225,0.12)",
+    accent: "#b192e7",
+    accentSoft: "rgba(177,146,231,0.10)",
   },
   emerald: {
     id: "emerald",
@@ -137,8 +140,8 @@ export const CARD_BACKS: Record<CardBackId, CardBack> = {
     background:
       "linear-gradient(135deg,#2e1a52 0%,#1a0f35 55%,#09061a 100%)",
     pattern:
-      "repeating-linear-gradient(45deg, rgba(167,139,250,0.09) 0 1px, transparent 1px 9px), repeating-linear-gradient(-45deg, rgba(167,139,250,0.07) 0 1px, transparent 1px 9px)",
-    centerColor: "rgba(167,139,250,0.55)",
+      `repeating-linear-gradient(45deg, ${accentAlpha(0.09)} 0 1px, transparent 1px 9px), repeating-linear-gradient(-45deg, ${accentAlpha(0.07)} 0 1px, transparent 1px 9px)`,
+    centerColor: accentAlpha(0.55),
   },
 };
 

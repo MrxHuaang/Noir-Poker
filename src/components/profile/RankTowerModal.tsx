@@ -3,7 +3,19 @@ import { useEffect, useRef, useState } from "react";
 import { X, Lock, Check } from "lucide-react";
 import { TITLES } from "@/lib/progression";
 import type { Title } from "@/lib/progression";
-import { ACCENT, accentAlpha } from "@/lib/brand";
+
+// Warm neutrals for locked ranks and chrome (the per-rank colours below stay
+// as the progression identity).
+const NEUTRAL = {
+  faint: "oklch(0.93 0.012 85 / 0.05)",
+  fainter: "oklch(0.93 0.012 85 / 0.025)",
+  hairline: "var(--line)",
+  lockedName: "oklch(0.5 0.01 75)",
+  lockedText: "oklch(0.44 0.008 70)",
+  text: "var(--text-muted)",
+  badge: "var(--ink-800)",
+  badgeDone: "var(--background)",
+};
 
 const RANK_META: Record<string, {
   color: string;
@@ -99,14 +111,14 @@ function RankEmblem({
 
   return broken ? (
     <div
-      className="rounded-full flex items-center justify-center font-black shrink-0 transition-all duration-300"
+      className="rounded-full flex items-center justify-center font-display shrink-0 transition-all duration-300"
       style={{
         width: size, height: size,
         background: reveal || !locked
           ? `radial-gradient(circle, ${glow} 0%, transparent 70%)`
-          : "rgba(255,255,255,0.04)",
-        border: `1.5px solid ${reveal || !locked ? glow : "rgba(255,255,255,0.08)"}`,
-        color: reveal || !locked ? color : "#52525b",
+          : NEUTRAL.faint,
+        border: `1.5px solid ${reveal || !locked ? glow : NEUTRAL.hairline}`,
+        color: reveal || !locked ? color : NEUTRAL.lockedName,
         fontSize: size * 0.38,
         filter: reveal ? "none" : locked ? "grayscale(0.7)" : "none",
         opacity: reveal ? 1 : locked ? 0.65 : 1,
@@ -164,70 +176,41 @@ export function RankTowerModal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[100] flex items-stretch justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rank-tower-title"
+      className="fixed inset-0 z-[100] flex items-stretch justify-center bg-ink-950/80 backdrop-blur-sm"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
-
       {/* Panel full-height */}
       <div
-        className="relative z-10 w-full max-w-md flex flex-col mt-[68px] mb-4 mx-4 rounded-3xl overflow-hidden shadow-2xl"
-        style={{
-          background: "linear-gradient(180deg, #0a0418 0%, #07030f 40%, #050210 100%)",
-          border: "1px solid rgba(167,139,250,0.18)",
-          boxShadow: "0 0 120px rgba(167,139,250,0.06), inset 0 1px 0 rgba(167,139,250,0.12)",
-        }}
+        className="relative z-10 w-full max-w-md flex flex-col mt-[72px] mb-4 mx-4 overflow-hidden rounded-[1.25rem] border border-line bg-ink-850 shadow-[inset_0_1px_0_oklch(0.95_0.02_85/0.04),0_40px_100px_-30px_oklch(0.05_0.005_60/0.9)]"
       >
-        {/* Estrellas fijas de fondo */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {STARS.map((s, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full bg-white animate-pulse"
-              style={{
-                left: s.x, top: s.y,
-                width: s.size, height: s.size,
-                opacity: s.opacity,
-                animationDuration: `${3 + (i % 4)}s`,
-                animationDelay: `${(i * 0.3) % 4}s`,
-              }}
-            />
-          ))}
-        </div>
-
         {/* Header fijo */}
-        <div
-          className="shrink-0 flex items-center justify-between px-6 py-5 z-10"
-          style={{
-            background: "linear-gradient(to bottom, rgba(10,4,24,0.98) 0%, rgba(10,4,24,0.7) 100%)",
-            borderBottom: "1px solid rgba(167,139,250,0.08)",
-          }}
-        >
-          <div>
-            <h2 className="text-lg font-black tracking-tight text-white">
-              Torre de Rangos
-            </h2>
-            <p className="text-[11px] text-violet-400/70 mt-0.5 uppercase tracking-widest font-bold">
-              Nivel {currentLevel} · {TITLES.find((_, i) => {
-                const s = rankStatus(TITLES[i], currentLevel, TITLES);
-                return s === "current";
-              })
-                ? reversed.find(t => rankStatus(t, currentLevel, TITLES) === "current")?.name
-                : ""}
+        <div className="shrink-0 flex items-start justify-between gap-4 border-b border-line px-6 pt-6 pb-5">
+          <div className="min-w-0">
+            <p className="eyebrow flex items-center gap-2">
+              <span className="suit text-sm" aria-hidden>♠</span>
+              <span>
+                Nivel <span className="numeric">{currentLevel}</span> · {TITLES.find((_, i) => {
+                  const s = rankStatus(TITLES[i], currentLevel, TITLES);
+                  return s === "current";
+                })
+                  ? reversed.find(t => rankStatus(t, currentLevel, TITLES) === "current")?.name
+                  : ""}
+              </span>
             </p>
+            <h2 id="rank-tower-title" className="display mt-1 text-4xl text-primary">
+              Torre de rangos
+            </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2.5 rounded-2xl transition"
-            style={{
-              background: accentAlpha(0.08),
-              border: `1px solid ${accentAlpha(0.15)}`,
-              color: ACCENT[400],
-            }}
+            aria-label="Cerrar"
+            className="-mr-2 -mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[color:var(--text-muted)] transition-colors hover:bg-bone/[0.05] hover:text-bone"
           >
-            <X className="w-4 h-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
@@ -253,12 +236,11 @@ export function RankTowerModal({
                   {/* Top beam segment */}
                   {i > 0 && (
                     <div
-                      className="w-[3px] flex-1 min-h-[16px]"
+                      className="w-[2px] flex-1 min-h-[16px]"
                       style={{
                         background: isLocked
-                          ? "linear-gradient(to bottom, rgba(255,255,255,0.04), rgba(255,255,255,0.02))"
+                          ? `linear-gradient(to bottom, ${NEUTRAL.faint}, ${NEUTRAL.fainter})`
                           : `linear-gradient(to bottom, ${meta.glowHex}, ${meta.glowHex}88)`,
-                        boxShadow: isLocked ? "none" : `0 0 8px ${meta.glowHex}`,
                       }}
                     />
                   )}
@@ -271,8 +253,7 @@ export function RankTowerModal({
                       height: isCurrent ? 14 : 8,
                       marginTop: i === 0 ? 24 : 0,
                       marginBottom: isLast ? 24 : 0,
-                      background: isLocked ? "rgba(255,255,255,0.08)" : meta.glowHex,
-                      boxShadow: isLocked ? "none" : `0 0 ${isCurrent ? 20 : 10}px ${meta.glowHex}`,
+                      background: isLocked ? NEUTRAL.hairline : meta.glowHex,
                       border: isCurrent ? `2px solid ${meta.colorHex}` : "none",
                     }}
                   />
@@ -280,38 +261,30 @@ export function RankTowerModal({
                   {/* Bottom beam segment */}
                   {!isLast && (
                     <div
-                      className="w-[3px] flex-1 min-h-[16px]"
+                      className="w-[2px] flex-1 min-h-[16px]"
                       style={{
                         background: status === "achieved"
                           ? `linear-gradient(to bottom, ${meta.glowHex}88, ${(RANK_META[reversed[i + 1]?.name] ?? meta).glowHex}66)`
-                          : "linear-gradient(to bottom, rgba(255,255,255,0.04), rgba(255,255,255,0.02))",
-                        boxShadow: status === "achieved" ? `0 0 6px ${meta.glowHex}55` : "none",
+                          : `linear-gradient(to bottom, ${NEUTRAL.faint}, ${NEUTRAL.fainter})`,
                       }}
                     />
                   )}
                 </div>
 
-                {/* Rank card */}
+                {/* Rank row */}
                 <div
-                  className="flex-1 mb-2 rounded-2xl overflow-hidden transition-all duration-300 cursor-default"
+                  className="flex-1 mb-2 rounded-[14px] overflow-hidden transition-all duration-300 cursor-default"
                   onMouseEnter={() => setHoveredRank(t.name)}
                   onMouseLeave={() => setHoveredRank(null)}
                   style={{
                     background: hoveredRank === t.name && isLocked
                       ? meta.bgGradient
-                      : isLocked ? "rgba(255,255,255,0.02)" : meta.bgGradient,
+                      : isLocked ? NEUTRAL.fainter : meta.bgGradient,
                     border: `1px solid ${
                       hoveredRank === t.name
                         ? meta.borderHex
-                        : isLocked ? "rgba(255,255,255,0.05)" : meta.borderHex
+                        : isLocked ? NEUTRAL.hairline : meta.borderHex
                     }`,
-                    boxShadow: isCurrent
-                      ? `0 0 40px ${meta.glowHex}55, 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)`
-                      : hoveredRank === t.name
-                        ? `0 0 32px ${meta.glowHex}55, 0 4px 20px rgba(0,0,0,0.5)`
-                        : status === "achieved"
-                          ? `0 0 16px ${meta.glowHex}22, 0 4px 16px rgba(0,0,0,0.4)`
-                          : "0 2px 8px rgba(0,0,0,0.3)",
                     opacity: isLocked && hoveredRank !== t.name ? 0.72 : 1,
                     transform: isCurrent ? "scale(1.02)" : hoveredRank === t.name ? "scale(1.01)" : "scale(1)",
                   }}
@@ -330,28 +303,25 @@ export function RankTowerModal({
                           color={meta.colorHex}
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                              className="text-2xl font-black tracking-tight"
-                              style={{ color: meta.colorHex, textShadow: `0 0 20px ${meta.glowHex}` }}
-                            >
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <span className="display text-3xl" style={{ color: meta.colorHex }}>
                               {t.name}
                             </span>
                             <span
-                              className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
+                              className="eyebrow rounded-[6px] px-1.5 py-px"
                               style={{
                                 background: meta.glowHex,
-                                color: "rgba(0,0,0,0.85)",
+                                color: "oklch(0.14 0.008 70 / 0.9)",
                               }}
                             >
                               Actual
                             </span>
                           </div>
-                          <p className="text-xs mt-1" style={{ color: `${meta.colorHex}99` }}>
+                          <p className="text-[13px] leading-snug mt-1.5" style={{ color: `${meta.colorHex}99` }}>
                             {meta.flavor}
                           </p>
-                          <p className="text-[10px] text-zinc-600 mt-1.5">
-                            Nivel {t.level}
+                          <p className="text-xs text-muted mt-2">
+                            Nivel <span className="numeric">{t.level}</span>
                           </p>
                         </div>
                       </div>
@@ -373,12 +343,12 @@ export function RankTowerModal({
                         <div
                           className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
                           style={{
-                            background: isLocked ? "#18181b" : "#0a0a0a",
-                            border: `1.5px solid ${isLocked ? "rgba(255,255,255,0.1)" : meta.borderHex}`,
+                            background: isLocked ? NEUTRAL.badge : NEUTRAL.badgeDone,
+                            border: `1.5px solid ${isLocked ? NEUTRAL.hairline : meta.borderHex}`,
                           }}
                         >
                           {isLocked
-                            ? <Lock className="w-2 h-2 text-zinc-600" />
+                            ? <Lock style={{ width: 8, height: 8, color: NEUTRAL.lockedName }} />
                             : <Check style={{ width: 8, height: 8, color: meta.colorHex }} />
                           }
                         </div>
@@ -386,25 +356,24 @@ export function RankTowerModal({
 
                       <div className="flex-1 min-w-0">
                         <span
-                          className="text-sm font-bold tracking-tight transition-colors duration-300"
+                          className="font-display text-xl leading-tight transition-colors duration-300"
                           style={{
-                            color: isLocked && hoveredRank !== t.name ? "#52525b" : meta.colorHex,
-                            textShadow: hoveredRank === t.name ? `0 0 12px ${meta.glowHex}` : "none",
+                            color: isLocked && hoveredRank !== t.name ? NEUTRAL.lockedName : meta.colorHex,
                           }}
                         >
                           {t.name}
                         </span>
                         <p
-                          className="text-[11px] mt-0.5 transition-colors duration-300"
-                          style={{ color: isLocked && hoveredRank !== t.name ? "#3f3f46" : "#71717a" }}
+                          className="text-xs leading-snug mt-0.5 transition-colors duration-300"
+                          style={{ color: isLocked && hoveredRank !== t.name ? NEUTRAL.lockedText : NEUTRAL.text }}
                         >
                           {isLocked ? `Requiere nivel ${t.level}` : meta.flavor}
                         </p>
                       </div>
 
                       <span
-                        className="text-[10px] font-black tabular-nums shrink-0"
-                        style={{ color: isLocked ? "#3f3f46" : `${meta.colorHex}88` }}
+                        className="numeric text-[11px] shrink-0"
+                        style={{ color: isLocked ? NEUTRAL.lockedText : `${meta.colorHex}88` }}
                       >
                         Nv.{t.level}
                       </span>
@@ -417,18 +386,8 @@ export function RankTowerModal({
         </div>
 
         {/* Footer fade */}
-        <div
-          className="shrink-0 h-8 pointer-events-none"
-          style={{ background: "linear-gradient(to top, rgba(7,3,15,1) 0%, transparent 100%)" }}
-        />
+        <div className="shrink-0 h-8 pointer-events-none bg-gradient-to-t from-ink-850 to-transparent" />
       </div>
     </div>
   );
 }
-
-const STARS = Array.from({ length: 55 }, (_, i) => ({
-  x: ((i * 137.508) % 100).toFixed(2) + "%",
-  y: ((i * 97.3 + 13) % 100).toFixed(2) + "%",
-  size: i % 5 === 0 ? 2 : 1,
-  opacity: 0.06 + (i % 6) * 0.03,
-}));

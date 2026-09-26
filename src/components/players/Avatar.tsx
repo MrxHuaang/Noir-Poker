@@ -18,7 +18,7 @@ export function Avatar({
       src={src}
       alt=""
       aria-hidden
-      className={`inline-block shrink-0 rounded-full bg-zinc-100 ring-1 ring-white/10 overflow-hidden ${className}`}
+      className={`inline-block shrink-0 rounded-full bg-zinc-100 ring-1 ring-line overflow-hidden ${className}`}
       style={{ width: size, height: size }}
     />
   );

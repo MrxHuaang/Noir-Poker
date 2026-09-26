@@ -114,17 +114,17 @@ export default function HostPage() {
 
   if (loading || !code) {
     return (
-      <div className="w-full max-w-6xl mx-auto px-4 py-10 text-center text-zinc-500 text-sm">
+      <div className="w-full max-w-6xl mx-auto px-4 py-10 text-center text-muted text-sm">
         {loading ? "Cargando…" : "Creando sala…"}
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#06070a] overflow-hidden">
+    <div className="fixed inset-0 flex flex-col bg-ink-950 overflow-hidden">
       {/* Compact header bar */}
       <header className="relative flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06] shrink-0">
-        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 hidden sm:block mr-1">
+        <span className="eyebrow text-[11px] hidden sm:block mr-1">
           Sala · Presencial
         </span>
 
@@ -132,14 +132,14 @@ export default function HostPage() {
         <button
           type="button"
           onClick={copy}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-100 text-sm font-mono tracking-[0.2em] transition btn-press"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-bone/[0.04] hover:bg-bone/[0.07] ring-1 ring-line text-primary text-sm font-mono tracking-[0.2em] transition btn-press"
           title="Copiar código"
         >
           {code}
           {copied ? (
             <Check className="w-3.5 h-3.5 text-accent-300" />
           ) : (
-            <Copy className="w-3.5 h-3.5 text-zinc-400" />
+            <Copy className="w-3.5 h-3.5 text-secondary" />
           )}
         </button>
 
@@ -148,20 +148,20 @@ export default function HostPage() {
           <button
             type="button"
             onClick={() => { setShowQr((v) => !v); setShowThemePicker(false); }}
-            className="p-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-200 transition btn-press"
+            className="p-2 rounded-full bg-bone/[0.04] hover:bg-bone/[0.07] ring-1 ring-line text-secondary hover:text-primary transition btn-press"
             title="Código QR"
             aria-label="Mostrar QR"
           >
             <QrCode className="w-4 h-4" />
           </button>
           {showQr && joinUrl ? (
-            <div className="absolute top-full left-0 mt-2 z-50 p-4 rounded-2xl bg-[#0d0f14] ring-1 ring-white/10 shadow-xl flex flex-col gap-3 min-w-[200px]">
+            <div className="absolute top-full left-0 mt-2 z-50 p-4 rounded-2xl bg-ink-850 ring-1 ring-line shadow-xl flex flex-col gap-3 min-w-[200px]">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-400">Escanea para unirte</span>
+                <span className="text-xs text-secondary">Escanea para unirte</span>
                 <button
                   type="button"
                   onClick={() => setShowQr(false)}
-                  className="text-zinc-500 hover:text-zinc-200 transition"
+                  className="text-muted hover:text-primary transition"
                   aria-label="Cerrar"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -170,7 +170,7 @@ export default function HostPage() {
               <div className="p-2 rounded-xl bg-white self-center">
                 <QRCodeSVG value={joinUrl} size={140} />
               </div>
-              <span className="text-[10px] text-zinc-500 text-center break-all">
+              <span className="text-[10px] text-muted text-center break-all">
                 {joinUrl.replace(/^https?:\/\//, "")}
               </span>
             </div>
@@ -182,20 +182,20 @@ export default function HostPage() {
           <button
             type="button"
             onClick={() => { setShowThemePicker((v) => !v); setShowQr(false); }}
-            className="p-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-200 transition btn-press"
+            className="p-2 rounded-full bg-bone/[0.04] hover:bg-bone/[0.07] ring-1 ring-line text-secondary hover:text-primary transition btn-press"
             title="Personalizar"
             aria-label="Personalizar mesa y cartas"
           >
             <Palette className="w-4 h-4" />
           </button>
           {showThemePicker ? (
-            <div className="absolute top-full left-0 mt-2 z-50 w-72 p-4 rounded-2xl bg-[#0d0f14] ring-1 ring-white/10 shadow-xl flex flex-col gap-5">
+            <div className="absolute top-full left-0 mt-2 z-50 w-72 p-4 rounded-2xl bg-ink-850 ring-1 ring-line shadow-xl flex flex-col gap-5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-zinc-200">Personalizar</span>
+                <span className="text-xs font-medium text-primary">Personalizar</span>
                 <button
                   type="button"
                   onClick={() => setShowThemePicker(false)}
-                  className="text-zinc-500 hover:text-zinc-200 transition"
+                  className="text-muted hover:text-primary transition"
                   aria-label="Cerrar"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -204,13 +204,13 @@ export default function HostPage() {
 
               {/* Felt theme */}
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">Mesa</span>
+                <span className="eyebrow text-[11px]">Mesa</span>
                 <TableThemePicker value={theme} onChange={onThemeChange} />
               </div>
 
               {/* Card back */}
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">Reverso</span>
+                <span className="eyebrow text-[11px]">Reverso</span>
                 <CardBackPicker value={cardBack} onChange={onCardBackChange} />
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function HostPage() {
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="p-2 rounded-full bg-white/5 hover:bg-rose-500/20 ring-1 ring-white/10 hover:ring-rose-500/40 text-zinc-500 hover:text-rose-400 transition btn-press"
+            className="p-2 rounded-full bg-bone/[0.04] hover:bg-rose-500/20 ring-1 ring-line hover:ring-rose-500/40 text-muted hover:text-rose-400 transition btn-press"
             title="Salir de la sala"
             aria-label="Salir de la sala"
           >

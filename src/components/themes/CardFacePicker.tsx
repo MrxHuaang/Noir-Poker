@@ -62,7 +62,7 @@ export function CardFacePicker({ value, onChange }: Props) {
               title={face.label}
               aria-label={face.label}
               className={`relative w-full aspect-[2/3] rounded-lg ring-1 transition overflow-hidden ${
-                selected ? "ring-white/70" : "ring-white/10 hover:ring-white/30"
+                selected ? "ring-white/70" : "ring-line hover:ring-white/30"
               }`}
               style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
             >
@@ -95,7 +95,7 @@ export function CardFacePicker({ value, onChange }: Props) {
                 </div>
               ) : null}
             </button>
-            <span className="text-[10px] text-zinc-400 truncate w-full text-center">
+            <span className="text-[10px] text-secondary truncate w-full text-center">
               {face.label}
             </span>
           </li>

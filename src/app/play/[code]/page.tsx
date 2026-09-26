@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Crown, Eye, EyeOff, Flame, LogOut, RotateCcw, Shuffle, Sparkles } from "lucide-react";
+import { ArrowRight, Crown, Eye, EyeOff, Flame, LogOut, RotateCcw, Shuffle, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useHole, useRoom, useLobby } from "@/hooks/useRoom";
 import { useCardBack } from "@/hooks/useCardBack";
@@ -10,10 +10,11 @@ import { randomSeed } from "@/lib/dicebear";
 import { Avatar } from "@/components/players/Avatar";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import { CardBackPicker } from "@/components/themes/CardBackPicker";
-import { BorderGlow } from "@/components/ui/BorderGlow";
-import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
 import { describeHand } from "@/lib/handLabel";
 import type { Card } from "@/lib/poker";
+
+// Pre-game screens (join form, waiting lobby) use the app-shell container.
+const SHELL = "mx-auto w-full max-w-6xl px-5 sm:px-8";
 
 export default function PlayPage() {
   const params = useParams<{ code: string }>();
@@ -52,20 +53,24 @@ export default function PlayPage() {
 
   if (loading || room === undefined || !participantUid) {
     return (
-      <div className="w-full max-w-md mx-auto px-4 py-10 text-center text-zinc-500 text-sm">
-        Conectando…
+      <div className={`${SHELL} pt-14 pb-24 sm:pt-20`}>
+        <p role="status" className="text-sm text-muted">
+          Conectando…
+        </p>
       </div>
     );
   }
   if (room === null) {
     return (
-      <div className="w-full max-w-md mx-auto px-4 py-10 text-center flex flex-col items-center gap-4">
-        <p className="text-zinc-300">Sala no encontrada.</p>
-        <p className="text-xs text-zinc-500">Código: {code}</p>
-        <a
-          href="/join"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-sm transition"
-        >
+      <div className={`${SHELL} pt-14 pb-24 sm:pt-20`}>
+        <p className="eyebrow mb-5">
+          Código <span className="numeric text-primary">{code}</span>
+        </p>
+        <h1 className="display text-5xl text-primary sm:text-6xl">Sala no encontrada.</h1>
+        <p className="mt-5 max-w-[42ch] text-base leading-relaxed text-secondary">
+          Revisa el código con quien abrió la mesa.
+        </p>
+        <a href="/join" className="btn-quiet mt-8">
           Intentar con otro código
         </a>
       </div>
@@ -77,16 +82,30 @@ export default function PlayPage() {
       return <LobbyForm code={code} participantUid={participantUid} ownerUid={uid} />;
     }
     return (
-      <div className="w-full max-w-md mx-auto px-4 py-10 flex flex-col items-center gap-4 text-center">
-        <Avatar seed={inLobby.seed} size={72} />
-        <h1 className="text-xl text-zinc-100">Hola, {inLobby.name}</h1>
-        <p className="text-sm text-zinc-400">
-          Estás en la sala <span className="font-mono">{code}</span>. Esperando
-          que el host reparta.
+      <div className={`${SHELL} pt-14 pb-24 sm:pt-20`}>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
+          <Avatar seed={inLobby.seed} size={88} className="rounded-[10px]!" />
+          <div className="min-w-0">
+            <p className="eyebrow mb-3 flex items-center gap-2">
+              <span className="suit text-sm" aria-hidden>
+                ♠
+              </span>
+              <span>
+                Sala <span className="numeric text-primary">{code}</span>
+              </span>
+            </p>
+            <h1 className="display text-5xl text-primary [overflow-wrap:anywhere] sm:text-6xl">
+              Hola, <em className="text-accent-200">{inLobby.name}</em>
+            </h1>
+          </div>
+        </div>
+        <p role="status" className="mt-8 flex items-center gap-3 text-base text-secondary">
+          <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent-400" aria-hidden />
+          Esperando que el host reparta.
         </p>
-        <p className="text-[11px] text-zinc-500">
-          {lobby.length} jugador{lobby.length === 1 ? "" : "es"} conectado
-          {lobby.length === 1 ? "" : "s"}.
+        <p className="mt-8 max-w-md border-t border-line pt-4 text-sm text-muted">
+          <span className="numeric text-primary">{lobby.length}</span> jugador
+          {lobby.length === 1 ? "" : "es"} conectado{lobby.length === 1 ? "" : "s"}.
         </p>
       </div>
     );
@@ -128,62 +147,62 @@ function LobbyForm({
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="w-full max-w-md mx-auto px-4 py-10 flex flex-col gap-6"
-    >
-      <header className="text-center">
-        <h1 className="text-xl text-zinc-100">Sala {code}</h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          Elige tu apodo y avatar.
-        </p>
-      </header>
+    <form onSubmit={submit} className={`${SHELL} pt-14 pb-24 sm:pt-20`}>
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8">
+        <header className="lg:col-span-6">
+          <p className="eyebrow mb-5 flex items-center gap-2">
+            <span className="suit text-sm" aria-hidden>
+              ♠
+            </span>
+            <span>
+              Sala <span className="numeric text-primary">{code}</span>
+            </span>
+          </p>
+          <h1 className="display text-5xl text-primary sm:text-6xl">
+            Elige tu apodo <em className="text-accent-200">y tu avatar.</em>
+          </h1>
+          <p className="mt-5 max-w-[40ch] text-base leading-relaxed text-secondary">
+            Así te verá la mesa. Tus cartas solo aparecen en este teléfono.
+          </p>
+        </header>
 
-      <BorderGlow
-        className="w-full lg-blur"
-        edgeSensitivity={26}
-        glowColor={ACCENT_GLOW_HSL}
-        backgroundColor="var(--lg-bg)"
-        borderRadius={20}
-        glowRadius={30}
-        glowIntensity={1}
-        coneSpread={24}
-        animated={false}
-        colors={ACCENT_GLOW_COLORS}
-        fillOpacity={0.45}
-      >
-        <div className="flex flex-col gap-6 p-5">
-          <div className="flex flex-col items-center gap-3">
-            <Avatar seed={seed} size={120} />
-            <button
-              type="button"
-              onClick={() => setSeed(randomSeed())}
-              className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10 btn-press"
-            >
-              <Shuffle className="w-3.5 h-3.5" />
+        <div className="flex max-w-md flex-col gap-6 border-t border-line pt-8 lg:col-span-5 lg:col-start-8 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-10">
+          <div className="flex items-center gap-5">
+            <Avatar seed={seed} size={96} className="rounded-[10px]!" />
+            <button type="button" onClick={() => setSeed(randomSeed())} className="btn-quiet">
+              <Shuffle className="h-4 w-4" aria-hidden />
               Otro avatar
             </button>
           </div>
 
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Tu apodo"
-            maxLength={20}
-            autoFocus
-            className="rounded-2xl bg-black/40 px-5 py-4 text-center text-lg text-zinc-100 outline-none ring-1 ring-white/10 focus:ring-accent-500/40"
-          />
+          <div className="flex flex-col gap-2">
+            <label htmlFor="lobby-name" className="eyebrow">
+              Apodo
+            </label>
+            <input
+              id="lobby-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Tu apodo"
+              maxLength={20}
+              autoFocus
+              autoComplete="nickname"
+              className="field h-14! text-lg!"
+            />
+          </div>
 
           <button
             type="submit"
             disabled={!name.trim() || submitting}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent-700/70 px-5 py-3 font-medium text-accent-100 transition hover:bg-accent-600/75 disabled:cursor-not-allowed disabled:opacity-30 btn-press"
+            aria-busy={submitting}
+            className="btn-primary w-full"
           >
             Entrar a la mesa
+            <ArrowRight className="h-4 w-4" aria-hidden />
           </button>
         </div>
-      </BorderGlow>
+      </div>
     </form>
   );
 }

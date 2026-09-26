@@ -62,8 +62,8 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
         { label: "33%", value: clamp(pot * 0.33) },
         { label: "1/2", value: clamp(pot * 0.5) },
         { label: "75%", value: clamp(pot * 0.75) },
-        { label: "Pot", value: clamp(pot) },
-        { label: "Max", value: clamp(maxVal) },
+        { label: "Bote", value: clamp(pot) },
+        { label: "Máx", value: clamp(maxVal) },
       ].filter((p, i, arr) => p.value > 0 && arr.findIndex((q) => q.value === p.value) === i)
     : [];
 
@@ -77,30 +77,31 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
                 key={p.label}
                 type="button"
                 onClick={() => setRaiseAmount(Math.min(p.value, maxVal))}
-                className="glass-button glass-button-ghost btn-press flex-1 rounded-xl px-2 py-1.5 text-[9px] font-black uppercase tracking-[0.18em]"
+                className="glass-button btn-press flex-1 rounded-lg px-2 py-1.5 text-xs font-medium text-secondary"
               >
                 {p.label}
               </button>
             ))}
           </div>
 
-          <div className="glass-panel flex flex-col gap-2 rounded-[20px] p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-black uppercase tracking-[0.22em] text-zinc-500">
-                Amount
-              </span>
-              <span className="text-base font-black leading-none text-zinc-100 tabular-nums">
+          <div className="flex flex-col gap-2 rounded-xl border border-line px-3 py-2.5">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="bet-amount" className="eyebrow">
+                Monto
+              </label>
+              <span className="numeric text-lg leading-none text-primary">
                 {formatChips(raiseAmount)}
               </span>
             </div>
             <input
+              id="bet-amount"
               type="range"
               min={sliderOpt.min ?? 0}
               max={sliderOpt.max ?? seat.chips}
               step={betting.bigBlind > 0 ? betting.bigBlind : 1}
               value={raiseAmount}
               onChange={handleSlider}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-white/10 accent-accent-400"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-bone/10 accent-accent-400"
             />
           </div>
         </div>
@@ -112,9 +113,9 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => onAction("fold")}
-            className="glass-button glass-button-danger btn-press flex-1 rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.18em]"
+            className="glass-button glass-button-danger btn-press flex-1 rounded-xl px-2 text-[13px] font-semibold"
           >
-            Fold
+            Retirarse
           </button>
         )}
 
@@ -123,9 +124,9 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => onAction(canCheck ? "check" : "call")}
-            className="glass-button glass-button-accent btn-press flex-[2] rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.18em]"
+            className="btn-primary h-full flex-[2] rounded-xl px-3 text-[13px]"
           >
-            {canCheck ? "Check" : `Call ${formatChips(toCall)}`}
+            {canCheck ? "Pasar" : `Igualar ${formatChips(toCall)}`}
           </button>
         )}
 
@@ -134,9 +135,9 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={handleBetRaise}
-            className="glass-button glass-button-accent btn-press flex-[2] rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.18em]"
+            className="btn-accent h-full flex-[2] rounded-xl px-3 text-[13px]"
           >
-            {raiseOpt ? "Raise" : "Bet"}
+            {raiseOpt ? "Subir" : "Apostar"}
           </button>
         )}
 
@@ -145,7 +146,7 @@ export function BettingControls({ seat, betting, onAction, disabled }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => onAction("all-in")}
-            className="glass-button glass-button-accent btn-press flex-[2] rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.18em]"
+            className="btn-accent h-full flex-[2] rounded-xl px-3 text-[13px]"
           >
             All-in
           </button>

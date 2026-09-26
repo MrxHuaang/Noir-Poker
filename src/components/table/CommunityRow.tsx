@@ -35,7 +35,7 @@ export function CommunityRow({ community, cardFace }: { community: Card[]; cardF
                 cardFace={cardFace}
               />
             ) : (
-              <div className="w-20 h-28 rounded-xl border border-dashed border-white/10 bg-white/[0.015]" />
+              <div className="w-20 h-28 rounded-xl border border-dashed border-line bg-white/[0.015]" />
             )}
           </div>
         );

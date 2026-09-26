@@ -38,7 +38,7 @@ function LevelCountdown({
   const urgent = remaining < 60_000;
   return (
     <span
-      className={`tabular-nums font-semibold text-2xl ${urgent ? "text-rose-300" : "text-zinc-100"}`}
+      className={`tabular-nums font-semibold text-2xl ${urgent ? "text-rose-300" : "text-primary"}`}
     >
       {formatDuration(remaining)}
     </span>
@@ -85,7 +85,7 @@ function AdminTorneoPageInner() {
 
   if (!room) {
     return (
-      <div className="p-8 text-center text-zinc-500 text-sm">
+      <div className="p-8 text-center text-muted text-sm">
         Cargando sala…
       </div>
     );
@@ -93,7 +93,7 @@ function AdminTorneoPageInner() {
 
   if (room.mode !== "torneo") {
     return (
-      <div className="p-8 text-center text-zinc-500 text-sm">
+      <div className="p-8 text-center text-muted text-sm">
         Esta sala no es un torneo.
       </div>
     );
@@ -149,13 +149,13 @@ function AdminTorneoPageInner() {
       {/* Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl glass elevate">
         <div>
-          <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+          <span className="eyebrow text-[11px]">
             Admin · Torneo
           </span>
-          <h1 className="text-2xl tracking-[0.2em] font-semibold text-zinc-100 mt-0.5">
+          <h1 className="text-2xl tracking-[0.2em] font-semibold text-primary mt-0.5">
             {code}
           </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
+          <p className="text-xs text-muted mt-0.5">
             {sortedSeats.length} jugadores activos · {knockouts.length} eliminados
           </p>
         </div>
@@ -165,13 +165,13 @@ function AdminTorneoPageInner() {
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                <div className="eyebrow text-[11px]">
                   Nivel {currentLevelIdx + 1}
                 </div>
-                <div className="text-sm text-zinc-300">
+                <div className="text-sm text-secondary">
                   {formatChips(level.sb)}/{formatChips(level.bb)}
                   {level.ante > 0 && (
-                    <span className="text-zinc-500 ml-1">
+                    <span className="text-muted ml-1">
                       ante {formatChips(level.ante)}
                     </span>
                   )}
@@ -190,7 +190,7 @@ function AdminTorneoPageInner() {
               <button
                 type="button"
                 onClick={handlePause}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass ring-white/10 text-xs text-zinc-200 hover:bg-white/10 btn-press transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass ring-line text-xs text-primary hover:bg-bone/[0.07] btn-press transition"
               >
                 {tournament.paused ? (
                   <>
@@ -205,7 +205,7 @@ function AdminTorneoPageInner() {
               <button
                 type="button"
                 onClick={handleAdvance}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass ring-white/10 text-xs text-zinc-200 hover:bg-white/10 btn-press transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass ring-line text-xs text-primary hover:bg-bone/[0.07] btn-press transition"
               >
                 <SkipForward className="w-3.5 h-3.5" /> Avanzar nivel
               </button>
@@ -250,7 +250,7 @@ function AdminTorneoPageInner() {
                     ),
                   )}
                 </div>
-                <div className="text-xs uppercase tracking-[0.2em] text-white/40">
+                <div className="eyebrow">
                   {gs.street} · {gs.phase}
                 </div>
               </div>
@@ -264,41 +264,41 @@ function AdminTorneoPageInner() {
                       gs.betting.toActId === seat.id
                         ? "bg-accent-500/8 ring-accent-400/40"
                         : seat.status === "folded"
-                          ? "glass ring-white/5 opacity-50"
+                          ? "glass ring-line opacity-50"
                           : seat.status === "out"
-                            ? "glass ring-white/5 opacity-30"
-                            : "glass ring-white/8"
+                            ? "glass ring-line opacity-30"
+                            : "glass ring-line"
                     }`}
                   >
                     <Avatar seed={seat.seed} size={32} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-zinc-100 truncate">
+                        <span className="text-sm text-primary truncate">
                           {seat.name}
                         </span>
                         {gs.betting.toActId === seat.id && (
-                          <span className="text-[9px] uppercase tracking-widest text-accent-300 bg-accent-400/10 px-1.5 py-0.5 rounded-full">
+                          <span className="eyebrow text-[11px] text-accent-300 bg-accent-400/10 px-1.5 py-0.5 rounded-full">
                             Turno
                           </span>
                         )}
                         {seat.status === "all-in" && (
-                          <span className="text-[9px] uppercase tracking-widest text-accent-300 bg-accent-400/10 px-1.5 py-0.5 rounded-full">
+                          <span className="eyebrow text-[11px] text-accent-300 bg-accent-400/10 px-1.5 py-0.5 rounded-full">
                             All-in
                           </span>
                         )}
                         {seat.status === "folded" && (
-                          <span className="text-[9px] uppercase tracking-widest text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded-full">
+                          <span className="eyebrow text-[11px] bg-bone/[0.04] px-1.5 py-0.5 rounded-full">
                             Fold
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium tabular-nums text-zinc-100">
+                      <div className="text-sm font-medium tabular-nums text-primary">
                         {formatChips(seat.chips)}
                       </div>
                       {seat.bet > 0 && (
-                        <div className="text-[11px] text-zinc-500 tabular-nums">
+                        <div className="text-[11px] text-muted tabular-nums">
                           +{formatChips(seat.bet)}
                         </div>
                       )}
@@ -308,7 +308,7 @@ function AdminTorneoPageInner() {
               </ul>
             </>
           ) : (
-            <div className="py-10 text-center text-zinc-500 text-sm glass rounded-2xl">
+            <div className="py-10 text-center text-muted text-sm glass rounded-2xl">
               Esperando primera mano…
             </div>
           )}
@@ -317,33 +317,33 @@ function AdminTorneoPageInner() {
           <button
             type="button"
             onClick={() => setShowLevels((v) => !v)}
-            className="flex items-center justify-between w-full px-4 py-3 rounded-2xl glass ring-1 ring-white/8 text-sm text-zinc-300 hover:bg-white/5 transition"
+            className="flex items-center justify-between w-full px-4 py-3 rounded-2xl glass ring-1 ring-line text-sm text-secondary hover:bg-bone/[0.04] transition"
           >
             <span>Estructura de ciegas</span>
             {showLevels ? (
-              <ChevronUp className="w-4 h-4 text-zinc-500" />
+              <ChevronUp className="w-4 h-4 text-muted" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-zinc-500" />
+              <ChevronDown className="w-4 h-4 text-muted" />
             )}
           </button>
           {showLevels && (
             <div className="rounded-2xl glass overflow-hidden">
-              <table className="w-full text-xs text-zinc-400">
+              <table className="w-full text-xs text-secondary">
                 <thead>
-                  <tr className="border-b border-white/8">
-                    <th className="px-4 py-2 text-left font-medium text-zinc-500 uppercase tracking-widest">
+                  <tr className="border-b border-line">
+                    <th className="eyebrow px-4 py-2 text-left font-medium">
                       Nv
                     </th>
-                    <th className="px-4 py-2 text-right font-medium text-zinc-500 uppercase tracking-widest">
+                    <th className="eyebrow px-4 py-2 text-right font-medium">
                       SB
                     </th>
-                    <th className="px-4 py-2 text-right font-medium text-zinc-500 uppercase tracking-widest">
+                    <th className="eyebrow px-4 py-2 text-right font-medium">
                       BB
                     </th>
-                    <th className="px-4 py-2 text-right font-medium text-zinc-500 uppercase tracking-widest">
+                    <th className="eyebrow px-4 py-2 text-right font-medium">
                       Ante
                     </th>
-                    <th className="px-4 py-2 text-right font-medium text-zinc-500 uppercase tracking-widest">
+                    <th className="eyebrow px-4 py-2 text-right font-medium">
                       Min
                     </th>
                   </tr>
@@ -352,9 +352,9 @@ function AdminTorneoPageInner() {
                   {levels.map((lv, i) => (
                     <tr
                       key={i}
-                      className={`border-b border-white/5 ${
+                      className={`border-b border-line ${
                         i === currentLevelIdx
-                          ? "bg-accent-500/8 text-zinc-100"
+                          ? "bg-accent-500/8 text-primary"
                           : i < currentLevelIdx
                             ? "opacity-40"
                             : ""
@@ -387,20 +387,20 @@ function AdminTorneoPageInner() {
         <aside className="w-full lg:w-64 flex flex-col gap-4">
           {/* Leaderboard */}
           <div className="flex flex-col gap-2">
-            <h3 className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+            <h3 className="eyebrow">
               Clasificación
             </h3>
             <ul className="flex flex-col gap-1.5">
               {sortedSeats.map((seat, i) => (
                 <li
                   key={seat.id}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl glass ring-1 ring-white/8 text-xs"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl glass ring-1 ring-line text-xs"
                 >
-                  <span className="w-5 text-center tabular-nums text-zinc-500 font-medium">
+                  <span className="w-5 text-center tabular-nums text-muted font-medium">
                     {i + 1}
                   </span>
                   <Avatar seed={seat.seed} size={20} />
-                  <span className="flex-1 text-zinc-100 truncate">
+                  <span className="flex-1 text-primary truncate">
                     {seat.name}
                   </span>
                   {i === 0 && (
@@ -417,18 +417,18 @@ function AdminTorneoPageInner() {
           {/* Knockouts */}
           {knockedOutNames.length > 0 && (
             <div className="flex flex-col gap-2">
-              <h3 className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+              <h3 className="eyebrow">
                 Eliminados
               </h3>
               <ul className="flex flex-col gap-1.5">
                 {knockedOutNames.map((name, i) => (
                   <li
                     key={i}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl glass ring-1 ring-rose-400/10 text-xs text-zinc-500"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl glass ring-1 ring-rose-400/10 text-xs text-muted"
                   >
                     <Trophy className="w-3.5 h-3.5 text-rose-400/60 shrink-0" />
                     <span className="flex-1 truncate">{name}</span>
-                    <span className="tabular-nums text-zinc-600">
+                    <span className="tabular-nums text-muted">
                       #{knockedOutNames.length - i}
                     </span>
                   </li>
@@ -440,7 +440,7 @@ function AdminTorneoPageInner() {
           {/* Final ranking */}
           {tournament?.finalRanking && tournament.finalRanking.length > 0 && (
             <div className="flex flex-col gap-2">
-              <h3 className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+              <h3 className="eyebrow">
                 Ranking final
               </h3>
               <ul className="flex flex-col gap-1.5">
@@ -459,15 +459,15 @@ function AdminTorneoPageInner() {
                           i === 0
                             ? "text-accent-300"
                             : i === 1
-                              ? "text-zinc-300"
+                              ? "text-secondary"
                               : i === 2
                                 ? "text-accent-600"
-                                : "text-zinc-500"
+                                : "text-muted"
                         }`}
                       >
                         {i + 1}
                       </span>
-                      <span className="flex-1 text-zinc-200 truncate">
+                      <span className="flex-1 text-primary truncate">
                         {name}
                       </span>
                     </li>
@@ -480,16 +480,16 @@ function AdminTorneoPageInner() {
           {/* Tournament stats */}
           <div className="p-3 rounded-2xl glass flex flex-col gap-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-zinc-500">Total fichas</span>
-              <span className="tabular-nums text-zinc-200">
+              <span className="text-muted">Total fichas</span>
+              <span className="tabular-nums text-primary">
                 {formatChips(
                   sortedSeats.reduce((sum, s) => sum + s.chips, 0),
                 )}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Fichas promedio</span>
-              <span className="tabular-nums text-zinc-200">
+              <span className="text-muted">Fichas promedio</span>
+              <span className="tabular-nums text-primary">
                 {sortedSeats.length > 0
                   ? formatChips(
                       Math.round(
@@ -501,8 +501,8 @@ function AdminTorneoPageInner() {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Lider</span>
-              <span className="text-zinc-200 truncate max-w-[100px] text-right">
+              <span className="text-muted">Lider</span>
+              <span className="text-primary truncate max-w-[100px] text-right">
                 {sortedSeats[0]?.name ?? "—"}
               </span>
             </div>

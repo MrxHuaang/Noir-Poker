@@ -1,8 +1,8 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { X, Tv, Smartphone, Play, ArrowRight, ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { X, Tv, Smartphone, Play, ArrowRight, ChevronLeft, Check, Lock } from "lucide-react";
 import Link from "next/link";
 
 const STEPS = [
@@ -12,7 +12,7 @@ const STEPS = [
     label: "Paso 1 de 3",
     title: "La pantalla principal",
     subtitle: "TV, proyector o laptop",
-    body: "Abre la sala en el dispositivo que todos puedan ver. Esa pantalla muestra la mesa: cartas comunitarias, fichas de cada jugador, el pot y el historial de manos. No muestra equity ni información privada.",
+    body: "Abre la sala en el dispositivo que todos puedan ver. Esa pantalla muestra la mesa: cartas comunitarias, fichas de cada jugador, el bote y el historial de manos. No muestra equity ni información privada.",
     visual: "host",
   },
   {
@@ -21,7 +21,7 @@ const STEPS = [
     label: "Paso 2 de 3",
     title: "Cada jugador en su móvil",
     subtitle: "Cartas privadas y personales",
-    body: "Cada jugador escanea el QR o escribe el código desde su propio teléfono. Solo ve sus dos cartas — nadie más puede verlas. Hasta 9 jugadores al mismo tiempo.",
+    body: "Cada jugador escanea el QR o escribe el código desde su propio teléfono. Solo ve sus dos cartas: nadie más puede verlas. Hasta 9 jugadores al mismo tiempo.",
     visual: "phone",
   },
   {
@@ -30,47 +30,70 @@ const STEPS = [
     label: "Paso 3 de 3",
     title: "El host dirige la partida",
     subtitle: "Con un toque",
-    body: "El host reparte, avanza calles y llega al showdown con un toque. Puede ver equity y stats en su panel lateral — información exclusiva para el host, invisible en la pantalla compartida.",
+    body: "El host reparte, avanza calles y llega al showdown con un toque. En su panel lateral ve equity y estadísticas: información exclusiva del host, invisible en la pantalla compartida.",
     visual: "play",
   },
 ];
+
+// Tiny small-caps label for the miniature illustrations (the .eyebrow size is
+// too large at this scale).
+const MINI_CAPS = "[font-variant-caps:all-small-caps] tracking-[0.06em]";
+
+function MiniCard({ rank, suit, red }: { rank: string; suit: string; red: boolean }) {
+  return (
+    <div
+      className={`flex h-8 w-6 flex-col items-start justify-start rounded-[3px] bg-bone p-px ${
+        red ? "suit-red" : "text-ink-900"
+      }`}
+    >
+      <span className="text-[7px] leading-none font-semibold">{rank}</span>
+      <span className="font-display text-[8px] leading-none">{suit}</span>
+    </div>
+  );
+}
 
 function HostVisual() {
   const cards = ["A", "K", "Q", "J", "T"];
   const suits = ["♠", "♥", "♦", "♣", "♥"];
   const reds = [false, true, true, false, true];
   return (
-    <div className="relative w-full h-full flex items-center justify-center p-4">
+    <div className="relative flex h-full w-full items-center justify-center p-6">
       {/* Monitor frame */}
-      <div className="w-full max-w-[220px] flex flex-col items-center gap-2">
-        <div className="w-full h-[130px] rounded-xl bg-zinc-950 ring-1 ring-white/15 flex flex-col items-center justify-center gap-2 relative overflow-hidden shadow-xl">
+      <div className="flex w-full max-w-[230px] flex-col items-center gap-2">
+        <div className="relative flex h-[136px] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[12px] border border-line-strong bg-ink-950">
           {/* Felt */}
-          <div className="absolute inset-2 rounded-lg bg-zinc-900/80" />
+          <div className="absolute inset-2 rounded-[8px] bg-ink-800/80" />
           {/* Seats row (top) */}
-          <div className="relative z-10 flex gap-1.5 mb-0.5">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="w-5 h-5 rounded-full bg-zinc-800 ring-1 ring-white/10 flex items-center justify-center text-[7px] text-zinc-500 font-bold">{i}</div>
+          <div className="relative z-10 mb-0.5 flex gap-1.5">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="numeric flex h-5 w-5 items-center justify-center rounded-[5px] border border-line bg-ink-700 text-[8px] text-muted"
+              >
+                {i}
+              </div>
             ))}
           </div>
           {/* Community cards */}
           <div className="relative z-10 flex gap-0.5">
             {cards.map((c, i) => (
-              <div key={i} className={`w-6 h-8 rounded bg-white flex flex-col items-start justify-start p-px shadow ${reds[i] ? "text-red-500" : "text-zinc-900"}`}>
-                <span className="text-[7px] font-black leading-none">{c}</span>
-                <span className="text-[7px] leading-none">{suits[i]}</span>
-              </div>
+              <MiniCard key={i} rank={c} suit={suits[i]} red={reds[i]} />
             ))}
           </div>
           {/* Pot */}
-          <div className="relative z-10 text-[7px] font-bold text-zinc-500 tracking-widest">POT 2.4K</div>
+          <div className={`relative z-10 text-[9px] text-muted ${MINI_CAPS}`}>
+            Bote <span className="numeric">2.4K</span>
+          </div>
         </div>
         {/* Stand */}
-        <div className="w-4 h-2 bg-zinc-700 rounded" />
-        <div className="w-10 h-1 bg-zinc-700 rounded" />
-        <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Pantalla compartida</p>
+        <div className="h-2 w-4 rounded-sm bg-ink-600" />
+        <div className="h-1 w-10 rounded-sm bg-ink-600" />
+        <p className={`mt-1 text-[11px] text-muted ${MINI_CAPS}`}>Pantalla compartida</p>
       </div>
       {/* No equity tag */}
-      <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-zinc-800 ring-1 ring-white/10 text-[7px] font-bold text-zinc-400 uppercase tracking-widest">
+      <div
+        className={`absolute top-3 right-3 flex items-center gap-1 rounded-[6px] border border-line px-2 py-0.5 text-[10px] text-muted ${MINI_CAPS}`}
+      >
         Sin equity visible
       </div>
     </div>
@@ -84,37 +107,41 @@ function PhoneVisual() {
     { cards: ["?", "?"], suits: ["", ""], reds: [false, false], name: "Luis", active: false },
   ];
   return (
-    <div className="relative w-full h-full flex items-center justify-center gap-3 p-4">
+    <div className="relative flex h-full w-full items-center justify-center gap-3 p-6">
       {players.map((p, pi) => (
         <div
           key={pi}
-          className={`flex flex-col items-center gap-1.5 transition-all ${p.active ? "scale-105" : "opacity-35 scale-90"}`}
+          className={`flex flex-col items-center gap-1.5 transition-all ${p.active ? "scale-105" : "scale-90 opacity-35"}`}
         >
-          <div className={`w-[52px] h-[86px] rounded-2xl ring-1 flex flex-col items-center justify-center gap-2 shadow-lg relative overflow-hidden ${p.active ? "bg-zinc-900 ring-white/20" : "bg-zinc-900/60 ring-white/8"}`}>
+          <div
+            className={`relative flex h-[86px] w-[52px] flex-col items-center justify-center gap-2 overflow-hidden rounded-[14px] border ${
+              p.active ? "border-line-strong bg-ink-850" : "border-line bg-ink-850/60"
+            }`}
+          >
             {/* Notch */}
-            <div className="absolute top-1.5 w-8 h-1 rounded-full bg-zinc-700/80" />
+            <div className="absolute top-1.5 h-1 w-8 rounded-full bg-ink-600" />
             {/* Cards */}
-            <div className="flex gap-1 mt-2">
+            <div className="mt-2 flex gap-1">
               {p.cards.map((c, ci) => (
                 <div
                   key={ci}
-                  className={`w-[18px] h-[24px] rounded flex flex-col items-start justify-start p-px shadow ${
-                    p.active ? (p.reds[ci] ? "bg-white text-red-500" : "bg-white text-zinc-900") : "bg-zinc-700"
+                  className={`flex h-[24px] w-[18px] flex-col items-start justify-start rounded-[3px] p-px ${
+                    p.active ? (p.reds[ci] ? "bg-bone suit-red" : "bg-bone text-ink-900") : "bg-ink-600"
                   }`}
                 >
-                  {p.active && <span className="text-[6px] font-black leading-none">{c}</span>}
-                  {p.active && <span className="text-[6px] leading-none">{p.suits[ci]}</span>}
+                  {p.active && <span className="text-[6px] leading-none font-semibold">{c}</span>}
+                  {p.active && <span className="font-display text-[7px] leading-none">{p.suits[ci]}</span>}
                 </div>
               ))}
             </div>
             {p.active && (
-              <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-zinc-800/80 ring-1 ring-white/8">
-                <Lock className="w-2 h-2 text-zinc-500" />
-                <span className="text-[5.5px] font-bold text-zinc-500 uppercase tracking-widest">Solo tú</span>
+              <div className="flex items-center gap-0.5 rounded-[4px] border border-line px-1 py-px">
+                <Lock className="h-2 w-2 text-muted" aria-hidden />
+                <span className={`text-[7px] text-muted ${MINI_CAPS}`}>Solo tú</span>
               </div>
             )}
           </div>
-          <span className={`text-[8px] font-medium ${p.active ? "text-zinc-300" : "text-zinc-600"}`}>{p.name}</span>
+          <span className={`text-[10px] ${p.active ? "text-secondary" : "text-muted"}`}>{p.name}</span>
         </div>
       ))}
     </div>
@@ -123,40 +150,50 @@ function PhoneVisual() {
 
 function PlayVisual() {
   return (
-    <div className="relative w-full h-full flex items-center justify-center p-4">
-      <div className="flex flex-col gap-2 w-full max-w-[200px]">
+    <div className="relative flex h-full w-full items-center justify-center p-6">
+      <div className="flex w-full max-w-[210px] flex-col gap-2.5">
         {/* Host panel label */}
-        <div className="text-[7px] font-bold text-zinc-600 uppercase tracking-widest mb-0.5">Panel del host (privado)</div>
+        <div className={`mb-0.5 text-[11px] text-muted ${MINI_CAPS}`}>Panel del host, privado</div>
         {/* Steps */}
         {[
           { label: "Repartir", sub: "2 cartas por jugador", done: true },
           { label: "Flop · Turn · River", sub: "Cartas comunitarias", done: true },
           { label: "Showdown", sub: "Ganador automático", active: true },
         ].map((s, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-[7px] font-black ${
-              s.active ? "bg-zinc-100 text-zinc-900" : s.done ? "bg-zinc-700 text-zinc-400" : "bg-zinc-800 text-zinc-600"
-            }`}>
-              {s.active || s.done ? "✓" : i + 1}
+          <div key={i} className="flex items-center gap-2.5 border-b border-line pb-2 last:border-b-0">
+            <div
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] ${
+                s.active ? "bg-bone text-ink-900" : s.done ? "bg-ink-700 text-bone-dim" : "bg-ink-800 text-muted"
+              }`}
+            >
+              {s.active || s.done ? (
+                <Check className="h-2.5 w-2.5" aria-hidden />
+              ) : (
+                <span className="numeric text-[8px]">{i + 1}</span>
+              )}
             </div>
             <div>
-              <div className={`text-[9px] font-bold ${s.active ? "text-zinc-100" : "text-zinc-400"}`}>{s.label}</div>
-              <div className="text-[7px] text-zinc-600">{s.sub}</div>
+              <div className={`text-[11px] font-medium ${s.active ? "text-primary" : "text-secondary"}`}>
+                {s.label}
+              </div>
+              <div className="text-[9px] text-muted">{s.sub}</div>
             </div>
           </div>
         ))}
-        {/* Equity bar — host only */}
-        <div className="mt-1 p-1.5 rounded-lg bg-zinc-900 ring-1 ring-white/8">
-          <div className="flex justify-between text-[6px] text-zinc-600 mb-1 font-bold uppercase tracking-widest">
-            <span>Carlos</span><span>Equity — host only</span><span>Ana</span>
+        {/* Equity bar, host only */}
+        <div className="mt-1 rounded-[8px] border border-line bg-ink-950/60 p-2">
+          <div className={`mb-1 flex justify-between text-[8px] text-muted ${MINI_CAPS}`}>
+            <span>Carlos</span>
+            <span>Equity, solo host</span>
+            <span>Ana</span>
           </div>
-          <div className="flex h-1.5 rounded-full overflow-hidden gap-px">
-            <div className="bg-zinc-300 flex-[62] rounded-l-full" />
-            <div className="bg-zinc-700 flex-[38] rounded-r-full" />
+          <div className="flex h-[3px] gap-px overflow-hidden">
+            <div className="flex-[62] bg-bone" />
+            <div className="flex-[38] bg-ink-600" />
           </div>
-          <div className="flex justify-between text-[7px] font-black mt-0.5">
-            <span className="text-zinc-200">62%</span>
-            <span className="text-zinc-600">38%</span>
+          <div className="numeric mt-1 flex justify-between text-[9px]">
+            <span className="text-primary">62%</span>
+            <span className="text-muted">38%</span>
           </div>
         </div>
       </div>
@@ -183,6 +220,15 @@ export function PresencialTutorial({ onClose }: Props) {
     { scope: rootRef, dependencies: [] },
   );
 
+  // Escape cierra el tutorial (estandar de dialogos).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   function goTo(next: number) {
     if (!contentRef.current || !visualRef.current) return;
     const dir = next > step ? 1 : -1;
@@ -202,94 +248,102 @@ export function PresencialTutorial({ onClose }: Props) {
   const StepIcon = current.icon;
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[300] flex items-start justify-center overflow-y-auto bg-ink-950/80 p-4 backdrop-blur-sm sm:items-center">
       <div
         ref={rootRef}
-        className="relative w-full max-w-2xl bg-zinc-950 rounded-3xl ring-1 ring-white/10 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.9)] overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cómo funciona el modo presencial"
+        className="sheet relative w-full max-w-2xl overflow-hidden shadow-[0_40px_120px_-30px_oklch(0.05_0.005_60/0.9)]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-0">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-zinc-800 ring-1 ring-white/10 flex items-center justify-center">
-              <Tv className="w-3.5 h-3.5 text-zinc-300" />
-            </div>
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Modo presencial</span>
-          </div>
+        <div className="flex items-start justify-between gap-4 px-6 pt-6 sm:px-8">
+          <p className="eyebrow flex items-center gap-2">
+            <span className="suit text-sm" aria-hidden>
+              ♠
+            </span>
+            Modo presencial · cómo funciona
+          </p>
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition"
+            aria-label="Cerrar"
+            className="-mt-2 -mr-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[color:var(--text-muted)] transition-colors hover:bg-bone/[0.05] hover:text-bone"
           >
-            <X className="w-3.5 h-3.5 text-zinc-400" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Step indicators */}
-        <div className="flex items-center gap-1.5 px-6 pt-4">
-          {STEPS.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => goTo(i)}
-              className={`h-1 rounded-full transition-all duration-300 ${
-                i === step ? "bg-zinc-100 flex-[3]" : "bg-zinc-700 hover:bg-zinc-600 flex-1"
-              }`}
-            />
+        <ol className="grid grid-cols-3 gap-3 px-6 pt-5 sm:px-8">
+          {STEPS.map((s, i) => (
+            <li key={s.id}>
+              <button
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={`Paso ${i + 1}: ${s.title}`}
+                aria-current={i === step ? "step" : undefined}
+                className="group flex w-full flex-col gap-2 py-1 text-left"
+              >
+                <span
+                  className={`h-px w-full transition-colors duration-300 ${
+                    i === step ? "bg-accent-400" : i < step ? "bg-bone/40" : "bg-line-strong group-hover:bg-bone/30"
+                  }`}
+                />
+                <span
+                  className={`numeric text-xs transition-colors duration-300 ${
+                    i === step ? "text-bone" : "text-[color:var(--text-muted)] group-hover:text-bone-dim"
+                  }`}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+              </button>
+            </li>
           ))}
-        </div>
+        </ol>
 
         {/* Main content */}
-        <div className="grid sm:grid-cols-2 gap-0 min-h-[300px]">
+        <div className="grid min-h-[320px] gap-0 sm:grid-cols-2">
           {/* Left: text */}
-          <div ref={contentRef} className="flex flex-col justify-center gap-4 px-6 py-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-2xl bg-zinc-800 ring-1 ring-white/10 flex items-center justify-center">
-                <StepIcon className="w-4 h-4 text-zinc-200" />
-              </div>
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">{current.label}</span>
-            </div>
+          <div ref={contentRef} className="flex flex-col justify-center gap-4 px-6 py-8 sm:px-8">
+            <p className="eyebrow flex items-center gap-2">
+              <StepIcon className="h-3.5 w-3.5" aria-hidden />
+              {current.label}
+            </p>
             <div>
-              <h2 className="text-xl font-black text-zinc-50 tracking-tight leading-tight">{current.title}</h2>
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-1">{current.subtitle}</p>
+              <h2 className="display text-4xl text-primary">{current.title}</h2>
+              <p className="mt-2 font-display text-lg text-secondary italic">{current.subtitle}</p>
             </div>
-            <p className="text-sm text-zinc-300 leading-relaxed">{current.body}</p>
+            <p className="max-w-[44ch] text-sm leading-relaxed text-secondary">{current.body}</p>
           </div>
 
           {/* Right: visual */}
           <div
             ref={visualRef}
-            className="relative min-h-[180px] sm:min-h-0 bg-zinc-900/40 border-t sm:border-t-0 sm:border-l border-white/5 rounded-b-3xl sm:rounded-b-none sm:rounded-r-3xl overflow-hidden"
+            className="relative min-h-[200px] overflow-hidden border-t border-line bg-ink-950/40 sm:min-h-0 sm:border-t-0 sm:border-l"
           >
             <Visual />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-white/5">
+        <div className="flex items-center justify-between gap-4 border-t border-line px-6 py-4 sm:px-8">
           <button
             type="button"
             onClick={() => goTo(step - 1)}
             disabled={step === 0}
-            className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-300 transition disabled:opacity-0 disabled:pointer-events-none"
+            className="btn-link inline-flex items-center gap-1.5 text-sm disabled:pointer-events-none disabled:opacity-0"
           >
-            <ChevronLeft className="w-4 h-4" /> Anterior
+            <ChevronLeft className="h-4 w-4" aria-hidden /> Anterior
           </button>
 
           {step < STEPS.length - 1 ? (
-            <button
-              type="button"
-              onClick={() => goTo(step + 1)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-black uppercase tracking-widest transition btn-press"
-            >
-              Siguiente <ChevronRight className="w-3.5 h-3.5" />
+            <button type="button" onClick={() => goTo(step + 1)} className="btn-primary">
+              Siguiente <ArrowRight className="h-4 w-4" />
             </button>
           ) : (
-            <Link
-              href="/host"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-black uppercase tracking-widest transition btn-press"
-              onClick={onClose}
-            >
-              Abrir mesa <ArrowRight className="w-3.5 h-3.5" />
+            <Link href="/host" className="btn-primary" onClick={onClose}>
+              Abrir mesa <ArrowRight className="h-4 w-4" />
             </Link>
           )}
         </div>

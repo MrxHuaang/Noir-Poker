@@ -470,19 +470,19 @@ function PlayNormalPageInner() {
 
   if (loading || room === undefined) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center text-zinc-500 text-sm bg-[#0b0b0b]">
+      <div className="fixed inset-0 flex items-center justify-center text-muted text-sm bg-ink-900">
         Conectando…
       </div>
     );
   }
   if (!room) {
     return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 text-sm bg-[#0b0b0b]">
-        <p className="text-zinc-300">Sala no encontrada.</p>
-        <p className="text-xs text-zinc-500">Código: {code}</p>
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 text-sm bg-ink-900">
+        <p className="text-secondary">Sala no encontrada.</p>
+        <p className="text-xs text-muted">Código: {code}</p>
         <a
           href="/join"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 transition"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-bone/[0.04] hover:bg-bone/[0.07] ring-1 ring-line text-primary transition"
         >
           Intentar con otro código
         </a>
@@ -492,9 +492,9 @@ function PlayNormalPageInner() {
 
   if (!inLobby && !spectating) {
     return (
-      <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-ink-900 flex items-center justify-center p-4">
         {myRequest?.status === "pending" ? (
-          <div className="fixed inset-0 bg-[#0b0b0b] flex flex-col items-center justify-center gap-0 p-6 animate-in fade-in duration-500">
+          <div className="fixed inset-0 bg-ink-900 flex flex-col items-center justify-center gap-0 p-6 animate-in fade-in duration-500">
             {/* Ambient glow */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
               <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-accent-500/5 blur-[80px]" />
@@ -502,14 +502,14 @@ function PlayNormalPageInner() {
 
             {/* Room code chip */}
             {code && (
-              <div className="mb-8 px-4 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-500">
+              <div className="eyebrow text-[11px] mb-8 px-4 py-1.5 rounded-full bg-bone/[0.04] ring-1 ring-line font-mono">
                 Sala {code}
               </div>
             )}
 
             {/* Avatar */}
             <div className="relative mb-6">
-              <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-accent-400/25 shadow-[0_0_40px_-8px_rgba(167,139,250,0.25)]">
+              <div className="w-24 h-24 rounded-full overflow-hidden ring-1 ring-line-strong">
                 <Avatar seed={mySeed} size={96} className="ring-0 rounded-none" />
               </div>
               {/* Pulsing ring */}
@@ -517,22 +517,22 @@ function PlayNormalPageInner() {
             </div>
 
             {/* Name */}
-            <h2 className="text-2xl font-black text-white tracking-tight mb-1">
+            <h2 className="text-2xl font-semibold text-primary tracking-tight mb-1">
               {myRequest.name}
             </h2>
 
             {/* Stack badge */}
             <div className="flex items-center gap-2 px-5 py-2 rounded-full bg-accent-500/8 ring-1 ring-accent-400/18 mb-8">
-              <div className="w-3 h-3 rounded-full bg-accent-400 shadow-[0_0_8px_rgba(167,139,250,0.5)]" />
-              <span className="text-accent-300 font-mono font-black tabular-nums">
+              <div className="w-3 h-3 rounded-full bg-accent-400" />
+              <span className="text-accent-300 font-mono font-semibold tabular-nums">
                 {formatChips(myRequest.requestedStack)} fichas
               </span>
             </div>
 
             {/* Status */}
-            <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-zinc-900/80 ring-1 ring-white/8">
+            <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-ink-850/80 ring-1 ring-line">
               <Clock className="w-4 h-4 text-accent-400 animate-pulse flex-shrink-0" />
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-secondary">
                 Esperando aprobación del host…
               </p>
             </div>
@@ -551,7 +551,7 @@ function PlayNormalPageInner() {
             <button
               type="button"
               onClick={handleCancelRequest}
-              className="mt-8 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-400 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+              className="text-xs font-semibold mt-8 px-4 py-2 rounded-full bg-bone/[0.04] hover:bg-bone/[0.07] ring-1 ring-line transition btn-press"
             >
               Cancelar solicitud
             </button>
@@ -569,7 +569,7 @@ function PlayNormalPageInner() {
             <button
               type="button"
               onClick={handleRetry}
-              className="px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 text-sm font-bold transition btn-press"
+              className="px-6 py-3 rounded-2xl bg-bone/[0.04] hover:bg-bone/[0.07] ring-1 ring-line text-primary text-sm font-bold transition btn-press"
             >
               Intentar de nuevo
             </button>
@@ -594,9 +594,9 @@ function PlayNormalPageInner() {
             }}
           />
         ) : (
-          <div className="fixed inset-0 bg-[#0b0b0b] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="fixed inset-0 bg-ink-900 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             {isQueueHead && (
-              <div className="mx-auto mt-6 w-fit rounded-full bg-accent-500/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-accent-300 ring-1 ring-accent-400/25">
+              <div className="eyebrow text-[11px] mx-auto mt-6 w-fit rounded-full bg-accent-500/10 px-4 py-1.5 text-accent-300 ring-1 ring-accent-400/25">
                 Se libero un asiento: elige tu entrada
               </div>
             )}
@@ -631,25 +631,25 @@ function PlayNormalPageInner() {
 
   const showMuckUI = canMuckOrShow ? (
     <div className="glass-panel mt-3 flex items-center justify-center gap-2 rounded-[24px] p-3">
-      <span className="mr-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Cartas</span>
+      <span className="eyebrow text-[11px] mr-2">Cartas</span>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 0)}
         disabled={hasRevealedLeft}
-        className={`btn-press rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${hasRevealedLeft ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-ghost"}`}
+        className={`text-xs font-semibold btn-press rounded-xl px-4 py-2 ${hasRevealedLeft ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-ghost"}`}
       >
         Izq
       </button>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 1)}
         disabled={hasRevealedRight}
-        className={`btn-press rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${hasRevealedRight ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-ghost"}`}
+        className={`text-xs font-semibold btn-press rounded-xl px-4 py-2 ${hasRevealedRight ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-ghost"}`}
       >
         Der
       </button>
       <button
         onClick={() => postPlayerAction(code!, uid!, "show-card", 2)}
         disabled={hasRevealedBoth}
-        className={`btn-press rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] ${hasRevealedBoth ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-accent"}`}
+        className={`text-xs font-semibold btn-press rounded-xl px-4 py-2 ${hasRevealedBoth ? "glass-button glass-button-accent opacity-50" : "glass-button glass-button-accent"}`}
       >
         Ambas
       </button>
@@ -670,12 +670,12 @@ function PlayNormalPageInner() {
           />
         )}
         {rebuyPending && (
-          <div className="glass-panel rounded-2xl py-3 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-accent-200">
+          <div className="eyebrow text-[11px] glass-panel rounded-2xl py-3 text-center text-accent-200">
             Rebuy pendiente ({formatChips(myRequest!.requestedStack)})
           </div>
         )}
         {!rebuyPending && isOut && approvedRebuy > 0 && (
-          <div className="glass-panel rounded-2xl py-3 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-accent-200">
+          <div className="eyebrow text-[11px] glass-panel rounded-2xl py-3 text-center text-accent-200">
             Rebuy aprobado ({formatChips(approvedRebuy)}): entras la proxima mano
           </div>
         )}
@@ -698,14 +698,14 @@ function PlayNormalPageInner() {
             onPick={handlePickSeat}
           />
           <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-2 text-zinc-500 text-[11px] font-bold uppercase tracking-widest">
+            <div className="eyebrow text-[11px] flex items-center gap-2">
               <Clock className="w-3.5 h-3.5 text-accent-500 animate-pulse" />
               Esperando al host…
             </div>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="glass-chip btn-press px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300"
+              className="text-xs font-semibold glass-chip btn-press px-3 py-1"
             >
               ¿Sin actualizaciones? Refrescar
             </button>
@@ -715,10 +715,10 @@ function PlayNormalPageInner() {
       {result && gs && (
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500">
           <div className="glass-panel flex flex-col items-center rounded-[30px] px-8 py-4 ring-1 ring-accent-400/40">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent-400 mb-1">
+            <span className="eyebrow text-[11px] text-accent-400 mb-1">
               Mano terminada
             </span>
-            <h4 className="text-xl font-black text-white flex items-center gap-2">
+            <h4 className="text-xl font-semibold text-primary flex items-center gap-2">
               {result.winners.includes(uid ?? "") && (
                 <Trophy className="w-5 h-5 text-accent-400" />
               )}
@@ -867,20 +867,20 @@ function GuestCoinsPanel({
 }) {
   const next = encodeURIComponent(`/play/normal/${code}`);
   return (
-    <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-6 animate-in fade-in duration-500">
+    <div className="fixed inset-0 bg-ink-900 flex items-center justify-center p-6 animate-in fade-in duration-500">
       <div className="glass-panel flex w-full max-w-sm flex-col gap-5 rounded-[30px] p-6 text-center">
         {code && (
-          <div className="glass-chip mx-auto px-4 py-1.5 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-400">
+          <div className="text-xs font-semibold glass-chip mx-auto px-4 py-1.5 font-mono">
             Sala {code}
           </div>
         )}
-        <h2 className="text-xl font-bold text-zinc-50">Mesa con monedas</h2>
-        <p className="text-sm text-zinc-400">
+        <h2 className="text-xl font-bold text-primary">Mesa con monedas</h2>
+        <p className="text-sm text-secondary">
           Para sentarte necesitas una cuenta. Como invitado puedes observar la mesa.
         </p>
         <a
           href={`/login?next=${next}`}
-          className="glass-button glass-button-accent btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em]"
+          className="font-semibold glass-button glass-button-accent btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm"
         >
           <LogIn className="w-4 h-4" />
           Iniciar sesion
@@ -888,7 +888,7 @@ function GuestCoinsPanel({
         <button
           type="button"
           onClick={onSpectate}
-          className="glass-button glass-button-ghost btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em]"
+          className="font-semibold glass-button glass-button-ghost btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm"
         >
           <Eye className="w-4 h-4" />
           Observar la mesa
@@ -921,38 +921,38 @@ function FullRoomPanel({
   const [name, setName] = useState("");
   const queued = queuePos > 0;
   return (
-    <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-6 animate-in fade-in duration-500">
+    <div className="fixed inset-0 bg-ink-900 flex items-center justify-center p-6 animate-in fade-in duration-500">
       <div className="glass-panel flex w-full max-w-sm flex-col gap-6 rounded-[30px] p-6 text-center">
         {code && (
-          <div className="glass-chip mx-auto px-4 py-1.5 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-400">
+          <div className="text-xs font-semibold glass-chip mx-auto px-4 py-1.5 font-mono">
             Sala {code}
           </div>
         )}
 
         <div className="flex flex-col items-center gap-2">
-          <div className="glass-icon-button rounded-2xl p-3 text-zinc-300">
+          <div className="glass-icon-button rounded-2xl p-3 text-secondary">
             <Users className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-zinc-50">Sala llena</h2>
-          <p className="text-sm text-zinc-500 tabular-nums">
+          <h2 className="text-xl font-bold text-primary">Sala llena</h2>
+          <p className="text-sm text-muted tabular-nums">
             {playerCount}/{maxPlayers} jugadores
           </p>
         </div>
 
         {queued ? (
           <div className="glass flex flex-col items-center gap-3 rounded-2xl p-5">
-            <Hourglass className="w-5 h-5 text-zinc-300 animate-pulse" />
-            <p className="text-sm text-zinc-300">
+            <Hourglass className="w-5 h-5 text-secondary animate-pulse" />
+            <p className="text-sm text-secondary">
               Estás en el puesto{" "}
-              <span className="text-zinc-50 font-black text-lg">#{queuePos}</span>
+              <span className="text-primary font-semibold text-lg">#{queuePos}</span>
             </p>
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-muted">
               Cuando se libere un asiento te toca a ti primero.
             </p>
             <button
               type="button"
               onClick={onLeaveQueue}
-              className="glass-chip btn-press mt-1 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300"
+              className="text-xs font-semibold glass-chip btn-press mt-1 px-3 py-1"
             >
               Salir de la fila
             </button>
@@ -963,13 +963,13 @@ function FullRoomPanel({
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 20))}
               placeholder="Tu nombre"
-              className="w-full px-4 py-3 rounded-xl bg-white/[0.04] ring-1 ring-white/10 focus:ring-white/40 outline-none text-zinc-100 placeholder:text-zinc-600 text-center transition"
+              className="w-full px-4 py-3 rounded-xl bg-white/[0.04] ring-1 ring-line focus:ring-white/40 outline-none text-primary placeholder:text-muted text-center transition"
             />
             <button
               type="button"
               disabled={!name.trim()}
               onClick={() => onJoinQueue(name.trim())}
-              className="glass-button glass-button-accent btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] disabled:opacity-40"
+              className="font-semibold glass-button glass-button-accent btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm disabled:opacity-40"
             >
               <Hourglass className="w-4 h-4" />
               Hacer fila
@@ -980,7 +980,7 @@ function FullRoomPanel({
         <button
           type="button"
           onClick={onSpectate}
-          className="glass-button glass-button-ghost btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em]"
+          className="font-semibold glass-button glass-button-ghost btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm"
         >
           <Eye className="w-4 h-4" />
           Observar la mesa

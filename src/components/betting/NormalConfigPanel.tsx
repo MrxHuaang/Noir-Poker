@@ -53,7 +53,7 @@ function NumberField({
 
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] uppercase tracking-[0.15em] text-zinc-500">
+      <span className="eyebrow text-[11px]">
         {label}
       </span>
       <input
@@ -64,7 +64,7 @@ function NumberField({
         step={step ?? 1}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleBlur}
-        className="px-3 py-2 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-white/40"
+        className="px-3 py-2 rounded-xl bg-black/40 ring-1 ring-line text-primary text-sm outline-none focus:ring-white/40"
       />
     </label>
   );
@@ -108,19 +108,19 @@ export function NormalConfigPanel({
   return (
     <div className="p-4 rounded-2xl glass flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm text-zinc-100">Configuracion de sala</h3>
+        <h3 className="text-sm text-primary">Configuracion de sala</h3>
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-full hover:bg-white/10 transition"
+          className="p-1.5 rounded-full hover:bg-bone/[0.07] transition"
           aria-label="Cerrar configuracion"
         >
-          <X className="w-4 h-4 text-zinc-400" />
+          <X className="w-4 h-4 text-secondary" />
         </button>
       </div>
 
       {onMaxPlayersChange && (
-        <div className="flex flex-col gap-3 pb-4 border-b border-white/5">
+        <div className="flex flex-col gap-3 pb-4 border-b border-line">
           <NumberField
             key={`max-${maxPlayers ?? 9}`}
             label="Jugadores maximos"
@@ -204,7 +204,7 @@ export function NormalConfigPanel({
           {feedback.message}
         </p>
       ) : (
-        <p className="text-[11px] text-zinc-500" aria-live="polite">
+        <p className="text-[11px] text-muted" aria-live="polite">
           Los cambios se guardan automaticamente al salir de cada campo.
         </p>
       )}

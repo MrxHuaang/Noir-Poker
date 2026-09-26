@@ -186,7 +186,7 @@ function PlayOnlinePageInner() {
 
   if (authLoading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#0b0b0b] text-zinc-500 text-sm">
+      <div className="fixed inset-0 flex items-center justify-center bg-ink-900 font-display text-xl italic text-muted">
         Conectando…
       </div>
     );
@@ -194,27 +194,26 @@ function PlayOnlinePageInner() {
 
   if (game.status === "missing") {
     return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-[#0b0b0b] text-zinc-400 text-sm">
-        <p>
-          La sala <span className="font-mono font-black text-accent-300">{code}</span> no existe.
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 bg-ink-900 px-6 text-center">
+        <p className="display text-4xl text-primary">
+          La sala <span className="numeric text-3xl text-accent-300">{code}</span> no existe
         </p>
-        <Link
-          href="/play/online"
-          className="px-4 py-2 rounded-xl bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 font-bold text-sm btn-press"
-        >
-          Crear una mesa
+        <p className="max-w-[40ch] text-sm text-muted">
+          Puede que el código esté mal escrito o que la mesa ya se haya cerrado.
+        </p>
+        <Link href="/play/online" className="btn-primary">
+          Abrir una mesa
         </Link>
       </div>
     );
   }
 
-  const primaryBtn =
-    "inline-flex items-center gap-3 px-8 py-4 rounded-full bg-accent-700 hover:bg-accent-600 text-accent-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-accent-700/25 btn-press disabled:opacity-60";
+  const primaryBtn = "btn-primary h-12 px-7 text-[15px]";
 
   const centerOverlay = (
     <>
       {!state && (
-        <div className="glass-panel flex items-center gap-3 rounded-[24px] px-6 py-4 text-zinc-400 text-sm">
+        <div className="glass-panel flex items-center gap-3 rounded-2xl px-6 py-4 text-secondary text-sm">
           <RefreshCw className="w-4 h-4 motion-safe:animate-spin" />
           {game.error ?? "Conectando con la sala…"}
         </div>
@@ -222,25 +221,25 @@ function PlayOnlinePageInner() {
 
       {/* Observador: ve la mesa y decide. Sentarse / hacer fila / seguir mirando. */}
       {state && !present && !seatOverlayDismissed && (
-        <div className="glass-panel flex flex-col items-center gap-3 rounded-[28px] px-6 py-5">
+        <div className="glass-panel flex flex-col items-center gap-4 rounded-2xl px-7 py-6">
           {(isGuest && !isCasual) || showLoginCta ? (
             <>
-              <UserRound className="w-6 h-6 text-accent-400" />
-              <p className="text-sm text-zinc-300 text-center max-w-[260px]">
-                Para sentarte necesitas una cuenta: las mesas juegan con las
+              <UserRound className="w-6 h-6 text-accent-300" aria-hidden />
+              <p className="max-w-[30ch] text-center text-sm leading-relaxed text-secondary">
+                Para sentarte necesitas una cuenta: esta mesa juega con las
                 monedas de tu perfil.
               </p>
               <div className="flex gap-2">
                 <Link
                   href={`/login?next=${encodeURIComponent(`/play/online/${code}`)}`}
-                  className="px-4 py-2 rounded-xl bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 font-bold text-sm btn-press"
+                  className="btn-primary h-10 px-5"
                 >
                   Iniciar sesión
                 </Link>
                 <button
                   type="button"
                   onClick={() => setSeatOverlayDismissed(true)}
-                  className="px-4 py-2 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-300 font-bold text-sm btn-press"
+                  className="btn-quiet h-10 px-5"
                 >
                   Seguir mirando
                 </button>
@@ -252,8 +251,8 @@ function PlayOnlinePageInner() {
                 <Armchair className="w-5 h-5" />
                 {busy === "sit" ? "Sentando…" : tableFull ? "Hacer fila" : "Sentarme a la mesa"}
               </button>
-              <span className="text-[11px] text-zinc-500">
-                {seatedCount}/{MAX_SEATED} en mesa
+              <span className="text-xs text-muted">
+                <span className="numeric">{seatedCount}/{MAX_SEATED}</span> en mesa
                 {isCasual
                   ? " — mesa casual, sin monedas"
                   : ` — buy-in ${formatChips(state.startStack)} monedas`}
@@ -266,19 +265,16 @@ function PlayOnlinePageInner() {
 
       {/* En fila: posición + salida. El servidor te sienta solo. */}
       {state && inQueue && (
-        <div className="glass-panel flex flex-col items-center gap-3 rounded-[28px] px-6 py-5">
-          <div className="flex items-center gap-2 text-accent-200 text-sm font-bold">
-            <Hourglass className="w-4 h-4 animate-pulse" />
-            En fila — puesto #{queuePos + 1}
-          </div>
-          <span className="text-[11px] text-zinc-500">
-            Te sentamos en cuanto se libere un asiento.
-          </span>
-          <button
-            type="button"
-            onClick={standUp}
-            className="px-4 py-2 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-300 font-bold text-xs btn-press"
-          >
+        <div className="glass-panel flex flex-col items-center gap-3 rounded-2xl px-7 py-6">
+          <p className="eyebrow flex items-center gap-2">
+            <Hourglass className="w-3.5 h-3.5 text-accent-300 motion-safe:animate-pulse" aria-hidden />
+            En fila
+          </p>
+          <p className="display text-4xl text-primary">
+            Puesto <span className="numeric text-3xl">{queuePos + 1}</span>
+          </p>
+          <span className="text-xs text-muted">Te sentamos en cuanto se libere un asiento.</span>
+          <button type="button" onClick={standUp} className="btn-link text-sm">
             Salir de la fila
           </button>
         </div>
@@ -286,31 +282,32 @@ function PlayOnlinePageInner() {
 
       {/* Te sentaste a mitad de mano: entras al repartir la siguiente. */}
       {state && joiningNext && (
-        <div className="glass-panel flex items-center gap-2 rounded-[24px] px-5 py-3 text-zinc-400 text-xs font-bold uppercase tracking-widest">
-          <Clock className="w-3.5 h-3.5 text-accent-500 animate-pulse" />
+        <div className="glass-panel flex items-center gap-2 rounded-2xl px-5 py-3 text-sm text-secondary">
+          <Clock className="w-3.5 h-3.5 text-accent-300 motion-safe:animate-pulse" aria-hidden />
           Entras en la próxima mano
         </div>
       )}
 
       {/* Sentado, entre manos: repartir (dueño) / esperar / recomprar. */}
       {state && amSeated && betweenHands && !showdown && (
-        <div className="glass-panel flex flex-col items-center gap-4 rounded-[28px] px-6 py-5">
+        <div className="glass-panel flex flex-col items-center gap-4 rounded-2xl px-7 py-6">
           {busted ? (
             <button
               type="button"
               onClick={rebuy}
               disabled={busy === "rebuy"}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-accent-700 hover:bg-accent-600 text-accent-100 font-black text-xs uppercase tracking-widest transition btn-press"
+              className="btn-primary"
             >
-              <RefreshCw className="w-4 h-4" /> Recomprar ({formatChips(state.startStack)})
+              <RefreshCw className="w-4 h-4" aria-hidden /> Recomprar{" "}
+              <span className="numeric">{formatChips(state.startStack)}</span>
             </button>
           ) : seatedCount < 2 ? (
             <>
-              <div className="px-5 py-2.5 rounded-2xl bg-zinc-900/80 ring-1 ring-white/10 text-zinc-400 text-sm font-bold uppercase tracking-widest">
-                Esperando jugadores ({seatedCount}/2)
-              </div>
-              <p className="text-[11px] text-zinc-500">
-                Comparte el código <span className="font-mono font-black text-accent-300">{code}</span> desde el menú.
+              <p className="display text-3xl text-primary">
+                Esperando rival <span className="numeric text-2xl text-muted">{seatedCount}/2</span>
+              </p>
+              <p className="text-xs text-muted">
+                Comparte el código <span className="numeric text-sm tracking-[0.2em] text-accent-200">{code}</span> desde el menú.
               </p>
             </>
           ) : canDeal ? (
@@ -318,8 +315,8 @@ function PlayOnlinePageInner() {
               <Play className="w-5 h-5 fill-current" /> {busy === "start" ? "Repartiendo…" : "Repartir"}
             </button>
           ) : (
-            <div className="flex items-center gap-2 text-zinc-500 text-[11px] font-bold uppercase tracking-widest">
-              <Clock className="w-3.5 h-3.5 text-accent-500 animate-pulse" />
+            <div className="flex items-center gap-2 text-sm text-muted">
+              <Clock className="w-3.5 h-3.5 text-accent-300 motion-safe:animate-pulse" aria-hidden />
               Esperando a que {view.seats.find((s) => s.id === state.owner)?.name ?? "el anfitrión"} reparta…
             </div>
           )}
@@ -328,16 +325,14 @@ function PlayOnlinePageInner() {
 
       {showdown && state && (
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 fade-in duration-500 pointer-events-auto">
-          <div className="glass-panel flex flex-col items-center rounded-[30px] px-8 py-4 ring-1 ring-accent-400/40">
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent-400 mb-1">
-              Mano terminada
-            </span>
-            <h4 className="text-xl font-black text-white flex items-center gap-2">
+          <div className="glass-panel flex flex-col items-center rounded-2xl px-8 py-5">
+            <span className="eyebrow mb-1">Mano terminada</span>
+            <h4 className="display flex items-center gap-2 text-3xl text-primary">
               {view.winners?.includes(uid ?? "") && (
-                <Trophy className="w-5 h-5 text-accent-400" />
+                <Trophy className="w-5 h-5 text-accent-300" aria-hidden />
               )}
               {view.winners?.includes(uid ?? "")
-                ? "¡Has ganado!"
+                ? "Te llevas el bote"
                 : (state.winners ?? [])
                     .map((w) => `${view.seats.find((s) => s.id === w.id)?.name ?? w.id.slice(0, 6)} +${formatChips(w.amount)}`)
                     .join(" · ")}
@@ -347,7 +342,7 @@ function PlayOnlinePageInner() {
                 type="button"
                 onClick={rebuy}
                 disabled={busy === "rebuy"}
-                className="mt-3 inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 text-xs font-black uppercase tracking-widest btn-press"
+                className="btn-primary mt-4 h-10 px-5"
               >
                 <RefreshCw className="w-3.5 h-3.5" /> Recomprar
               </button>
@@ -356,7 +351,7 @@ function PlayOnlinePageInner() {
                 type="button"
                 onClick={deal}
                 disabled={busy === "start"}
-                className="mt-3 inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 text-xs font-black uppercase tracking-widest btn-press"
+                className="btn-primary mt-4 h-10 px-5"
               >
                 <Play className="w-3.5 h-3.5 fill-current" /> Siguiente mano
               </button>
@@ -370,25 +365,25 @@ function PlayOnlinePageInner() {
   const topCenter = (
     <div className="flex flex-col items-center gap-1.5">
       {state?.paused && (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-warn-500/15 ring-1 ring-warn-400/30 text-warn-200 text-[10px] font-black uppercase tracking-[0.2em]">
-          <Pause className="w-3 h-3" /> Partida en pausa
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-warn-500/12 px-3 py-1.5 text-xs font-semibold text-warn-200 ring-1 ring-warn-400/25">
+          <Pause className="w-3 h-3" aria-hidden /> Partida en pausa
         </span>
       )}
       {notice && (
-        <span role="status" className="px-3 py-1.5 rounded-full bg-rose-500/15 ring-1 ring-rose-400/30 text-rose-200 text-[10px] font-bold">
+        <span role="status" className="rounded-lg bg-rose-500/12 px-3 py-1.5 text-xs font-medium text-rose-200 ring-1 ring-rose-400/25">
           {notice}
         </span>
       )}
       {(state?.waiting?.length ?? 0) > 0 && (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.06] ring-1 ring-white/10 text-zinc-400 text-[10px] font-bold uppercase tracking-[0.2em]">
-          <Hourglass className="w-3 h-3" /> {state!.waiting!.length} en fila
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-bone/[0.05] px-3 py-1.5 text-xs text-secondary ring-1 ring-line">
+          <Hourglass className="w-3 h-3" aria-hidden /> <span className="numeric">{state!.waiting!.length}</span> en fila
         </span>
       )}
       {/* Frases rápidas de los jugadores (broadcast efímero) */}
       {Object.entries(activePhrases).map(([senderUid, phrase]) => (
         <span
           key={senderUid}
-          className="px-3 py-1.5 rounded-full bg-accent-500/15 ring-1 ring-accent-400/25 text-accent-100 text-[11px] font-bold animate-in fade-in slide-in-from-top-2"
+          className="rounded-lg bg-accent-500/12 px-3 py-1.5 text-xs font-medium text-accent-100 ring-1 ring-accent-400/25 animate-in fade-in slide-in-from-top-2"
         >
           {view.seats.find((s) => s.id === senderUid)?.name ?? "Alguien"}: {phrase}
         </span>
@@ -426,7 +421,7 @@ function PlayOnlinePageInner() {
             <button
               type="button"
               onClick={() => (state.paused ? game.resume() : game.pause()).then(report)}
-              className="glass-icon-button btn-press rounded-2xl p-3 text-zinc-300 shadow-xl"
+              className="glass-icon-button btn-press rounded-xl p-3 text-secondary"
               aria-label={state.paused ? "Reanudar" : "Pausar"}
             >
               {state.paused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
@@ -450,14 +445,14 @@ function PlayOnlinePageInner() {
                 <button
                   type="button"
                   onClick={() => setPhrasesOpen((v) => !v)}
-                  className="glass-icon-button btn-press rounded-2xl p-3 text-zinc-300 shadow-xl"
+                  className="glass-icon-button btn-press rounded-xl p-3 text-secondary"
                   aria-label="Frases rápidas"
                   aria-expanded={phrasesOpen}
                 >
                   <MessageSquareQuote className="w-5 h-5" />
                 </button>
                 {phrasesOpen && (
-                  <div className="absolute bottom-14 left-0 z-50 w-56 rounded-2xl bg-zinc-950/95 ring-1 ring-white/10 p-2 flex flex-wrap gap-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+                  <div className="sheet absolute bottom-14 left-0 z-50 flex w-60 flex-wrap gap-1.5 p-2 animate-in fade-in zoom-in-95 duration-150">
                     {CANNED_PHRASES.map((p) => (
                       <button
                         key={p}
@@ -466,7 +461,7 @@ function PlayOnlinePageInner() {
                           sendPhrase(p);
                           setPhrasesOpen(false);
                         }}
-                        className="text-[10px] font-bold px-2 py-1 rounded-xl bg-white/[0.04] ring-1 ring-white/[0.08] text-zinc-400 hover:bg-accent-500/15 hover:ring-accent-400/30 hover:text-accent-200 transition"
+                        className="rounded-lg px-2.5 py-1.5 text-xs text-secondary ring-1 ring-line transition-colors hover:bg-bone/[0.05] hover:text-primary"
                       >
                         {p}
                       </button>

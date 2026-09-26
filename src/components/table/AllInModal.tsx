@@ -19,27 +19,27 @@ export function AllInModal({
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-md rounded-3xl bg-zinc-950/95 ring-1 ring-white/10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] p-6 flex flex-col gap-5">
+      <div className="w-full max-w-md rounded-3xl bg-ink-900/95 ring-1 ring-line shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] p-6 flex flex-col gap-5">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-rose-400" />
-            <h2 className="text-lg tracking-tight text-zinc-100">All-in</h2>
+            <h2 className="text-lg tracking-tight text-primary">All-in</h2>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            className="p-1.5 rounded-full hover:bg-white/5 text-zinc-400 transition"
+            className="p-1.5 rounded-full hover:bg-bone/[0.04] text-secondary transition"
             aria-label="Cerrar"
           >
             <X className="w-4 h-4" />
           </button>
         </header>
-        <p className="text-sm text-zinc-400 leading-relaxed">
+        <p className="text-sm text-secondary leading-relaxed">
           Repartir las calles pendientes varias veces (run it N times). Cada
           run cuenta como una mano completa en el historial.
         </p>
         <div className="flex flex-col gap-3">
-          <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+          <span className="eyebrow">
             Cantidad de runs
           </span>
           <div className="flex items-center gap-2 flex-wrap">
@@ -51,14 +51,14 @@ export function AllInModal({
                 className={`min-w-[2.6rem] px-3 py-1.5 rounded-full ring-1 text-sm transition ${
                   N === p
                     ? "bg-accent ring-accent text-accent-contrast"
-                    : "bg-white/5 ring-white/10 text-zinc-200 hover:bg-white/10"
+                    : "bg-bone/[0.04] ring-line text-primary hover:bg-bone/[0.07]"
                 }`}
               >
                 {p}×
               </button>
             ))}
-            <label className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.02] ring-1 ring-white/10">
-              <span className="text-xs text-zinc-500">Personalizado</span>
+            <label className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.02] ring-1 ring-line">
+              <span className="text-xs text-muted">Personalizado</span>
               <input
                 type="number"
                 min={1}
@@ -69,7 +69,7 @@ export function AllInModal({
                     Math.max(1, Math.min(20, Number(e.target.value) || 1)),
                   )
                 }
-                className="w-12 bg-transparent text-sm text-zinc-100 outline-none text-right tabular-nums"
+                className="w-12 bg-transparent text-sm text-primary outline-none text-right tabular-nums"
               />
             </label>
           </div>
@@ -78,7 +78,7 @@ export function AllInModal({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-full bg-transparent hover:bg-white/5 ring-1 ring-white/10 text-zinc-300 text-sm transition"
+            className="px-4 py-2 rounded-full bg-transparent hover:bg-bone/[0.04] ring-1 ring-line text-secondary text-sm transition"
           >
             Cancelar
           </button>

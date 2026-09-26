@@ -316,7 +316,7 @@ export function PokerTable({
 
   if (!hydrated) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center text-zinc-500 text-sm">
+      <div className="min-h-[60vh] flex items-center justify-center text-muted text-sm">
         Cargando…
       </div>
     );
@@ -384,7 +384,7 @@ export function PokerTable({
         />
       ) : null}
       {running ? (
-        <div className="text-sm text-zinc-400 animate-pulse">
+        <div className="text-sm text-secondary animate-pulse">
           Corriendo runs…
         </div>
       ) : null}
@@ -401,7 +401,7 @@ export function PokerTable({
           onReset={reset}
         />
       ) : null}
-      <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+      <div className="eyebrow">
         Calle: {state.street} · Activos: {activeCount} · Mazo: {unseenCount}
       </div>
     </>
@@ -523,7 +523,7 @@ function PlaybackBanner({
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-rose-500/10 ring-1 ring-rose-300/30 text-rose-100">
-      <span className="text-xs uppercase tracking-[0.2em] tabular-nums">
+      <span className="eyebrow tabular-nums">
         Run {current}/{total}
       </span>
       {winners ? (
@@ -540,7 +540,7 @@ function PlaybackBanner({
       <button
         type="button"
         onClick={onSkip}
-        className="inline-flex items-center gap-1 ml-2 px-2 py-1 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-[11px] text-zinc-200 transition"
+        className="inline-flex items-center gap-1 ml-2 px-2 py-1 rounded-full bg-bone/[0.04] hover:bg-bone/[0.07] ring-1 ring-line text-[11px] text-primary transition"
         title="Saltar al resumen"
       >
         <SkipForward className="w-3 h-3" />
@@ -564,7 +564,7 @@ function WinnerBanner({
       <div className="flex flex-col">
         <span className="text-sm">
           {tie ? "Empate: " : "Gana "}
-          <span className="font-semibold text-zinc-50">
+          <span className="font-semibold text-primary">
             {names.join(" · ")}
           </span>
         </span>
@@ -581,51 +581,50 @@ function HostLobby({
   players: Player[];
   onDeal: (selected: Player[]) => void;
 }) {
+  const missing = Math.max(0, 2 - players.length);
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col gap-6 py-8">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 py-10">
       <header className="text-center">
-        <h2 className="text-xl tracking-tight text-zinc-100">
-          Jugadores conectados
+        <p className="eyebrow">Sala presencial</p>
+        <h2 className="display mt-2 text-5xl text-primary">
+          {players.length === 0 ? "La mesa espera" : "En la mesa"}
         </h2>
-        <p className="text-sm text-zinc-400 mt-1">
-          {players.length} en la sala. Esperando para repartir.
+        <p className="mt-3 text-sm text-secondary">
+          {players.length === 0
+            ? "Comparte el código: cada jugador entra desde su teléfono."
+            : `${players.length} ${players.length === 1 ? "jugador listo" : "jugadores listos"} para repartir.`}
         </p>
       </header>
-      {players.length === 0 ? (
-        <p className="text-sm text-zinc-500 text-center py-8">
-          Aún nadie. Comparte el código.
-        </p>
-      ) : (
-        <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      {players.length > 0 && (
+        <ul className="grid grid-cols-2 border-t border-line sm:grid-cols-3">
           {players.map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center gap-2 p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/10"
-            >
-              <Avatar seed={p.seed} size={32} />
-              <span className="text-sm text-zinc-100 truncate">{p.name}</span>
+            <li key={p.id} className="flex items-center gap-3 border-b border-line px-2 py-3.5">
+              <span className="overflow-hidden rounded-[10px]">
+                <Avatar seed={p.seed} size={32} />
+              </span>
+              <span className="truncate text-sm font-medium text-primary">{p.name}</span>
             </li>
           ))}
         </ul>
       )}
-      <div className="flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
         <button
           type="button"
           disabled={players.length < 2 || players.length > 9}
           onClick={() => onDeal(players)}
           title={players.length < 2 ? "Se necesitan al menos 2 jugadores" : undefined}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-accent/85 hover:bg-accent disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-accent-contrast font-medium text-sm transition"
+          className="btn-primary h-12 px-8 text-[15px]"
         >
-          Repartir ({players.length})
+          Repartir <span className="numeric text-sm opacity-70">{players.length}</span>
         </button>
+        <p className={`text-xs ${players.length > 9 ? "text-rose-300" : "text-muted"}`}>
+          {missing > 0
+            ? `Falta${missing === 1 ? "" : "n"} ${missing} jugador${missing === 1 ? "" : "es"} para repartir.`
+            : players.length > 9
+              ? "Máximo 9 jugadores."
+              : "De 2 a 9 jugadores."}
+        </p>
       </div>
-      <p className={`text-[11px] text-center ${players.length < 2 || players.length > 9 ? "text-rose-400/70" : "text-zinc-500"}`}>
-        {players.length < 2
-          ? `Faltan ${2 - players.length} jugador${2 - players.length === 1 ? "" : "es"} para repartir.`
-          : players.length > 9
-            ? "Máximo 9 jugadores."
-            : "Requiere 2 a 9 jugadores."}
-      </p>
     </div>
   );
 }

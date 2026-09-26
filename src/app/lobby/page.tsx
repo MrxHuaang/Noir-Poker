@@ -1,30 +1,29 @@
 "use client";
-import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
+import { useRef } from "react";
 import Link from "next/link";
-import {
-  Plus,
-  KeyRound,
-  Users,
-  Users2,
-  Lock,
-  Coins,
-  Trophy,
-  RefreshCw,
-} from "lucide-react";
-import { BorderGlow } from "@/components/ui/BorderGlow";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { ArrowRight, Lock, Plus, RefreshCw } from "lucide-react";
+import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import { useAuth } from "@/hooks/useAuth";
 import { useOpenRooms } from "@/hooks/useNormalRoom";
 import { formatChips } from "@/lib/betting";
 import type { OpenRoomSummary } from "@/lib/normalRooms";
 
-const GLOW = "0 0 82";
-const GLOW_COLORS = ["#ededf2", "#a0a0a8", "#52525b", "#3f3f46"];
+// One grid template shared by the column header and every row so the columns
+// line up: code, table, status, players, blinds, action.
+const COLS = "md:grid-cols-[6rem_minmax(0,1fr)_8rem_6.5rem_6.5rem_7.5rem]";
 
-const STATUS: Record<OpenRoomSummary["status"], { label: string; cls: string }> = {
-  waiting: { label: "Esperando", cls: "bg-white/12 text-white ring-white/25" },
-  playing: { label: "En juego", cls: "bg-white/[0.06] text-zinc-300 ring-white/15" },
-  full: { label: "Llena", cls: "bg-white/[0.04] text-zinc-500 ring-white/10" },
+const STATUS: Record<OpenRoomSummary["status"], { label: string; dot: string; text: string }> = {
+  waiting: { label: "Esperando", dot: "bg-accent-400", text: "text-primary" },
+  playing: { label: "En juego", dot: "bg-bone-dim/60", text: "text-secondary" },
+  full: { label: "Llena", dot: "border border-line-strong", text: "text-muted" },
 };
+
+function roomKind(room: OpenRoomSummary): string {
+  if (room.mode === "torneo") return "Torneo";
+  return room.economy === "casual" ? "Casual" : "Con monedas";
+}
 
 export default function LobbyPage() {
   return (
@@ -37,171 +36,194 @@ export default function LobbyPage() {
 function LobbyPageInner() {
   const { uid } = useAuth();
   const { rooms, ready } = useOpenRooms(!!uid);
+  const scope = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.from(".rise", {
+          opacity: 0,
+          y: 16,
+          duration: 0.6,
+          ease: "power3.out",
+          stagger: 0.07,
+          clearProps: "all",
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope, dependencies: [] },
+  );
 
   return (
-    <div className="relative z-[2] w-full max-w-3xl mx-auto px-4 py-10 sm:py-14 flex flex-col gap-8">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl sm:text-3xl tracking-tight text-primary font-semibold">
-          Lobby
-        </h1>
-        <p className="text-sm text-secondary">
-          Mesas abiertas ahora mismo. Entra o crea la tuya.
-        </p>
+    <div ref={scope} className="relative z-[2] mx-auto w-full max-w-6xl px-5 sm:px-8">
+      <header className="grid grid-cols-1 gap-8 pt-14 pb-14 sm:pt-20 lg:grid-cols-12 lg:items-end lg:gap-8 lg:pb-16">
+        <div className="lg:col-span-8">
+          <p className="rise eyebrow mb-5 flex items-center gap-2">
+            <span className="suit text-sm" aria-hidden>
+              ♣
+            </span>
+            Lobby
+          </p>
+          <h1 className="rise display text-5xl text-primary sm:text-6xl">
+            ¿Quién está <em className="text-accent-200">repartiendo</em>?
+          </h1>
+          <p className="rise mt-5 max-w-[50ch] text-[15px] leading-relaxed text-secondary">
+            Mesas públicas abiertas ahora mismo. Entra a una o abre la tuya; las privadas solo se
+            encuentran con su código.
+          </p>
+        </div>
+        <div className="rise flex flex-wrap items-center gap-3 lg:col-span-4 lg:justify-end">
+          <Link href="/create" className="btn-primary">
+            <Plus className="h-4 w-4" />
+            Crear mesa
+          </Link>
+          <Link href="/join" className="btn-quiet">
+            Unirme con código
+          </Link>
+        </div>
       </header>
 
-      {/* Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Link href="/create" className="group block btn-press">
-          <BorderGlow
-            className="w-full lg-blur"
-            glowColor={GLOW}
-            colors={GLOW_COLORS}
-            backgroundColor="var(--lg-bg)"
-            borderRadius={18}
-            glowRadius={28}
-            glowIntensity={0.95}
-            coneSpread={24}
-            fillOpacity={0.4}
-          >
-            <div className="flex items-center gap-3 px-4 py-3.5 text-zinc-100">
-              <span className="p-2 rounded-xl bg-white/10 ring-1 ring-white/15">
-                <Plus className="w-4 h-4" />
-              </span>
-              <span className="flex flex-col">
-                <span className="text-sm font-semibold">Crear mesa</span>
-                <span className="text-[11px] text-muted">Pública o privada</span>
-              </span>
-            </div>
-          </BorderGlow>
-        </Link>
-        <Link href="/join" className="group block btn-press">
-          <BorderGlow
-            className="w-full lg-blur"
-            glowColor={GLOW}
-            colors={GLOW_COLORS}
-            backgroundColor="var(--lg-bg)"
-            borderRadius={18}
-            glowRadius={28}
-            glowIntensity={0.95}
-            coneSpread={24}
-            fillOpacity={0.4}
-          >
-            <div className="flex items-center gap-3 px-4 py-3.5 text-zinc-100">
-              <span className="p-2 rounded-xl bg-white/10 ring-1 ring-white/15">
-                <KeyRound className="w-4 h-4" />
-              </span>
-              <span className="flex flex-col">
-                <span className="text-sm font-semibold">Unirme con código</span>
-                <span className="text-[11px] text-muted">Para salas privadas</span>
-              </span>
-            </div>
-          </BorderGlow>
-        </Link>
-      </div>
-
-      {/* Live tables */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-[11px] uppercase tracking-[0.25em] text-muted font-bold">
-            Mesas en vivo {ready && rooms.length > 0 ? `· ${rooms.length}` : ""}
+      <section aria-labelledby="live-tables" className="rise pb-24">
+        <div className="flex items-center justify-between gap-4 pb-3">
+          <h2 id="live-tables" className="eyebrow">
+            Mesas en vivo
+            {ready && rooms.length > 0 ? (
+              <>
+                {" · "}
+                <span className="numeric">{rooms.length}</span>
+              </>
+            ) : null}
           </h2>
-          {!ready && <RefreshCw className="w-3.5 h-3.5 text-zinc-600 animate-spin" />}
+          {!ready && (
+            <span className="eyebrow flex items-center gap-2" role="status">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              Buscando mesas
+            </span>
+          )}
         </div>
 
         {ready && rooms.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-14 rounded-2xl border border-white/[0.06] bg-white/[0.02] text-center">
-            <Users className="w-7 h-7 text-zinc-600" />
-            <p className="text-sm text-secondary">No hay mesas públicas abiertas</p>
-            <Link
-              href="/create"
-              className="mt-1 text-xs font-bold uppercase tracking-widest text-zinc-200 hover:text-white"
-            >
-              Crea la primera
-            </Link>
-          </div>
+          <EmptyState />
         ) : (
-          <ul className="flex flex-col gap-2.5">
-            {rooms.map((r) => (
-              <li key={r.code}>
-                <RoomCard room={r} />
-              </li>
-            ))}
-          </ul>
+          <>
+            {/* Column header: visual only, every row carries its own labels. */}
+            <div
+              aria-hidden
+              className={`hidden border-t border-line px-4 pt-4 pb-3 md:grid md:gap-x-6 ${COLS}`}
+            >
+              <span className="eyebrow">Código</span>
+              <span className="eyebrow">Mesa</span>
+              <span className="eyebrow">Estado</span>
+              <span className="eyebrow">Jugadores</span>
+              <span className="eyebrow">Ciegas</span>
+              <span />
+            </div>
+            <ul className="flex flex-col border-t border-line">
+              {ready
+                ? rooms.map((r) => <RoomRow key={r.code} room={r} />)
+                : [0, 1, 2].map((i) => <SkeletonRow key={i} />)}
+            </ul>
+          </>
         )}
       </section>
     </div>
   );
 }
 
-function RoomCard({ room }: { room: OpenRoomSummary }) {
+function RoomRow({ room }: { room: OpenRoomSummary }) {
   const s = STATUS[room.status];
   const isFull = room.status === "full";
   return (
-    <BorderGlow
-      className="w-full lg-blur"
-      glowColor={GLOW}
-      colors={GLOW_COLORS}
-      backgroundColor="var(--lg-bg)"
-      borderRadius={18}
-      glowRadius={26}
-      glowIntensity={0.9}
-      coneSpread={26}
-      fillOpacity={0.36}
+    <li
+      className={`group relative grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1.5 border-b border-line px-2 py-5 transition-colors duration-300 md:items-center md:gap-x-6 md:px-4 ${COLS} ${
+        isFull ? "" : "hover:bg-bone/[0.025]"
+      }`}
     >
-      <div className="flex items-center gap-3 p-3.5">
-        <div className="p-2 rounded-xl bg-white/[0.06] ring-1 ring-white/10 text-zinc-300">
-          {room.mode === "torneo" ? (
-            <Trophy className="w-4 h-4" />
-          ) : room.economy === "casual" ? (
-            <Users2 className="w-4 h-4" />
-          ) : (
-            <Coins className="w-4 h-4" />
+      <span className="numeric text-sm tracking-[0.12em] text-primary">{room.code}</span>
+
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-[15px] font-medium text-primary">{room.roomName}</span>
+          {!room.isPublic && (
+            <>
+              <Lock className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
+              <span className="sr-only">Privada</span>
+            </>
           )}
         </div>
+        <p className="eyebrow mt-0.5">{roomKind(room)}</p>
+      </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold text-zinc-100 truncate">
-              {room.roomName}
-            </span>
-            {!room.isPublic && <Lock className="w-3 h-3 text-zinc-500 shrink-0" />}
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-zinc-400 tabular-nums mt-0.5">
-            {room.economy === "casual" && (
-              <span className="text-[9px] uppercase tracking-widest font-bold text-zinc-400 not-italic">
-                Casual
-              </span>
-            )}
-            <span>
-              {formatChips(room.smallBlind)}/{formatChips(room.bigBlind)}
-            </span>
-            <span className="text-zinc-700">·</span>
-            <span className="flex items-center gap-1">
-              <Users className="w-3 h-3" />
-              {room.playerCount}/{room.maxPlayers}
-            </span>
-          </div>
-        </div>
-
-        <span
-          className={`text-[9px] uppercase tracking-widest px-2 py-1 rounded-full ring-1 font-bold ${s.cls}`}
-        >
+      {/* Mobile: one line of facts under the name. Desktop: dissolves into
+          the grid so each fact lands in its own column. */}
+      <div className="col-start-2 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-secondary md:contents">
+        <span className={`inline-flex items-center gap-2 md:col-start-3 md:row-start-1 ${s.text}`}>
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${s.dot}`} aria-hidden />
           {s.label}
         </span>
-
-        {isFull ? (
-          <span className="px-3.5 py-2 rounded-full text-xs font-bold uppercase tracking-widest bg-white/[0.04] text-zinc-500 ring-1 ring-white/10">
-            Llena
+        <span className="md:col-start-4 md:row-start-1">
+          <span className="numeric text-primary">{room.playerCount}</span>
+          <span className="numeric text-muted">/{room.maxPlayers}</span>
+          <span className="ml-1.5 md:sr-only">jugadores</span>
+        </span>
+        <span className="md:col-start-5 md:row-start-1">
+          <span className="mr-1.5 md:sr-only">Ciegas</span>
+          <span className="numeric">
+            {formatChips(room.smallBlind)}/{formatChips(room.bigBlind)}
           </span>
+        </span>
+      </div>
+
+      <div className="col-start-3 row-start-1 justify-self-end md:col-start-6">
+        {isFull ? (
+          <span className="text-sm text-muted">Sin asiento</span>
         ) : (
           <Link
             href={`/play/normal/${room.code}`}
-            className="px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest bg-accent text-black hover:brightness-95 transition btn-press"
+            aria-label={`Entrar a ${room.roomName} (${room.code})`}
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary after:absolute after:inset-0 after:content-['']"
           >
             Entrar
+            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
           </Link>
         )}
       </div>
-    </BorderGlow>
+    </li>
+  );
+}
+
+function SkeletonRow() {
+  return (
+    <li
+      aria-hidden
+      className={`grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-x-4 border-b border-line px-2 py-6 md:gap-x-6 md:px-4 ${COLS}`}
+    >
+      <span className="h-3 w-12 rounded bg-bone/[0.05] motion-safe:animate-pulse" />
+      <span className="h-3 w-40 max-w-full rounded bg-bone/[0.05] motion-safe:animate-pulse" />
+      <span className="h-3 w-14 rounded bg-bone/[0.04] motion-safe:animate-pulse md:hidden" />
+    </li>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-start gap-5 border-y border-line py-14 sm:py-20">
+      <span className="text-3xl" aria-hidden>
+        <span className="suit">♠</span>
+      </span>
+      <p className="display max-w-[24ch] text-3xl text-primary sm:text-4xl">
+        Ninguna mesa pública abierta. <em className="text-accent-200">Todavía.</em>
+      </p>
+      <p className="max-w-[46ch] text-sm leading-relaxed text-secondary">
+        Las mesas aparecen aquí en cuanto alguien las abre. Crea la primera y comparte el código
+        con tu grupo.
+      </p>
+      <Link href="/create" className="btn-primary mt-1">
+        Crear la primera mesa
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </div>
   );
 }

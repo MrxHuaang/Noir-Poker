@@ -75,7 +75,7 @@ export function DealControls({
       <button
         type="button"
         onClick={onReset}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-transparent hover:bg-white/5 ring-1 ring-white/10 text-zinc-300 text-sm transition"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-transparent hover:bg-bone/[0.04] ring-1 ring-line text-secondary text-sm transition"
       >
         <RotateCcw className="w-4 h-4" />
         Cambiar jugadores

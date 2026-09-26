@@ -18,7 +18,7 @@ export function TableThemePicker({ value, onChange }: Props) {
               type="button"
               onClick={() => onChange(theme.id)}
               className={`relative w-full aspect-square rounded-full ring-1 transition ${
-                selected ? "ring-accent-400/70" : "ring-white/10 hover:ring-white/30"
+                selected ? "ring-accent-400/70" : "ring-line hover:ring-white/30"
               }`}
               style={{ background: theme.feltGradient }}
               title={theme.label}

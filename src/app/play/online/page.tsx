@@ -1,10 +1,8 @@
 "use client";
 import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
-import { BorderGlow } from "@/components/ui/BorderGlow";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Coins, LogIn, Users, Wifi } from "lucide-react";
-import { ACCENT_GLOW_COLORS } from "@/lib/brand";
+import { Coins, LogIn, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { callOnline, subscribeOpenOnlineRooms, type OnlineRoomSummary } from "@/lib/online/client";
 import { formatChips } from "@/lib/betting";
@@ -16,6 +14,21 @@ export default function OnlineLandingPage() {
     </DesktopOnlyGate>
   );
 }
+
+const ECONOMY = [
+  {
+    casual: false,
+    label: "Con fichas",
+    hint: "Buy-in con las monedas de tu perfil. Requiere cuenta.",
+    Icon: Coins,
+  },
+  {
+    casual: true,
+    label: "Casual",
+    hint: "Sin monedas: stacks libres, recompras gratis, entra cualquiera.",
+    Icon: Users,
+  },
+] as const;
 
 function OnlineLandingPageInner() {
   const router = useRouter();
@@ -35,6 +48,8 @@ function OnlineLandingPageInner() {
     if (!user) return;
     return subscribeOpenOnlineRooms(setRooms);
   }, [user]);
+
+  const blindsOk = sb > 0 && bb >= sb && stack >= bb * 2;
 
   // El servidor genera el código, crea la sala y sienta al creador en la misma
   // llamada (buy-in incluido). Un invitado en mesa con fichas la crea igual y
@@ -74,188 +89,186 @@ function OnlineLandingPageInner() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-[min(460px,94vw)] flex flex-col gap-6">
-        <div className="flex flex-col gap-1 px-1">
-          <div className="flex items-center gap-2.5 mb-1">
-            <span className="p-2 rounded-xl bg-accent-500/15 ring-1 ring-accent-400/25">
-              <Wifi className="w-4 h-4 text-accent-300" />
+    <div className="relative z-[2] mx-auto w-full max-w-6xl px-5 pt-14 pb-24 sm:px-8 sm:pt-20">
+      <div className="grid grid-cols-1 gap-14 lg:grid-cols-12 lg:gap-10">
+        {/* Create */}
+        <section className="lg:col-span-7">
+          <p className="eyebrow flex items-center gap-2">
+            <span className="suit suit-red text-sm" aria-hidden>
+              ♥
             </span>
-            <span className="text-[9px] uppercase tracking-[0.3em] text-accent-400 font-black">
-              Modo online
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-100">
-            Nueva mesa
-          </h1>
-          <p className="text-sm text-zinc-300 leading-relaxed">
-            Configura y crea tu sala. Comparte el código con tus jugadores.
+            Modo online
           </p>
-        </div>
+          <h1 className="display mt-3 text-5xl text-primary sm:text-6xl">
+            Abre una mesa <em className="text-accent-200">a distancia</em>
+          </h1>
+          <p className="mt-5 max-w-[50ch] text-[15px] leading-relaxed text-secondary">
+            El servidor baraja, valida cada jugada y reparte a cada jugador solo sus cartas.
+            Comparte el código y se sientan desde su navegador.
+          </p>
 
-        {/* Mode toggle */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-black/30 ring-1 ring-white/10">
-          <button
-            type="button"
-            onClick={() => setCasual(false)}
-            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition ${
-              !casual
-                ? "bg-accent-500/25 text-accent-100 ring-1 ring-accent-400/40 shadow-lg"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
+          <p className="eyebrow mt-10 mb-3">Economía</p>
+          <div
+            role="radiogroup"
+            aria-label="Economía de la mesa"
+            className="grid grid-cols-1 border-y border-line sm:grid-cols-2"
           >
-            <Coins className="w-4 h-4 shrink-0" />
-            Con fichas
-          </button>
-          <button
-            type="button"
-            onClick={() => setCasual(true)}
-            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition ${
-              casual
-                ? "bg-accent-500/25 text-accent-100 ring-1 ring-accent-400/40 shadow-lg"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            <Users className="w-4 h-4 shrink-0" />
-            Casual
-          </button>
-        </div>
+            {ECONOMY.map(({ casual: value, label, hint, Icon }) => {
+              const on = casual === value;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setCasual(value)}
+                  className={`flex items-start gap-3 px-1 py-5 text-left transition-colors sm:px-4 ${
+                    value ? "border-t border-line sm:border-t-0 sm:border-l" : ""
+                  } ${on ? "bg-bone/[0.035]" : "hover:bg-bone/[0.02]"}`}
+                >
+                  <span
+                    className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                      on ? "border-accent-400" : "border-line-strong"
+                    }`}
+                    aria-hidden
+                  >
+                    {on && <span className="h-2 w-2 rounded-full bg-accent-400" />}
+                  </span>
+                  <span>
+                    <span className="flex items-center gap-2 text-[15px] font-semibold text-primary">
+                      <Icon className="h-4 w-4 text-muted" aria-hidden />
+                      {label}
+                    </span>
+                    <span className="mt-1 block text-sm leading-relaxed text-muted">{hint}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Mode description */}
-        <p className="text-xs text-zinc-500 -mt-3 px-1 leading-relaxed">
-          {casual
-            ? "Sin monedas — el host elige los stacks, rebuys libres, cualquier jugador puede entrar sin cuenta."
-            : "Las monedas reales de cada jugador se mueven en la mesa. Requiere cuenta registrada."}
-        </p>
-
-        <BorderGlow
-          className="w-full lg-blur"
-          glowColor="290 60 70"
-          colors={ACCENT_GLOW_COLORS}
-          backgroundColor="rgba(9,7,16,0.72)"
-          borderRadius={24}
-          glowRadius={36}
-          glowIntensity={0.9}
-          coneSpread={28}
-          fillOpacity={0.38}
-        >
-          <div className="flex flex-col gap-5 p-6">
-            <div className="grid grid-cols-3 gap-3">
-              {([
+          <p className="eyebrow mt-10 mb-3">Mesa</p>
+          <div className="grid grid-cols-3 gap-4">
+            {(
+              [
                 ["Ciega chica", sb, setSb],
                 ["Ciega grande", bb, setBb],
                 ["Stack inicial", stack, setStack],
-              ] as const).map(([label, val, set]) => (
-                <label key={label} className="flex flex-col gap-1.5">
-                  <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-black">
-                    {label}
-                  </span>
-                  <input
-                    type="number"
-                    value={val}
-                    onChange={(e) => set(Math.max(0, Number(e.target.value) || 0))}
-                    className="px-3 py-2 rounded-xl bg-black/50 ring-1 ring-white/10 text-zinc-100 text-sm tabular-nums outline-none focus:ring-accent-500/40 transition"
-                  />
-                </label>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-black">
-                  Run it
-                </span>
-                <select
-                  value={runItN}
-                  onChange={(e) => setRunItN(Number(e.target.value))}
-                  className="px-3 py-2 rounded-xl bg-black/50 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-accent-500/40 transition"
-                >
-                  <option value={1}>1× (normal)</option>
-                  <option value={2}>2× (run-it-twice)</option>
-                  <option value={3}>3× (run-it-three)</option>
-                </select>
+              ] as const
+            ).map(([label, val, set]) => (
+              <label key={label} className="flex flex-col gap-2">
+                <span className="text-xs text-muted">{label}</span>
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={val}
+                  onChange={(e) => set(Math.max(0, Number(e.target.value) || 0))}
+                  className="field numeric"
+                />
               </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[9px] uppercase tracking-widest text-zinc-400 font-black">
-                  Subir ciegas
-                </span>
-                <select
-                  value={blindLevelMins}
-                  onChange={(e) => setBlindLevelMins(Number(e.target.value))}
-                  className="px-3 py-2 rounded-xl bg-black/50 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-accent-500/40 transition"
-                >
-                  <option value={0}>Desactivado</option>
-                  <option value={5}>Cada 5 min</option>
-                  <option value={10}>Cada 10 min</option>
-                  <option value={15}>Cada 15 min</option>
-                </select>
-              </label>
-            </div>
+            ))}
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <label className="flex flex-col gap-2">
+              <span className="text-xs text-muted">Run it</span>
+              <select value={runItN} onChange={(e) => setRunItN(Number(e.target.value))} className="field">
+                <option value={1}>Una vez</option>
+                <option value={2}>Dos veces</option>
+                <option value={3}>Tres veces</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="text-xs text-muted">Subir ciegas</span>
+              <select
+                value={blindLevelMins}
+                onChange={(e) => setBlindLevelMins(Number(e.target.value))}
+                className="field"
+              >
+                <option value={0}>Nunca</option>
+                <option value={5}>Cada 5 min</option>
+                <option value={10}>Cada 10 min</option>
+                <option value={15}>Cada 15 min</option>
+              </select>
+            </label>
+          </div>
+          {!blindsOk && (
+            <p className="mt-3 text-sm text-warn-400">
+              La ciega grande debe ser al menos la chica, y el stack al menos dos ciegas grandes.
+            </p>
+          )}
 
-            <button
-              type="button"
-              onClick={create}
-              disabled={creating}
-              className="w-full px-4 py-3 rounded-2xl bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 font-black text-sm tracking-wide hover:bg-accent-500/30 hover:ring-accent-400/60 transition btn-press disabled:opacity-60"
-            >
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <button type="button" onClick={create} disabled={creating || !blindsOk} className="btn-primary">
               {creating ? "Creando mesa…" : `Crear mesa ${casual ? "casual" : "con fichas"}`}
             </button>
             {!casual && isGuest && (
-              <p className="text-[11px] text-zinc-500 -mt-2">
-                Como invitado entras observando: inicia sesión para sentarte con fichas.
-              </p>
-            )}
-            {error && (
-              <p role="alert" className="text-xs text-rose-300 -mt-2">
-                {error}
+              <p className="max-w-[36ch] text-sm text-muted">
+                Como invitado entras observando; inicia sesión para sentarte con fichas.
               </p>
             )}
           </div>
-        </BorderGlow>
+          {error && (
+            <p role="alert" className="mt-4 text-sm text-rose-300">
+              {error}
+            </p>
+          )}
+        </section>
 
-        <form onSubmit={join} className="flex gap-2">
-          <label className="sr-only" htmlFor="join-code">Código de sala</label>
-          <input
-            id="join-code"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="Código de sala"
-            maxLength={8}
-            autoComplete="off"
-            className="flex-1 px-4 py-2.5 rounded-2xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm font-mono tracking-[0.3em] uppercase outline-none focus:ring-accent-500/40 transition placeholder:tracking-normal placeholder:font-sans placeholder:text-zinc-500"
-          />
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 font-bold text-sm transition btn-press"
-          >
-            <LogIn className="w-4 h-4" /> Entrar
-          </button>
-        </form>
+        {/* Join */}
+        <aside className="lg:col-span-5 lg:border-l lg:border-line lg:pl-10">
+          <h2 className="display text-3xl text-primary">Entrar a una mesa</h2>
+          <form onSubmit={join} className="mt-5 flex gap-2">
+            <label className="sr-only" htmlFor="join-code">
+              Código de sala
+            </label>
+            <input
+              id="join-code"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              placeholder="Código"
+              maxLength={8}
+              autoComplete="off"
+              className="field numeric uppercase tracking-[0.25em] placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
+            />
+            <button type="submit" className="btn-quiet shrink-0">
+              <LogIn className="h-4 w-4" aria-hidden /> Entrar
+            </button>
+          </form>
 
-        {rooms.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 px-1">
-              Mesas abiertas
-            </span>
-            {rooms.slice(0, 8).map((r) => (
-              <button
-                key={r.code}
-                type="button"
-                onClick={() => router.push(`/play/online/${r.code}`)}
-                className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] ring-1 ring-white/[0.08] text-left transition btn-press"
-              >
-                <span className="font-mono font-black tracking-[0.25em] text-accent-300 text-sm">{r.code}</span>
-                <span className="text-xs text-zinc-400 tabular-nums">
-                  {formatChips(r.sb)}/{formatChips(r.bb)}
-                </span>
-                <span className="text-xs text-zinc-500">{r.casual ? "Casual" : "Con fichas"}</span>
-                <span className="inline-flex items-center gap-1 text-xs text-zinc-300 tabular-nums">
-                  <Users className="w-3.5 h-3.5" /> {r.players}
-                </span>
-              </button>
-            ))}
-          </section>
-        )}
+          <div className="mt-12">
+            <p className="eyebrow mb-2">Mesas abiertas</p>
+            {rooms.length === 0 ? (
+              <p className="border-t border-line pt-5 font-display text-xl italic text-muted">
+                Nadie jugando ahora. Abre la primera.
+              </p>
+            ) : (
+              <ul className="border-t border-line">
+                {rooms.slice(0, 8).map((r) => (
+                  <li key={r.code} className="border-b border-line">
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/play/online/${r.code}`)}
+                      className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-4 px-1 py-3.5 text-left transition-colors hover:bg-bone/[0.03]"
+                    >
+                      <span className="numeric text-sm tracking-[0.2em] text-primary">{r.code}</span>
+                      <span className="text-xs text-muted">
+                        <span className="numeric">
+                          {formatChips(r.sb)}/{formatChips(r.bb)}
+                        </span>
+                        {" · "}
+                        {r.casual ? "Casual" : "Con fichas"}
+                      </span>
+                      <span className="numeric inline-flex items-center gap-1.5 text-sm text-secondary">
+                        <Users className="h-3.5 w-3.5 text-muted" aria-hidden />
+                        {r.players}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );

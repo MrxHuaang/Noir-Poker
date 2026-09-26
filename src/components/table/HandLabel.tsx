@@ -13,7 +13,7 @@ export function HandLabel({
   if (total < 5) return null;
   const score = bestHand([...hole, ...community]);
   return (
-    <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-300/80">
+    <span className="eyebrow text-[11px]">
       {categoryLabel(score)}
     </span>
   );

@@ -1,17 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: oklch(0.088 0.012 292);
-  --foreground: oklch(0.925 0.012 290);
-  --surface: oklch(0.165 0.014 290 / 0.72);
-  --surface-strong: oklch(0.205 0.018 288 / 0.82);
-  --border-soft: oklch(0.72 0.14 290 / 0.12);
-  /* Noir brand accent — violet on near-black. */
-  --accent: oklch(0.72 0.19 290);
-  --accent-soft: oklch(0.72 0.19 290 / 0.14);
-  --accent-2: oklch(0.52 0.14 290);
-  --accent-contrast: oklch(0.155 0.022 292);
-  --shadow-warm: oklch(0.62 0.18 290 / 0.28);
+  /* ── Noir card room ─────────────────────────────────────────────────
+     Warm ink surfaces and bone type, like a lamp over a dark table. The
+     neutrals carry a faint warm tint (hue 70-85); violet is a restrained
+     ink accent (hue 300), never a glow or a gradient wash. */
+  --background: oklch(0.145 0.006 70);
+  --foreground: oklch(0.935 0.013 85);
+  --ink-850: oklch(0.175 0.006 70);
+  --ink-800: oklch(0.205 0.007 70);
+  --ink-700: oklch(0.255 0.008 70);
+  --bone: oklch(0.94 0.014 85);
+  --line: oklch(0.93 0.012 85 / 0.09);
+  --line-strong: oklch(0.93 0.012 85 / 0.17);
+  --surface: oklch(0.185 0.006 70 / 0.78);
+  --surface-strong: oklch(0.2 0.007 70 / 0.92);
+  --border-soft: var(--line);
+  /* Brand accent: muted violet ink. */
+  --accent: oklch(0.72 0.125 300);
+  --accent-soft: oklch(0.72 0.125 300 / 0.14);
+  --accent-2: oklch(0.52 0.12 300);
+  --accent-contrast: oklch(0.16 0.02 300);
+  --shadow-warm: oklch(0.08 0.01 60 / 0.55);
 
   /* ── Motion tokens ──────────────────────────────────────────────────
      Shared easing + duration scale. Use in CSS transitions and pass
@@ -30,7 +40,7 @@
   --duration-dramatic: 480ms;
 
   /* ── Radius scale ────────────────────────────────────────────────────
-     Pass these to BorderGlow borderRadius prop and Tailwind utilities.
+     Use with Tailwind utilities and inline styles.
      --radius-sm:   inputs, tags
      --radius-md:   cards, panels
      --radius-lg:   modals, large cards
@@ -45,18 +55,18 @@
      text-primary   → headings, main content
      text-secondary → subtitles, descriptions
      text-muted     → labels, metadata, placeholder prose             */
-  --text-primary:   oklch(0.935 0.010 290);
-  --text-secondary: oklch(0.820 0.010 290);
-  --text-muted:     oklch(0.700 0.009 290);
+  --text-primary:   oklch(0.94 0.013 85);
+  --text-secondary: oklch(0.80 0.012 80);
+  --text-muted:     oklch(0.66 0.011 75);
 
   /* ── Liquid glass surface tokens ────────────────────────────────────
      Change these two vars to restyle every glass card in the app.
      --lg-bg:        base card fill (semi-transparent for blur to show through)
      --lg-bg-active: selected / hovered card fill
      --lg-blur:      backdrop blur amount                                      */
-  --lg-bg:        oklch(0.20 0.020 290 / 0.42);
-  --lg-bg-active: oklch(0.27 0.026 290 / 0.60);
-  --lg-blur:      22px;
+  --lg-bg:        oklch(0.19 0.006 70 / 0.72);
+  --lg-bg-active: oklch(0.24 0.008 70 / 0.82);
+  --lg-blur:      18px;
 }
 
 /* stylelint-disable-next-line at-rule-no-unknown */
@@ -73,20 +83,32 @@
      SINGLE SOURCE OF TRUTH for the brand accent in Tailwind classes.
      Use accent-* utilities everywhere instead of amber-* / emerald-*:
        text-accent-300, bg-accent-500/10, ring-accent-400/40, etc.
-     To re-skin the whole app, change only the hue (290 = violet) here.
+     To re-skin the whole app, change only the hue (300 = violet) here.
      JS/canvas/inline-style usages mirror this in src/lib/brand.ts —
      keep the two in sync. */
-  --color-accent-50:  oklch(0.97 0.014 290);
-  --color-accent-100: oklch(0.94 0.03 290);
-  --color-accent-200: oklch(0.89 0.06 290);
-  --color-accent-300: oklch(0.81 0.10 290);
-  --color-accent-400: oklch(0.72 0.16 290);
-  --color-accent-500: oklch(0.64 0.20 290);
-  --color-accent-600: oklch(0.56 0.22 290);
-  --color-accent-700: oklch(0.49 0.20 290);
-  --color-accent-800: oklch(0.42 0.16 290);
-  --color-accent-900: oklch(0.36 0.11 290);
-  --color-accent-950: oklch(0.26 0.09 290);
+  --color-accent-50:  oklch(0.97 0.012 300);
+  --color-accent-100: oklch(0.94 0.025 300);
+  --color-accent-200: oklch(0.89 0.05 300);
+  --color-accent-300: oklch(0.81 0.085 300);
+  --color-accent-400: oklch(0.72 0.125 300);
+  --color-accent-500: oklch(0.64 0.145 300);
+  --color-accent-600: oklch(0.56 0.15 300);
+  --color-accent-700: oklch(0.49 0.135 300);
+  --color-accent-800: oklch(0.42 0.115 300);
+  --color-accent-900: oklch(0.35 0.085 300);
+  --color-accent-950: oklch(0.26 0.06 300);
+
+  /* Warm neutrals for surfaces and type (bone on ink). */
+  --color-ink-950: oklch(0.12 0.005 70);
+  --color-ink-900: oklch(0.145 0.006 70);
+  --color-ink-850: oklch(0.175 0.006 70);
+  --color-ink-800: oklch(0.205 0.007 70);
+  --color-ink-700: oklch(0.255 0.008 70);
+  --color-ink-600: oklch(0.33 0.009 70);
+  --color-bone: oklch(0.94 0.014 85);
+  --color-bone-dim: oklch(0.8 0.012 80);
+  --color-line: oklch(0.93 0.012 85 / 0.09);
+  --color-line-strong: oklch(0.93 0.012 85 / 0.17);
 
   /* ── Semantic state scales ──────────────────────────────────────────
      For NON-brand UI signals only: warnings and success/confirmation
@@ -102,8 +124,10 @@
   --color-success-400: oklch(0.77 0.14 162);
   --color-success-500: oklch(0.70 0.15 162);
 
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --font-sans: var(--font-geist-sans), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+  /* Editorial display serif for titles (not for dense in-game UI). */
+  --font-display: var(--font-instrument-serif), "Instrument Serif", ui-serif, Georgia, serif;
 }
 
 html,
@@ -122,169 +146,298 @@ body {
 body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0;
+  font-feature-settings: "ss01", "cv11";
+  /* A single warm lamp over the table + a soft vignette. Static. */
   background-image:
-    radial-gradient(
-      ellipse at 76% -10%,
-      oklch(0.72 0.19 290 / 0.08) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at 8% 112%,
-      oklch(0.62 0.14 290 / 0.055) 0%,
-      transparent 50%
-    );
+    radial-gradient(ellipse 70% 46% at 50% -8%, oklch(0.93 0.03 85 / 0.075) 0%, transparent 72%),
+    radial-gradient(ellipse 120% 90% at 50% 40%, transparent 55%, oklch(0.09 0.005 60 / 0.65) 100%);
   background-attachment: fixed;
 }
 
-/* Liquid glass backdrop-filter utility — pair with backgroundColor="var(--lg-bg)" on BorderGlow */
+::selection {
+  background: oklch(0.72 0.125 300 / 0.35);
+  color: var(--text-primary);
+}
+
+:focus-visible {
+  outline: 2px solid oklch(0.81 0.085 300 / 0.9);
+  outline-offset: 2px;
+}
+
+/* Backdrop-filter utility for floating surfaces (pair with var(--lg-bg)). */
 .lg-blur {
   backdrop-filter: blur(var(--lg-blur)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(140%);
 }
 
-.glass {
-  background: var(--surface);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid var(--border-soft);
-}
+/* Component classes live in the components layer so Tailwind utilities
+   (h-9, px-4, text-accent-300...) can still override them per use. */
+@layer components {
+  .glass {
+    background: var(--surface);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--line);
+  }
 
-.glass-strong {
-  background: var(--surface-strong);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid oklch(0.72 0.18 290 / 0.16);
-}
+  .glass-strong {
+    background: var(--surface-strong);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-strong);
+  }
 
-.glass-panel {
-  background:
-    linear-gradient(180deg, oklch(0.28 0.02 290 / 0.20), transparent 42%),
-    var(--surface-strong);
-  backdrop-filter: blur(22px) saturate(145%);
-  -webkit-backdrop-filter: blur(22px) saturate(145%);
-  border: 1px solid oklch(0.72 0.14 290 / 0.14);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 24px 70px -32px rgba(0, 0, 0, 0.82);
-}
+  .glass-panel {
+    background: oklch(0.19 0.006 70 / 0.9);
+    backdrop-filter: blur(18px) saturate(120%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    border: 1px solid var(--line);
+    box-shadow:
+      inset 0 1px 0 oklch(0.95 0.02 85 / 0.05),
+      0 30px 80px -40px var(--shadow-warm);
+  }
 
-.glass-button,
-.glass-icon-button,
-.glass-chip {
-  position: relative;
-  border: 1px solid oklch(0.72 0.14 290 / 0.14);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-    oklch(0.22 0.018 290 / 0.64);
-  color: var(--text-primary);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 16px 40px -28px rgba(0, 0, 0, 0.9);
-  transition:
-    transform var(--duration-micro) var(--ease-out),
-    background var(--duration-standard) var(--ease-out),
-    border-color var(--duration-standard) var(--ease-out),
-    color var(--duration-standard) var(--ease-out),
-    box-shadow var(--duration-standard) var(--ease-out);
-}
+  .glass-button,
+  .glass-icon-button,
+  .glass-chip {
+    position: relative;
+    border: 1px solid var(--line);
+    background: oklch(0.215 0.007 70 / 0.86);
+    color: var(--text-primary);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: inset 0 1px 0 oklch(0.95 0.02 85 / 0.05);
+    transition:
+      transform var(--duration-micro) var(--ease-out),
+      background var(--duration-standard) var(--ease-out),
+      border-color var(--duration-standard) var(--ease-out),
+      color var(--duration-standard) var(--ease-out),
+      box-shadow var(--duration-standard) var(--ease-out);
+  }
 
-.glass-button:hover,
-.glass-icon-button:hover,
-.glass-chip:hover {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
-    oklch(0.25 0.02 290 / 0.76);
-  border-color: oklch(0.76 0.16 290 / 0.24);
-  color: oklch(0.97 0.016 290);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 22px 48px -28px rgba(0, 0, 0, 0.92);
-}
+  .glass-button:hover,
+  .glass-icon-button:hover,
+  .glass-chip:hover {
+    background: oklch(0.255 0.008 70 / 0.92);
+    border-color: var(--line-strong);
+    color: var(--bone);
+  }
 
-.glass-button:disabled,
-.glass-icon-button:disabled,
-.glass-chip:disabled {
-  opacity: 0.38;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
+  .glass-button:disabled,
+  .glass-icon-button:disabled,
+  .glass-chip:disabled {
+    opacity: 0.38;
+    box-shadow: none;
+  }
 
-.glass-button-accent {
-  background:
-    linear-gradient(180deg, oklch(0.78 0.12 290 / 0.16), oklch(0.64 0.18 290 / 0.10)),
-    oklch(0.24 0.022 290 / 0.76);
-  border-color: oklch(0.72 0.18 290 / 0.24);
-  color: oklch(0.95 0.03 290);
-  box-shadow:
-    inset 0 1px 0 oklch(0.92 0.06 290 / 0.10),
-    0 18px 44px -30px oklch(0.42 0.18 290 / 0.58);
-}
+  .glass-button-accent {
+    background: oklch(0.72 0.125 300 / 0.16);
+    border-color: oklch(0.72 0.125 300 / 0.34);
+    color: oklch(0.94 0.025 300);
+  }
 
-.glass-button-accent:hover {
-  background:
-    linear-gradient(180deg, oklch(0.80 0.14 290 / 0.20), oklch(0.68 0.20 290 / 0.14)),
-    oklch(0.27 0.026 290 / 0.82);
-  border-color: oklch(0.76 0.18 290 / 0.34);
-  box-shadow:
-    inset 0 1px 0 oklch(0.95 0.06 290 / 0.12),
-    0 22px 50px -28px oklch(0.44 0.18 290 / 0.70);
-}
+  .glass-button-accent:hover {
+    background: oklch(0.72 0.125 300 / 0.24);
+    border-color: oklch(0.72 0.125 300 / 0.5);
+  }
 
-.glass-button-danger {
-  background:
-    linear-gradient(180deg, oklch(0.72 0.14 18 / 0.13), oklch(0.62 0.18 20 / 0.08)),
-    oklch(0.22 0.018 290 / 0.72);
-  border-color: oklch(0.68 0.16 18 / 0.20);
-  color: oklch(0.88 0.05 18);
-}
+  .glass-button-danger {
+    background: oklch(0.62 0.16 22 / 0.12);
+    border-color: oklch(0.68 0.16 22 / 0.28);
+    color: oklch(0.88 0.05 22);
+  }
 
-.glass-button-danger:hover {
-  background:
-    linear-gradient(180deg, oklch(0.76 0.15 18 / 0.18), oklch(0.65 0.18 20 / 0.11)),
-    oklch(0.24 0.02 290 / 0.80);
-  border-color: oklch(0.72 0.17 18 / 0.30);
-  color: oklch(0.93 0.04 18);
-}
+  .glass-button-danger:hover {
+    background: oklch(0.62 0.16 22 / 0.2);
+    border-color: oklch(0.72 0.17 22 / 0.42);
+    color: oklch(0.93 0.04 22);
+  }
 
-.glass-button-ghost {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
-    oklch(0.20 0.018 290 / 0.52);
-  color: var(--text-secondary);
-}
+  .glass-button-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+  }
 
-.glass-button-ghost:hover {
-  color: var(--text-primary);
-}
+  .glass-button-ghost:hover {
+    color: var(--text-primary);
+  }
 
-.glass-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
+  .glass-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-.glass-chip {
-  border-radius: 999px;
+  .glass-chip {
+    border-radius: 999px;
+  }
+
+  /* ── Noir vocabulary (app shell pages) ────────────────────────────────
+     .display     editorial serif title
+     .eyebrow     small-caps label (replaces UPPERCASE + wide tracking)
+     .btn-*       primary = bone slab, quiet = hairline, link = underline
+     .field       text input / select on ink
+     .rule        hairline divider
+     .sheet       flat panel: one surface step up, one hairline, no glow   */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.012em;
+    line-height: 1.02;
+    text-wrap: balance;
+  }
+
+  .eyebrow {
+    font-size: 0.78rem;
+    font-weight: 500;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+
+  .numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .btn-primary,
+  .btn-quiet,
+  .btn-accent {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.75rem;
+    padding: 0 1.25rem;
+    border-radius: 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition:
+      transform var(--duration-micro) var(--ease-out),
+      background var(--duration-standard) var(--ease-out),
+      border-color var(--duration-standard) var(--ease-out),
+      color var(--duration-standard) var(--ease-out),
+      box-shadow var(--duration-standard) var(--ease-out);
+  }
+  .btn-primary:active,
+  .btn-quiet:active,
+  .btn-accent:active {
+    transform: translateY(1px) scale(0.99);
+  }
+  .btn-primary:disabled,
+  .btn-quiet:disabled,
+  .btn-accent:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .btn-primary {
+    background: var(--bone);
+    color: oklch(0.16 0.008 70);
+    box-shadow:
+      inset 0 -2px 0 oklch(0.78 0.02 80),
+      0 12px 30px -16px oklch(0.94 0.03 85 / 0.35);
+  }
+  .btn-primary:hover {
+    background: oklch(0.98 0.01 85);
+  }
+
+  .btn-accent {
+    background: oklch(0.72 0.125 300);
+    color: oklch(0.14 0.02 300);
+    box-shadow: inset 0 -2px 0 oklch(0.56 0.15 300);
+  }
+  .btn-accent:hover {
+    background: oklch(0.77 0.11 300);
+  }
+
+  .btn-quiet {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--line-strong);
+  }
+  .btn-quiet:hover {
+    background: oklch(0.93 0.012 85 / 0.05);
+    border-color: oklch(0.93 0.012 85 / 0.28);
+  }
+
+  .btn-link {
+    color: var(--text-secondary);
+    text-decoration: underline;
+    text-decoration-color: oklch(0.93 0.012 85 / 0.25);
+    text-underline-offset: 0.3em;
+    transition: color var(--duration-standard) var(--ease-out),
+      text-decoration-color var(--duration-standard) var(--ease-out);
+  }
+  .btn-link:hover {
+    color: var(--text-primary);
+    text-decoration-color: oklch(0.72 0.125 300 / 0.9);
+  }
+
+  .field {
+    width: 100%;
+    height: 2.75rem;
+    padding: 0 0.875rem;
+    border-radius: 0.75rem;
+    background: oklch(0.12 0.005 70 / 0.8);
+    border: 1px solid var(--line-strong);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color var(--duration-standard) var(--ease-out),
+      box-shadow var(--duration-standard) var(--ease-out);
+  }
+  .field::placeholder {
+    color: oklch(0.6 0.01 75);
+  }
+  .field:focus {
+    border-color: oklch(0.72 0.125 300 / 0.7);
+    box-shadow: 0 0 0 3px oklch(0.72 0.125 300 / 0.16);
+  }
+
+  .rule {
+    height: 1px;
+    background: var(--line);
+    border: 0;
+  }
+
+  .sheet {
+    background: oklch(0.175 0.006 70 / 0.88);
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    box-shadow: inset 0 1px 0 oklch(0.95 0.02 85 / 0.04);
+  }
+
+  /* Suit glyph ornament: tiny, muted, typographic. */
+  .suit {
+    font-family: var(--font-display);
+    color: var(--text-muted);
+    font-size: 0.95em;
+    line-height: 1;
+  }
+  .suit-red {
+    color: oklch(0.66 0.16 22);
+  }
 }
 
 /* Mobile: drop expensive backdrop-filter — fall back to opaque bg */
 @media (max-width: 768px) {
   :root {
-    --lg-bg:        oklch(0.20 0.018 290 / 0.90);
-    --lg-bg-active: oklch(0.27 0.024 290 / 0.95);
+    --lg-bg:        oklch(0.19 0.006 70 / 0.94);
+    --lg-bg-active: oklch(0.24 0.008 70 / 0.96);
   }
   .lg-blur {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
   .glass {
-    background: rgba(20, 20, 24, 0.85);
+    background: oklch(0.19 0.006 70 / 0.94);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
   .glass-strong {
-    background: rgba(28, 28, 34, 0.92);
+    background: oklch(0.21 0.007 70 / 0.96);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -320,7 +473,7 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+  background: oklch(0.93 0.012 85 / 0.16);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -328,7 +481,7 @@ body {
 }
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: oklch(0.93 0.012 85 / 0.16) transparent;
 }
 
 /* Custom scrollbar (kept for explicit opt-in) */
@@ -340,11 +493,11 @@ body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: oklch(0.72 0.16 290 / 0.22);
+  background: oklch(0.93 0.012 85 / 0.16);
   border-radius: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.72 0.16 290 / 0.42);
+  background: oklch(0.93 0.012 85 / 0.3);
 }
 
 .elevate {
@@ -354,9 +507,11 @@ body {
 }
 
 /* Semantic text utilities — map to --text-* tokens above */
-.text-primary   { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
-.text-muted     { color: var(--text-muted); }
+@layer utilities {
+  .text-primary   { color: var(--text-primary); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted     { color: var(--text-muted); }
+}
 
 /* Press feedback: scale(0.97) with expo-out feels more physical than translateY */
 .btn-press {
@@ -397,7 +552,7 @@ body::after {
   inset: 0;
   pointer-events: none;
   z-index: 9998;
-  opacity: 0.03;
+  opacity: 0.045;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 200px 200px;
   mix-blend-mode: overlay;

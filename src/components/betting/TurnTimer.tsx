@@ -26,7 +26,7 @@ export function TurnTimer({
   // Progress: normal phase scales to turnTime, bank phase scales to effectiveBank and is fully red.
   let pct = 0;
   let barColor = "bg-accent-400";
-  let textColor = "text-zinc-300";
+  let textColor = "text-secondary";
   if (!inBank && !isExhausted) {
     pct = Math.min(100, (remainingNormal / turnTime) * 100);
     if (pct < 25) {
@@ -51,17 +51,17 @@ export function TurnTimer({
 
   return (
     <div className="flex flex-col items-center gap-1 w-full">
-      <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+      <div className="h-[3px] w-full overflow-hidden rounded-full bg-bone/10">
         <div
-          className={`h-full rounded-full transition-all ${barColor}`}
+          className={`h-full rounded-full transition-[width] duration-300 ${barColor}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className={`text-xs tabular-nums font-bold tracking-widest ${textColor}`}>
+      <div className={`numeric text-xs ${textColor}`}>
         {isExhausted
-          ? "TIEMPO AGOTADO"
+          ? "Tiempo agotado"
           : inBank
-            ? `TIMEBANK: ${formatDuration(remainingTotal)}`
+            ? `Banco de tiempo ${formatDuration(remainingTotal)}`
             : formatDuration(remainingNormal)}
       </div>
     </div>

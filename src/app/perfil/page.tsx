@@ -4,18 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import {
-  Check,
-  Coins,
-  Gift,
-  History,
-  LogOut,
-  Pencil,
-  RefreshCw,
-  Sparkles,
-  X,
-} from "lucide-react";
-import { BorderGlow } from "@/components/ui/BorderGlow";
+import { ArrowRight, Check, Gift, LogOut, Pencil, RefreshCw } from "lucide-react";
 import { Avatar } from "@/components/players/Avatar";
 import { RankTowerModal } from "@/components/profile/RankTowerModal";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,12 +16,15 @@ import {
 } from "@/lib/users";
 import { levelProgress, rankForLevel, MAX_LEVEL } from "@/lib/progression";
 import {
+  DAILY_BONUS,
   availableCoins,
   dailyBonusReady,
   escrowedTotal,
 } from "@/lib/economy";
 import { formatChips } from "@/lib/betting";
 import { randomSeed } from "@/lib/dicebear";
+
+const SHELL = "mx-auto w-full max-w-6xl px-5 sm:px-8";
 
 export default function PerfilPage() {
   const { user, profile, isGuest, loading, signOut } = useAuth();
@@ -82,49 +74,38 @@ export default function PerfilPage() {
   // Cuenta real con el perfil aun cargando: no mostrar "Crea tu cuenta".
   if ((loading || (user && !isGuest)) && !profile) {
     return (
-      <div className="flex-1 flex items-center justify-center py-24 text-sm text-muted">
-        Cargando perfil…
+      <div className={`${SHELL} pt-14 pb-24 sm:pt-20`}>
+        <p role="status" className="text-sm text-muted">
+          Cargando perfil…
+        </p>
       </div>
     );
   }
 
   if (isGuest || !profile) {
     return (
-      <div className="relative isolate min-h-full w-full flex items-center justify-center px-4 py-12">
-        <div className="relative z-[2] w-full max-w-md">
-          <BorderGlow
-            className="w-full"
-            edgeSensitivity={26}
-            glowColor="0 0 82"
-            backgroundColor="rgba(9,9,11,0.9)"
-            borderRadius={24}
-            glowRadius={36}
-            glowIntensity={1.05}
-            coneSpread={22}
-            animated
-            colors={["#ededf2", "#a0a0a8", "#52525b"]}
-            fillOpacity={0.4}
-          >
-            <div className="flex flex-col gap-5 p-8 text-center">
-              <Sparkles className="w-7 h-7 mx-auto text-zinc-300" />
-              <div>
-                <h1 className="text-xl font-semibold text-primary">
-                  Crea tu cuenta
-                </h1>
-                <p className="text-sm text-muted mt-2">
-                  Inicia sesion para tener perfil, monedas, rango por experiencia
-                  e historial de partidas.
-                </p>
-              </div>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 transition btn-press"
-              >
-                Iniciar sesion
-              </Link>
-            </div>
-          </BorderGlow>
-        </div>
+      <div className={SHELL}>
+        <section className="pt-14 pb-24 sm:pt-20 lg:pt-24">
+          <p className="eyebrow mb-6 flex items-center gap-2">
+            <span className="suit text-sm" aria-hidden>
+              ♠
+            </span>
+            Perfil
+          </p>
+          <h1 className="display max-w-[16ch] text-5xl text-primary sm:text-6xl lg:text-7xl">
+            Crea tu cuenta y <em className="text-accent-200">guarda tu progreso.</em>
+          </h1>
+          <p className="mt-7 max-w-[48ch] text-base leading-relaxed text-secondary">
+            Inicia sesión para tener perfil, monedas, rango por experiencia e historial de
+            partidas.
+          </p>
+          <div className="mt-9">
+            <Link href="/login" className="btn-primary">
+              Iniciar sesión
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </section>
       </div>
     );
   }
@@ -164,59 +145,69 @@ export default function PerfilPage() {
       setClaimMsg(
         granted > 0
           ? `+${formatChips(granted)} monedas`
-          : "Vuelve manhana por tu bono",
+          : "Vuelve mañana por tu bono",
       );
     } finally {
       setClaiming(false);
     }
   }
 
+  const figures: { label: string; value: string | number; note?: string }[] = [
+    {
+      label: "Monedas",
+      value: formatChips(availableCoins(profile)),
+      note: locked > 0 ? `${formatChips(locked)} en juego` : "Disponibles",
+    },
+    { label: "Manos jugadas", value: profile.handsPlayed },
+    { label: "Manos ganadas", value: `${winRate}%` },
+    { label: "Bote mayor", value: formatChips(profile.biggestPot) },
+  ];
+
   return (
-    <div ref={scope} className="relative isolate min-h-full w-full">
-      <div className="relative z-[2] w-full max-w-3xl mx-auto px-4 py-10 sm:py-14 flex flex-col gap-5">
-        {/* Cabecera de identidad */}
-        <BorderGlow
-          className="w-full"
-          edgeSensitivity={24}
-          glowColor="0 0 82"
-          backgroundColor="rgba(9,9,11,0.9)"
-          borderRadius={24}
-          glowRadius={34}
-          glowIntensity={1}
-          coneSpread={22}
-          animated={false}
-          colors={["#ededf2", "#a0a0a8", "#52525b"]}
-          fillOpacity={0.4}
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-5 p-6 sm:p-7">
-            <div className="relative shrink-0">
-              {profile.photoURL ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.photoURL}
-                  alt={profile.nickname}
-                  className="w-20 h-20 rounded-full ring-1 ring-white/15 object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <Avatar seed={profile.avatarSeed} size={80} />
-              )}
-              {!profile.photoURL && (
+    <div ref={scope} className={SHELL}>
+      {/* Identidad */}
+      <header className="grid grid-cols-1 gap-8 pt-14 sm:pt-20 lg:grid-cols-12 lg:items-end">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8 lg:col-span-9">
+          <div className="relative shrink-0 self-start sm:self-end">
+            {profile.photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.photoURL}
+                alt={profile.nickname}
+                className="h-20 w-20 rounded-[10px] object-cover sm:h-24 sm:w-24"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <>
+                <Avatar seed={profile.avatarSeed} size={96} className="rounded-[10px]!" />
                 <button
                   type="button"
                   onClick={regenAvatar}
                   title="Cambiar avatar"
-                  className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-zinc-900 ring-1 ring-white/20 text-zinc-300 hover:text-white hover:ring-white/40 transition btn-press"
+                  aria-label="Cambiar avatar"
+                  className="absolute -right-2 -bottom-2 inline-flex h-8 w-8 items-center justify-center rounded-[9px] border border-line-strong bg-ink-850 text-bone-dim transition-colors hover:bg-ink-700 hover:text-bone"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                 </button>
-              )}
-            </div>
+              </>
+            )}
+          </div>
 
-            <div className="flex-1 min-w-0 text-center sm:text-left">
-              {editing ? (
-                <div className="flex items-center gap-2 justify-center sm:justify-start">
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow mb-3 flex items-center gap-2">
+              <span className="suit text-sm" aria-hidden>
+                ♠
+              </span>
+              Perfil · desde {memberSince}
+            </p>
+            {editing ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="perfil-nick" className="sr-only">
+                  Apodo
+                </label>
+                <div className="w-full max-w-sm">
                   <input
+                    id="perfil-nick"
                     autoFocus
                     value={draftNick}
                     onChange={(e) => setDraftNick(e.target.value)}
@@ -225,219 +216,242 @@ export default function PerfilPage() {
                       if (e.key === "Escape") setEditing(false);
                     }}
                     maxLength={24}
-                    className="bg-white/[0.06] ring-1 ring-white/20 rounded-lg px-3 py-1.5 text-lg font-semibold text-zinc-50 outline-none focus:ring-white/40 w-48"
+                    className="field h-14! font-display text-3xl!"
                   />
-                  <button
-                    type="button"
-                    onClick={saveNick}
-                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-100 transition btn-press"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 transition"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
-              ) : (
-                <div className="flex items-center gap-2 justify-center sm:justify-start">
-                  <h1 className="text-2xl font-semibold tracking-tight text-primary truncate">
-                    {profile.nickname}
-                  </h1>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDraftNick(profile.nickname);
-                      setEditing(true);
-                    }}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-zinc-500 hover:text-zinc-200 transition"
-                    title="Editar apodo"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-              <p className="text-xs text-muted mt-1">
-                {user?.email ?? "Cuenta de invitado"} · desde {memberSince}
-              </p>
-              {rank && (
-                <span className="inline-flex items-center gap-2 mt-2 text-[10px] uppercase tracking-[0.2em] px-2 py-1 rounded-full ring-1 bg-white/[0.05] text-zinc-300 ring-white/15">
-                  <Image src={rank.emblem} alt={rank.name} width={20} height={20} className="object-contain" />
-                  {rank.name}
-                </span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={signOut}
-              className="self-start sm:self-center inline-flex items-center gap-2 px-3 py-2 rounded-full bg-white/[0.04] hover:bg-white/10 ring-1 ring-white/10 text-zinc-400 hover:text-zinc-200 text-[11px] font-bold uppercase tracking-widest transition btn-press"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Salir
-            </button>
+                <button type="button" onClick={saveNick} className="btn-primary">
+                  <Check className="h-4 w-4" />
+                  Guardar
+                </button>
+                <button type="button" onClick={() => setEditing(false)} className="btn-quiet">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <h1 className="display min-w-0 text-5xl text-primary [overflow-wrap:anywhere] sm:text-6xl lg:text-7xl">
+                  {profile.nickname}
+                </h1>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraftNick(profile.nickname);
+                    setEditing(true);
+                  }}
+                  title="Editar apodo"
+                  aria-label="Editar apodo"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[color:var(--text-muted)] transition-colors hover:bg-bone/[0.05] hover:text-bone"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            <p className="mt-3 truncate text-sm text-muted">
+              {user?.email ?? "Cuenta de invitado"}
+            </p>
           </div>
-        </BorderGlow>
+        </div>
 
-        {/* Rango / XP */}
-        {prog && rank && (
-          <Card>
-            <div className="flex items-center gap-5 mb-5">
-              {/* Escudo del rango */}
-              <div className="relative shrink-0">
-                <Image
-                  src={rank.emblem}
-                  alt={rank.name}
-                  width={80}
-                  height={80}
-                  className="object-contain drop-shadow-[0_0_18px_rgba(167,139,250,0.35)]"
-                  priority
-                />
-                <span className="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full bg-zinc-900 ring-2 ring-zinc-950 text-[10px] font-black text-zinc-100 flex items-center justify-center tabular-nums">
-                  {prog.level}
-                </span>
-              </div>
+        <div className="lg:col-span-3 lg:justify-self-end">
+          <button type="button" onClick={signOut} className="btn-quiet">
+            <LogOut className="h-4 w-4" />
+            Cerrar sesión
+          </button>
+        </div>
+      </header>
 
-              {/* Info del rango */}
-              <div className="flex-1 min-w-0">
-                <div className="text-xl font-bold tracking-tight text-primary">
-                  {rank.name}
-                </div>
-                <div className="text-xs text-muted mt-0.5">
-                  Nivel {prog.level}{prog.level >= MAX_LEVEL ? " · Máximo" : ""}
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-sm font-semibold text-zinc-200 tabular-nums">
-                    {formatChips(profile.xp)} XP
-                  </span>
-                  {!prog.isMax && (
-                    <span className="text-[11px] text-muted">
-                      {formatChips(prog.span - prog.xpIntoLevel)} para nivel {prog.level + 1}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 h-2 rounded-full bg-white/[0.06] overflow-hidden ring-1 ring-white/10">
-                  <div
-                    className="xp-fill h-full rounded-full bg-gradient-to-r from-violet-400 to-violet-200 shadow-[0_0_12px_rgba(167,139,250,0.5)]"
-                    style={{ width: `${prog.ratio * 100}%` }}
-                  />
-                </div>
-              </div>
+      {/* Rango / XP */}
+      {prog && rank && (
+        <section
+          aria-labelledby="perfil-rango"
+          className="mt-14 grid grid-cols-1 gap-8 border-t border-line pt-10 lg:grid-cols-12"
+        >
+          <div className="flex items-center gap-5 lg:col-span-5">
+            <Image
+              src={rank.emblem}
+              alt=""
+              width={72}
+              height={72}
+              className="h-16 w-16 shrink-0 object-contain sm:h-[72px] sm:w-[72px]"
+              priority
+            />
+            <div className="min-w-0">
+              <p className="eyebrow">Rango</p>
+              <h2 id="perfil-rango" className="display mt-1 text-4xl text-primary sm:text-5xl">
+                {rank.name}
+              </h2>
+              <p className="mt-2 text-sm text-muted">
+                Nivel <span className="numeric text-primary">{prog.level}</span>
+                {prog.level >= MAX_LEVEL ? " · Máximo" : ""}
+              </p>
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <p className="text-[11px] text-zinc-600">
+          </div>
+
+          <div className="flex flex-col justify-end gap-3 lg:col-span-7">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <p className="text-sm text-muted">
+                <span className="numeric text-lg text-primary">{formatChips(profile.xp)}</span> XP
+              </p>
+              {!prog.isMax && (
+                <p className="text-sm text-muted">
+                  <span className="numeric text-secondary">
+                    {formatChips(prog.span - prog.xpIntoLevel)}
+                  </span>{" "}
+                  para nivel <span className="numeric text-secondary">{prog.level + 1}</span>
+                </p>
+              )}
+            </div>
+            <div
+              role="progressbar"
+              aria-label="Progreso al siguiente nivel"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(prog.ratio * 100)}
+              className="relative h-[3px] w-full"
+            >
+              <span className="absolute inset-x-0 top-px h-px bg-line-strong" aria-hidden />
+              <span
+                className="xp-fill absolute inset-y-0 left-0 bg-accent-300"
+                style={{ width: `${prog.ratio * 100}%` }}
+                aria-hidden
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pt-1">
+              <p className="max-w-[46ch] text-sm text-muted">
                 Ganas experiencia jugando manos y completando partidas.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowTower(true)}
-                className="shrink-0 ml-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition btn-press"
-                style={{
-                  background: "rgba(167,139,250,0.12)",
-                  border: "1px solid rgba(167,139,250,0.25)",
-                  color: "#c4b5fd",
-                }}
-              >
-                Ver rangos
+              <button type="button" onClick={() => setShowTower(true)} className="btn-link text-sm">
+                Ver todos los rangos
               </button>
             </div>
-          </Card>
-        )}
-
-        {/* Wallet */}
-        <Card>
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/[0.06] ring-1 ring-white/15 text-zinc-100">
-                <Coins className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-primary tabular-nums">
-                  {formatChips(availableCoins(profile))}
-                </div>
-                <div className="text-xs text-muted">
-                  monedas disponibles
-                  {locked > 0 && (
-                    <span className="text-secondary">
-                      {" "}
-                      · {formatChips(locked)} en juego
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <button
-                type="button"
-                onClick={onClaim}
-                disabled={claiming || !bonusReady}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black font-bold text-xs uppercase tracking-widest hover:bg-zinc-200 transition btn-press disabled:opacity-50 disabled:hover:bg-white"
-              >
-                <Gift className="w-4 h-4" />
-                {bonusReady ? "Bono diario" : "Bono reclamado"}
-              </button>
-              {claimMsg && (
-                <span className="text-[11px] text-muted">{claimMsg}</span>
-              )}
-            </div>
           </div>
-        </Card>
+        </section>
+      )}
 
-        {/* Estadisticas */}
-        <Card>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Stat label="Partidas" value={profile.gamesPlayed} />
-            <Stat label="Manos jugadas" value={profile.handsPlayed} />
-            <Stat label="Manos ganadas" value={`${winRate}%`} />
-            <Stat label="Bote mayor" value={formatChips(profile.biggestPot)} />
+      {/* Cifras */}
+      <section aria-label="Estadísticas" className="mt-14">
+        <dl className="grid grid-cols-2 border-y border-line lg:grid-cols-4">
+          {figures.map((f, i) => (
+            <div key={f.label} className={`flex flex-col gap-3 border-line py-7 sm:py-9 ${FIGURE_EDGE[i]}`}>
+              <dt className="eyebrow">{f.label}</dt>
+              <dd className="numeric text-3xl leading-none text-primary sm:text-4xl lg:text-5xl">
+                {f.value}
+              </dd>
+              {f.note ? <dd className="text-xs text-muted">{f.note}</dd> : null}
+            </div>
+          ))}
+        </dl>
+
+        {/* Bono diario */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <Gift className="h-4 w-4 shrink-0 text-bone-dim" aria-hidden />
+            <p className="text-sm text-secondary">
+              Bono diario de <span className="numeric text-primary">{formatChips(DAILY_BONUS)}</span>{" "}
+              monedas cada 24 horas.
+            </p>
+            <span role="status" className="text-sm text-primary">
+              {claimMsg}
+            </span>
           </div>
-        </Card>
+          <button
+            type="button"
+            onClick={onClaim}
+            disabled={claiming || !bonusReady}
+            aria-busy={claiming}
+            className={bonusReady ? "btn-primary" : "btn-quiet"}
+          >
+            {bonusReady ? "Reclamar bono" : "Bono reclamado"}
+          </button>
+        </div>
+      </section>
 
-        {/* Historial */}
-        <Card>
-          <div className="flex items-center gap-2 mb-3">
-            <History className="w-4 h-4 text-zinc-400" />
-            <h2 className="text-sm font-semibold text-zinc-200">
-              Historial de partidas
+      {/* Historial */}
+      <section aria-labelledby="perfil-historial" className="mt-20 pb-24">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">Partidas online</p>
+            <h2 id="perfil-historial" className="display mt-1 text-4xl text-primary sm:text-5xl">
+              Historial
             </h2>
           </div>
-          {history.length === 0 ? (
-            <p className="text-sm text-muted py-4 text-center">
-              Aun no has jugado ninguna partida online.
+          <p className="text-sm text-muted">
+            <span className="numeric text-primary">{profile.gamesPlayed}</span>{" "}
+            {profile.gamesPlayed === 1 ? "partida jugada" : "partidas jugadas"}
+          </p>
+        </div>
+
+        {history.length === 0 ? (
+          <div className="border-t border-line py-12">
+            <p className="font-display text-2xl text-secondary sm:text-3xl">
+              Aún no has jugado ninguna partida online.
             </p>
-          ) : (
-            <ul className="flex flex-col divide-y divide-white/[0.06]">
-              {history.map((h) => (
-                <li
-                  key={h.id}
-                  className="flex items-center justify-between gap-3 py-2.5"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm text-zinc-200 truncate">
-                      {h.roomName || "Sala"}
-                    </div>
-                    <div className="text-[11px] text-muted">
-                      {new Date(h.ts).toLocaleDateString("es")} · {h.handsPlayed}{" "}
-                      manos · +{h.xpGained} XP
-                    </div>
-                  </div>
-                  <span
-                    className={`text-sm font-semibold tabular-nums ${
-                      h.net >= 0 ? "text-emerald-400/90" : "text-rose-400/90"
-                    }`}
+            <Link href="/play/online" className="btn-link mt-4 inline-block text-sm">
+              Abrir una mesa online
+            </Link>
+          </div>
+        ) : (
+          <table className="w-full border-t border-line text-left">
+            <caption className="sr-only">Historial de partidas online</caption>
+            <thead>
+              <tr className="border-b border-line">
+                <th scope="col" className="eyebrow py-3 pr-4 text-left">
+                  Sala
+                </th>
+                <th scope="col" className="eyebrow hidden py-3 pr-6 text-left sm:table-cell">
+                  Fecha
+                </th>
+                <th scope="col" className="eyebrow hidden py-3 pr-6 text-right sm:table-cell">
+                  Manos
+                </th>
+                <th scope="col" className="eyebrow hidden py-3 pr-6 text-right sm:table-cell">
+                  XP
+                </th>
+                <th scope="col" className="eyebrow py-3 text-right">
+                  Resultado
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((h) => {
+                const date = new Date(h.ts).toLocaleDateString("es");
+                return (
+                  <tr
+                    key={h.id}
+                    className="border-b border-line transition-colors hover:bg-bone/[0.03]"
                   >
-                    {h.net >= 0 ? "+" : ""}
-                    {formatChips(h.net)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+                    <td className="w-full max-w-0 py-4 pr-4">
+                      <span className="block truncate text-[15px] text-primary">
+                        {h.roomName || "Sala"}
+                      </span>
+                      <span className="mt-1 block truncate text-xs text-muted sm:hidden">
+                        {date} · {h.handsPlayed} manos · +{h.xpGained} XP
+                      </span>
+                    </td>
+                    <td className="numeric hidden py-4 pr-6 text-sm whitespace-nowrap text-secondary sm:table-cell">
+                      {date}
+                    </td>
+                    <td className="numeric hidden py-4 pr-6 text-right text-sm text-secondary sm:table-cell">
+                      {h.handsPlayed}
+                    </td>
+                    <td className="numeric hidden py-4 pr-6 text-right text-sm whitespace-nowrap text-secondary sm:table-cell">
+                      +{h.xpGained}
+                    </td>
+                    <td
+                      className={`numeric py-4 text-right text-[15px] whitespace-nowrap ${
+                        h.net >= 0 ? "text-emerald-400" : "text-rose-400"
+                      }`}
+                    >
+                      {h.net >= 0 ? "+" : ""}
+                      {formatChips(h.net)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       {showTower && prog && (
         <RankTowerModal
@@ -449,23 +463,10 @@ export default function PerfilPage() {
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl bg-zinc-950/80 ring-1 ring-white/[0.1] p-5 sm:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      {children}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-2xl font-bold text-primary tabular-nums">
-        {value}
-      </span>
-      <span className="text-[11px] uppercase tracking-[0.15em] text-muted">
-        {label}
-      </span>
-    </div>
-  );
-}
+// Hairlines between the four figures: a 2x2 grid on phones, one row on desktop.
+const FIGURE_EDGE = [
+  "pr-4",
+  "border-l pl-5 sm:pl-8",
+  "border-t pr-4 lg:border-t-0 lg:border-l lg:pl-8",
+  "border-l border-t pl-5 sm:pl-8 lg:border-t-0",
+];

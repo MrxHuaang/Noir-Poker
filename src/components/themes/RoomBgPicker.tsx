@@ -18,7 +18,7 @@ export function RoomBgPicker({ value, onChange }: Props) {
               type="button"
               onClick={() => onChange(bg.id)}
               className={`relative w-full aspect-square rounded-lg ring-1 transition ${
-                selected ? "ring-accent-400/70" : "ring-white/10 hover:ring-white/30"
+                selected ? "ring-accent-400/70" : "ring-line hover:ring-white/30"
               }`}
               style={{ background: bg.gradient }}
               title={bg.label}

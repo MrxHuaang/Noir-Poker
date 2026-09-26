@@ -28,7 +28,7 @@ type Props = {
 export function SeatPicker({ myUid, myPreferredSlot, occupants, onPick }: Props) {
   return (
     <div className="flex flex-col items-center gap-3">
-      <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+      <span className="eyebrow text-[11px]">
         Elige tu asiento
       </span>
 
@@ -38,7 +38,7 @@ export function SeatPicker({ myUid, myPreferredSlot, occupants, onPick }: Props)
         <div
           className="absolute inset-x-[6%] inset-y-[12%] rounded-[999px] opacity-60"
           style={{
-            background: "radial-gradient(ellipse at center, #18152a 0%, #0e0b18 60%, #060410 100%)",
+            background: "radial-gradient(ellipse at 50% 40%, #22201c 0%, #151411 60%, #090807 100%)",
             boxShadow: "0 0 0 4px #27272a, 0 0 0 5px #3f3f46",
           }}
         />
@@ -65,7 +65,7 @@ export function SeatPicker({ myUid, myPreferredSlot, occupants, onPick }: Props)
                   <div className={`w-7 h-7 rounded-full overflow-hidden ring-2 ${isMine ? "ring-accent-400" : "ring-zinc-600"}`}>
                     <Avatar seed={occupant.seed} size={28} className="ring-0 rounded-none" />
                   </div>
-                  <span className="text-[8px] text-zinc-400 font-bold max-w-[40px] truncate leading-none">
+                  <span className="text-[8px] text-secondary font-bold max-w-[40px] truncate leading-none">
                     {isMine ? "Tú" : occupant.name}
                   </span>
                 </div>
@@ -73,10 +73,10 @@ export function SeatPicker({ myUid, myPreferredSlot, occupants, onPick }: Props)
                 // Free slot
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center ring-2 transition ${
                   isMine
-                    ? "bg-accent-500/12 ring-accent-400 shadow-[0_0_10px_rgba(167,139,250,0.35)]"
-                    : "bg-zinc-900/70 ring-dashed ring-white/20 hover:ring-accent-400/50 hover:bg-accent-500/8"
+                    ? "bg-accent-500/12 ring-accent-400"
+                    : "bg-ink-850/70 ring-dashed ring-line-strong hover:ring-accent-400/50 hover:bg-accent-500/8"
                 }`}>
-                  <span className="text-[8px] font-black uppercase text-zinc-500">
+                  <span className="text-[8px] font-semibold uppercase text-muted">
                     {isMine ? "✓" : i + 1}
                   </span>
                 </div>
@@ -91,7 +91,7 @@ export function SeatPicker({ myUid, myPreferredSlot, occupants, onPick }: Props)
           Asiento {myPreferredSlot + 1} reservado · toca otro para cambiar
         </p>
       ) : (
-        <p className="text-[11px] text-zinc-500">
+        <p className="text-[11px] text-muted">
           Toca un asiento libre para reservarlo
         </p>
       )}

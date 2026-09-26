@@ -134,18 +134,18 @@ export function HostNotifications({
               if (isReq) onClickRequest();
               setToasts((prev) => prev.filter((x) => x.id !== t.id));
             }}
-            className={`pointer-events-auto w-[300px] flex items-start gap-3 px-3 py-2.5 rounded-2xl bg-zinc-900/95 backdrop-blur-xl ring-1 ${s.ring} shadow-2xl text-left hover:bg-zinc-800/95 transition animate-in slide-in-from-right-4 fade-in duration-300`}
+            className={`pointer-events-auto w-[300px] flex items-start gap-3 px-3 py-2.5 rounded-2xl bg-ink-850/95 backdrop-blur-xl ring-1 ${s.ring} shadow-2xl text-left hover:bg-ink-800/95 transition animate-in slide-in-from-right-4 fade-in duration-300`}
           >
-            <div className={`p-1.5 rounded-xl bg-white/5 ${s.color} flex-shrink-0`}>
+            <div className={`p-1.5 rounded-xl bg-bone/[0.04] ${s.color} flex-shrink-0`}>
               <s.icon className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] uppercase tracking-widest font-black text-zinc-400">
+              <div className="eyebrow text-[11px]">
                 {t.title}
               </div>
-              <div className="text-xs text-zinc-100 font-medium truncate">{t.body}</div>
+              <div className="text-xs text-primary font-medium truncate">{t.body}</div>
             </div>
-            <X className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0 mt-1" />
+            <X className="w-3.5 h-3.5 text-muted flex-shrink-0 mt-1" />
           </button>
         );
       })}

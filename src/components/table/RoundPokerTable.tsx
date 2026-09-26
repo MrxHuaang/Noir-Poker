@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ACCENT } from "@/lib/brand";
 import { Maximize2, RotateCcw, Volume2, VolumeX, WifiOff, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import gsap from "gsap";
@@ -79,7 +80,7 @@ function SeatTimer({
   const bankPct = inBank && timeBank > 0 ? (remainingBank / timeBank) * 100 : 0;
 
   return (
-    <div className="w-full h-1 bg-zinc-800 overflow-hidden">
+    <div className="w-full h-1 bg-ink-800 overflow-hidden">
       {inBank ? (
         <div className="h-full bg-rose-500" style={{ width: `${bankPct}%` }} />
       ) : (
@@ -91,11 +92,11 @@ function SeatTimer({
 
 // Action label map for announcements
 const ACTION_LABELS: Record<string, string> = {
-  fold: "Fold",
-  check: "Check",
-  call: "Call",
-  bet: "Bet",
-  raise: "Raise",
+  fold: "Se retira",
+  check: "Pasa",
+  call: "Iguala",
+  bet: "Apuesta",
+  raise: "Sube",
   "all-in": "All-in",
 };
 
@@ -146,10 +147,10 @@ function ActionToast({ action, amount }: { action: string; amount?: number }) {
   const isAggressive = action === "bet" || action === "raise" || action === "all-in";
   const isFold = action === "fold";
   return (
-    <div className={`absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl animate-in zoom-in fade-in duration-200 whitespace-nowrap ${
-      isFold ? "bg-rose-500/90 text-white" :
+    <div className={`absolute -top-8 left-1/2 -translate-x-1/2 z-50 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-[0_10px_24px_-10px_oklch(0.05_0.005_60/0.9)] animate-in zoom-in fade-in duration-200 whitespace-nowrap ${
+      isFold ? "bg-ink-700 text-bone-dim ring-1 ring-line-strong" :
       isAggressive ? "bg-accent text-accent-contrast" :
-      "bg-accent/80 text-accent-contrast"
+      "bg-bone text-ink-900"
     }`}>
       {label}{amount ? ` ${formatChips(amount)}` : ""}
     </div>
@@ -372,14 +373,14 @@ export function RoundPokerTable({
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
           {/* Pot */}
           <div className="flex flex-col items-center gap-1">
-            <div className="px-3 py-1 rounded-lg bg-black/55 backdrop-blur-md ring-1 ring-white/10 flex items-center gap-2">
-              <span className="text-[8px] uppercase tracking-[0.3em] text-zinc-500 font-bold">Pot</span>
-              <span className="text-sm font-bold text-white tabular-nums">{formatChips(betting.pot)}</span>
+            <div className="px-3 py-1 rounded-lg bg-black/55 backdrop-blur-md ring-1 ring-line flex items-center gap-2">
+              <span className="eyebrow text-[11px]">Pot</span>
+              <span className="text-sm font-bold text-primary tabular-nums">{formatChips(betting.pot)}</span>
             </div>
             {betting.sidePots.length > 1 && (
               <div className="flex gap-1.5 flex-wrap justify-center">
                 {betting.sidePots.map((sp, i) => (
-                  <div key={i} className="px-2 py-0.5 rounded bg-black/40 text-[9px] text-zinc-400 ring-1 ring-white/5 tabular-nums">
+                  <div key={i} className="px-2 py-0.5 rounded bg-black/40 text-[9px] text-secondary ring-1 ring-line tabular-nums">
                     Side {i + 1}: {formatChips(sp.amount)}
                   </div>
                 ))}
@@ -413,7 +414,7 @@ export function RoundPokerTable({
                   className="pointer-events-auto group flex cursor-pointer flex-col items-center gap-1.5"
                 >
                   <div className="glass-icon-button flex h-12 w-12 items-center justify-center rounded-full border-dashed group-hover:border-accent/50 group-hover:text-accent">
-                    <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-500 group-hover:text-accent">
+                    <span className="eyebrow text-[11px] group-hover:text-accent">
                       Sit
                     </span>
                   </div>
@@ -530,7 +531,7 @@ export function RoundPokerTable({
                     className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-600 ring-2 ring-zinc-950 flex items-center justify-center z-20"
                     title="Desconectado"
                   >
-                    <WifiOff className="w-2 h-2 text-white" />
+                    <WifiOff className="w-2 h-2 text-primary" />
                   </span>
                 )}
               </div>
@@ -540,10 +541,10 @@ export function RoundPokerTable({
                 <button
                   type="button"
                   onClick={onToggleAway}
-                  className={`btn-press absolute -right-7 top-1/2 z-20 -translate-y-1/2 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] sm:-right-8 ${
+                  className={`text-[11px] font-semibold btn-press absolute -right-7 top-1/2 z-20 -translate-y-1/2 rounded-md px-1.5 py-0.5 sm:-right-8 ${
                     amSittingOut
                       ? "glass-button glass-button-danger"
-                      : "glass-button glass-button-ghost text-zinc-300"
+                      : "glass-button glass-button-ghost text-secondary"
                   }`}
                   title={amSittingOut ? "Volver a jugar" : "Ausentarme"}
                 >
@@ -558,17 +559,17 @@ export function RoundPokerTable({
                     ? "border-accent shadow-[0_0_18px_var(--shadow-warm)]"
                     : "border-zinc-700 shadow-xl"
               }`}>
-                <div className={`flex flex-col bg-zinc-900/95 backdrop-blur-md ${seat.status === "folded" ? "opacity-40 grayscale" : ""}`}>
+                <div className={`flex flex-col bg-ink-850/95 backdrop-blur-md ${seat.status === "folded" ? "opacity-40 grayscale" : ""}`}>
                   {/* Name */}
-                  <div className={`px-2 pt-1.5 pb-1 border-b border-white/5 text-center ${isToAct ? "bg-accent/10" : ""}`}>
-                    <span className="text-[11px] font-bold text-zinc-100 truncate block">{seat.name}</span>
+                  <div className={`px-2 pt-1.5 pb-1 border-b border-line text-center ${isToAct ? "bg-accent/10" : ""}`}>
+                    <span className="text-[11px] font-bold text-primary truncate block">{seat.name}</span>
                   </div>
                   {/* Chips */}
                   <div className="px-2 py-1.5 text-center bg-black/40 flex items-center justify-center gap-1">
                     {seat.status === "all-in" && (
-                      <span className="text-[8px] font-black uppercase text-accent tracking-widest">AI</span>
+                      <span className="eyebrow text-[11px] text-accent">AI</span>
                     )}
-                    <span className="text-[10px] sm:text-[11px] text-white font-mono font-black tabular-nums">
+                    <span className="text-[10px] sm:text-[11px] text-primary font-mono font-semibold tabular-nums">
                       {formatChips(seat.chips)}
                     </span>
                   </div>
@@ -581,7 +582,7 @@ export function RoundPokerTable({
                       useBank={useBank}
                     />
                   ) : isToAct ? (
-                    <div className="w-full h-1 bg-zinc-800">
+                    <div className="w-full h-1 bg-ink-800">
                       <div className="h-full bg-accent w-full" />
                     </div>
                   ) : null}
@@ -590,13 +591,13 @@ export function RoundPokerTable({
                 {/* Fold overlay */}
                 {seat.status === "folded" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Fold</span>
+                    <span className="eyebrow text-[11px]">Fold</span>
                   </div>
                 )}
                 {/* Away overlay */}
                 {seat.status === "sitting-out" && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Ausente</span>
+                    <span className="eyebrow text-[11px]">Ausente</span>
                   </div>
                 )}
               </div>
@@ -629,14 +630,14 @@ export function RoundPokerTable({
                       className="absolute w-6 h-6 rounded-full border-2 border-white/30 shadow-inner"
                       style={{
                         bottom: `${offset * 2}px`,
-                        background: seat.bet > 200 ? "#c4b5fd" : seat.bet > 50 ? "#a78bfa" : "#71717a",
+                        background: seat.bet > 200 ? ACCENT[300] : seat.bet > 50 ? ACCENT[400] : "#8a8478",
                         opacity: offset === 0 ? 1 : 0.6 + offset * 0.1,
                       }}
                     />
                   ))}
                   {/* Amount label */}
-                  <div className="relative mt-7 px-2 py-0.5 rounded-full bg-black/70 ring-1 ring-white/15 shadow-xl">
-                    <span className="text-[10px] font-black text-white tabular-nums leading-none">
+                  <div className="relative mt-7 px-2 py-0.5 rounded-full bg-black/70 ring-1 ring-line-strong shadow-xl">
+                    <span className="text-[10px] font-semibold text-primary tabular-nums leading-none">
                       {formatChips(seat.bet)}
                     </span>
                   </div>
@@ -651,7 +652,7 @@ export function RoundPokerTable({
                 style={{ left: `${dbx}%`, top: `${dby}%`, transform: "translate(-50%, -50%)" }}
               >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white shadow-lg ring-2 ring-zinc-400 flex items-center justify-center">
-                  <span className="text-[11px] font-black text-black leading-none">D</span>
+                  <span className="text-[11px] font-semibold text-black leading-none">D</span>
                 </div>
               </div>
             )}
@@ -662,7 +663,7 @@ export function RoundPokerTable({
       {/* Mute toggle */}
       <button
         onClick={toggleMute}
-        className="glass-icon-button btn-press absolute right-9 top-1 z-50 rounded-xl p-2.5 text-zinc-400"
+        className="glass-icon-button btn-press absolute right-9 top-1 z-50 rounded-xl p-2.5 text-secondary"
         title={muted ? "Activar sonido" : "Silenciar"}
         aria-label={muted ? "Activar sonido" : "Silenciar"}
       >
@@ -673,7 +674,7 @@ export function RoundPokerTable({
       {roomCode && (
         <button
           onClick={() => setShowQR(true)}
-          className="glass-icon-button btn-press absolute right-1 top-1 z-50 rounded-xl p-2.5 text-zinc-400"
+          className="glass-icon-button btn-press absolute right-1 top-1 z-50 rounded-xl p-2.5 text-secondary"
           title="Invitar"
           aria-label="Invitar jugadores"
         >
@@ -685,7 +686,7 @@ export function RoundPokerTable({
       {selfUid && seats.length > 0 && (
         <button
           onClick={rotateSelfToCenter}
-          className="glass-icon-button btn-press absolute left-1 top-1 z-50 rounded-xl p-2.5 text-zinc-400"
+          className="glass-icon-button btn-press absolute left-1 top-1 z-50 rounded-xl p-2.5 text-secondary"
           title="Centrarme"
           aria-label="Centrarme en la mesa"
         >
@@ -699,21 +700,21 @@ export function RoundPokerTable({
           <div className="glass-panel relative w-full max-w-sm rounded-3xl p-8">
             <button
               onClick={() => setShowQR(false)}
-              className="glass-icon-button btn-press absolute right-4 top-4 rounded-full p-2 text-zinc-400"
+              className="glass-icon-button btn-press absolute right-4 top-4 rounded-full p-2 text-secondary"
             >
               <X className="w-6 h-6" />
             </button>
             <div className="flex flex-col items-center gap-6">
               <div className="text-center">
-                <h3 className="text-xl font-bold text-zinc-100">Invitación a la mesa</h3>
-                <p className="text-sm text-zinc-400 mt-1">Escanea para unirte a jugar</p>
+                <h3 className="text-xl font-bold text-primary">Invitación a la mesa</h3>
+                <p className="text-sm text-secondary mt-1">Escanea para unirte a jugar</p>
               </div>
               <div className="p-4 bg-white rounded-2xl">
                 <QRCodeSVG value={joinUrl} size={220} />
               </div>
               <div className="flex flex-col items-center gap-1">
-                <span className="text-xs uppercase tracking-[0.3em] text-zinc-500 font-bold">Código de sala</span>
-                <span className="text-4xl font-mono font-black text-accent tracking-[0.2em]">{roomCode}</span>
+                <span className="eyebrow">Código de sala</span>
+                <span className="text-4xl font-mono font-semibold text-accent tracking-[0.2em]">{roomCode}</span>
               </div>
             </div>
           </div>

@@ -24,7 +24,7 @@ export function ReactionBar({ code, uid }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="glass-icon-button btn-press rounded-2xl p-3 text-zinc-300 shadow-xl"
+        className="glass-icon-button btn-press rounded-2xl p-3 text-secondary shadow-xl"
         title="Reaccionar"
       >
         <Smile className="w-5 h-5" />
@@ -49,7 +49,7 @@ export function ReactionBar({ code, uid }: Props) {
       <button
         type="button"
         onClick={() => setOpen(false)}
-        className="glass-icon-button btn-press ml-1 rounded-xl p-1.5 text-zinc-400"
+        className="glass-icon-button btn-press ml-1 rounded-xl p-1.5 text-secondary"
       >
         <X className="w-4 h-4" />
       </button>

@@ -44,20 +44,20 @@ export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
   return (
     <div className="flex flex-col gap-6">
       {/* Sound */}
-      <section className="flex flex-col gap-4 p-5 rounded-2xl bg-white/[0.03] ring-1 ring-white/10">
-        <h3 className="text-[11px] uppercase tracking-[0.2em] text-zinc-500 font-bold">
+      <section className="flex flex-col gap-4 p-5 rounded-2xl bg-white/[0.03] ring-1 ring-line">
+        <h3 className="eyebrow text-[11px]">
           Sonido
         </h3>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-zinc-200">Efectos de la mesa</span>
+          <span className="text-sm text-primary">Efectos de la mesa</span>
           <button
             type="button"
             onClick={toggleMute}
-            className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition btn-press ring-1 ${
+            className={`text-xs font-semibold inline-flex items-center gap-2 px-3 py-2 rounded-xl transition btn-press ring-1 ${
               muted
-                ? "bg-white/[0.04] text-zinc-500 ring-white/10"
-                : "bg-white/[0.10] text-zinc-100 ring-white/20"
+                ? "bg-white/[0.04] text-muted ring-line"
+                : "bg-white/[0.10] text-primary ring-line-strong"
             }`}
           >
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -66,9 +66,9 @@ export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
         </div>
 
         <label className="flex flex-col gap-2">
-          <span className="text-xs text-zinc-400 flex items-center justify-between">
+          <span className="text-xs text-secondary flex items-center justify-between">
             <span>Volumen</span>
-            <span className="tabular-nums text-zinc-500">{Math.round(volume * 100)}%</span>
+            <span className="tabular-nums text-muted">{Math.round(volume * 100)}%</span>
           </span>
           <input
             type="range"
@@ -84,17 +84,17 @@ export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
 
       {/* Microphone (phones only) */}
       {showMic && (
-        <section className="flex flex-col gap-4 p-5 rounded-2xl bg-white/[0.03] ring-1 ring-white/10">
-          <h3 className="text-[11px] uppercase tracking-[0.2em] text-zinc-500 font-bold">
+        <section className="flex flex-col gap-4 p-5 rounded-2xl bg-white/[0.03] ring-1 ring-line">
+          <h3 className="eyebrow text-[11px]">
             Micrófono · chat de voz
           </h3>
 
           <label className="flex flex-col gap-2">
-            <span className="text-xs text-zinc-400">Dispositivo de entrada</span>
+            <span className="text-xs text-secondary">Dispositivo de entrada</span>
             <select
               value={micDeviceId}
               onChange={(e) => setMicDeviceId(e.target.value)}
-              className="px-3 py-2.5 rounded-xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm outline-none focus:ring-white/40"
+              className="px-3 py-2.5 rounded-xl bg-black/40 ring-1 ring-line text-primary text-sm outline-none focus:ring-white/40"
             >
               <option value="">Micrófono por defecto</option>
               {devices.map((d) => (
@@ -106,7 +106,7 @@ export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
           </label>
 
           {needLabels && (
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-muted">
               Pulsa &quot;Probar&quot; y permite el micrófono para ver los nombres reales.
             </p>
           )}
@@ -116,19 +116,19 @@ export function AudioVideoSettings({ showMic = false }: { showMic?: boolean }) {
             <button
               type="button"
               onClick={testStream ? stopTest : startTest}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition btn-press ring-1 bg-white/[0.05] text-zinc-200 ring-white/10 hover:bg-white/10"
+              className="font-semibold inline-flex items-center gap-2 px-3 py-2 rounded-xl transition btn-press ring-1 bg-white/[0.05] ring-line hover:bg-bone/[0.07]"
             >
               {testStream ? <Activity className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               {testStream ? "Detener" : "Probar"}
             </button>
-            <div className="flex-1 h-2.5 rounded-full bg-white/[0.06] overflow-hidden ring-1 ring-white/10">
+            <div className="flex-1 h-2.5 rounded-full bg-white/[0.06] overflow-hidden ring-1 ring-line">
               <div
                 className="h-full bg-zinc-200 transition-[width] duration-75"
                 style={{ width: `${Math.min(100, Math.round(level * 140))}%` }}
               />
             </div>
           </div>
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-muted">
             El cambio de micrófono se aplica en vivo si ya estás en el canal de voz.
           </p>
         </section>

@@ -51,26 +51,24 @@ export function DesktopOnlyGate({ children, roomCode, href, onBypass }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#0b0b0b] flex flex-col items-center justify-center p-6 gap-5 overflow-y-auto">
+    <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 overflow-y-auto bg-ink-900 p-6">
       {/* Ambient glow */}
       <div
         className="pointer-events-none absolute inset-0 overflow-hidden"
         aria-hidden="true"
       >
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-accent-600/5 blur-[100px]" />
+        <div className="absolute top-0 left-1/2 h-80 w-[36rem] -translate-x-1/2 rounded-full bg-bone/[0.04] blur-[90px]" />
       </div>
 
       {/* Icono de escritorio */}
-      <div className="relative z-10 p-4 rounded-[20px] bg-accent-500/10 ring-1 ring-accent-400/20">
-        <Monitor className="w-8 h-8 text-accent-400" aria-hidden="true" />
-      </div>
+      <Monitor className="relative z-10 h-7 w-7 text-muted" aria-hidden="true" />
 
       {/* Mensaje */}
       <div className="relative z-10 text-center max-w-xs flex flex-col gap-2">
-        <h1 className="text-xl font-bold text-zinc-50 tracking-tight">
-          Este modo es solo para escritorio
+        <h1 className="display text-4xl text-primary">
+          Esta mesa se juega en <em className="text-accent-200">computadora</em>
         </h1>
-        <p className="text-sm text-zinc-400 leading-relaxed">
+        <p className="text-sm leading-relaxed text-secondary">
           Los controles de apuesta no caben cómodos en la pantalla del
           teléfono. Abre este enlace en tu compu para entrar a la mesa.
         </p>
@@ -78,25 +76,25 @@ export function DesktopOnlyGate({ children, roomCode, href, onBypass }: Props) {
 
       {/* Código de sala */}
       {roomCode && (
-        <div className="relative z-10 px-4 py-1.5 rounded-full bg-white/5 ring-1 ring-white/10 text-[11px] font-mono uppercase tracking-[0.3em] text-zinc-400">
-          Sala {roomCode}
-        </div>
+        <p className="relative z-10 text-sm text-muted">
+          Sala <span className="numeric tracking-[0.25em] text-primary">{roomCode}</span>
+        </p>
       )}
 
       {/* QR del enlace */}
       {url ? (
-        <div className="relative z-10 p-3 bg-white rounded-2xl shadow-lg">
+        <div className="relative z-10 rounded-2xl bg-bone p-3">
           <QRCodeSVG value={url} size={140} />
         </div>
       ) : (
-        <div className="relative z-10 w-[166px] h-[166px] rounded-2xl bg-zinc-900 motion-safe:animate-pulse" />
+        <div className="relative z-10 h-[166px] w-[166px] rounded-2xl bg-ink-800 motion-safe:animate-pulse" />
       )}
 
       {/* Botón copiar enlace */}
       <button
         type="button"
         onClick={copyLink}
-        className="relative z-10 inline-flex items-center gap-2 px-5 py-3 rounded-full bg-accent-700/60 hover:bg-accent-600/70 text-accent-100 font-bold text-sm uppercase tracking-widest transition btn-press"
+        className="btn-primary relative z-10"
       >
         {copied ? (
           <Check className="w-4 h-4" aria-hidden="true" />
@@ -108,13 +106,13 @@ export function DesktopOnlyGate({ children, roomCode, href, onBypass }: Props) {
 
       {/* Puntero al modo presencial */}
       <div className="relative z-10 text-center max-w-xs flex flex-col items-center gap-2">
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs leading-relaxed text-muted">
           ¿Están todos en el mismo lugar? Prueba el modo presencial, pensado
           para jugar desde el teléfono.
         </p>
         <Link
           href="/host"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-accent-400 hover:text-accent-300 transition"
+          className="btn-link inline-flex items-center gap-1.5 text-sm"
         >
           <Smartphone className="w-3.5 h-3.5" aria-hidden="true" />
           Ir al modo presencial
@@ -126,7 +124,7 @@ export function DesktopOnlyGate({ children, roomCode, href, onBypass }: Props) {
         <button
           type="button"
           onClick={handleBypass}
-          className="relative z-10 text-[11px] text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2 mt-1"
+          className="btn-link relative z-10 mt-1 text-xs"
         >
           Continuar de todos modos
         </button>

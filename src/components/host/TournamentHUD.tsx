@@ -36,39 +36,39 @@ export function TournamentHUD({
   void remainingTick;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-zinc-900/90 backdrop-blur-xl ring-1 ring-white/10 shadow-2xl">
+    <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-ink-850/90 backdrop-blur-xl ring-1 ring-line shadow-2xl">
       <div className="flex flex-col items-center px-2">
-        <span className="text-[9px] uppercase tracking-[0.25em] text-zinc-500 font-black">
+        <span className="eyebrow text-[11px]">
           Nivel
         </span>
-        <span className="text-lg font-black text-white leading-tight">
+        <span className="text-lg font-semibold text-primary leading-tight">
           {tournament.currentLevel + 1}
         </span>
       </div>
 
-      <div className="h-8 w-px bg-white/10" />
+      <div className="h-8 w-px bg-bone/[0.07]" />
 
       <div className="flex flex-col items-center px-2">
-        <span className="text-[9px] uppercase tracking-[0.25em] text-zinc-500 font-black">
+        <span className="eyebrow text-[11px]">
           Ciegas
         </span>
-        <span className="text-lg font-black text-accent-400 tabular-nums leading-tight">
+        <span className="text-lg font-semibold text-accent-400 tabular-nums leading-tight">
           {formatChips(level.sb)}/{formatChips(level.bb)}
         </span>
         {level.ante > 0 && (
-          <span className="text-[10px] text-zinc-500 tabular-nums leading-none">
+          <span className="text-[10px] text-muted tabular-nums leading-none">
             ante {formatChips(level.ante)}
           </span>
         )}
       </div>
 
-      <div className="h-8 w-px bg-white/10" />
+      <div className="h-8 w-px bg-bone/[0.07]" />
 
       <div className="flex items-center gap-1.5 px-2">
-        <Timer className={`w-4 h-4 ${tournament.paused ? "text-accent-400" : "text-zinc-400"}`} />
+        <Timer className={`w-4 h-4 ${tournament.paused ? "text-accent-400" : "text-secondary"}`} />
         <span
-          className={`text-lg font-black tabular-nums leading-tight ${
-            tournament.paused ? "text-accent-300" : "text-white"
+          className={`text-lg font-semibold tabular-nums leading-tight ${
+            tournament.paused ? "text-accent-300" : "text-primary"
           }`}
         >
           {formatDuration(remaining)}
@@ -77,13 +77,13 @@ export function TournamentHUD({
 
       {isAdmin && (
         <>
-          <div className="h-8 w-px bg-white/10" />
+          <div className="h-8 w-px bg-bone/[0.07]" />
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={onTogglePause}
               disabled={!tournament.started}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed ring-1 ring-white/10 text-zinc-200 transition btn-press"
+              className="p-2 rounded-xl bg-bone/[0.04] hover:bg-bone/[0.07] disabled:opacity-30 disabled:cursor-not-allowed ring-1 ring-line text-primary transition btn-press"
               title={tournament.paused ? "Reanudar" : "Pausar"}
             >
               {tournament.paused ? (
@@ -96,7 +96,7 @@ export function TournamentHUD({
               type="button"
               onClick={onAdvanceLevel}
               disabled={!tournament.started}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed ring-1 ring-white/10 text-zinc-200 transition btn-press"
+              className="p-2 rounded-xl bg-bone/[0.04] hover:bg-bone/[0.07] disabled:opacity-30 disabled:cursor-not-allowed ring-1 ring-line text-primary transition btn-press"
               title="Subir nivel"
             >
               <ChevronUp className="w-4 h-4" />
@@ -105,7 +105,7 @@ export function TournamentHUD({
         </>
       )}
       {!tournament.started && (
-        <span className="px-2 py-1 rounded-lg bg-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-400">
+        <span className="eyebrow text-[11px] px-2 py-1 rounded-lg bg-ink-800">
           Sin iniciar
         </span>
       )}

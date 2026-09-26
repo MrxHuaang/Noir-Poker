@@ -35,31 +35,31 @@ export function EquityPanel({
     .sort((a, b) => b.eq - a.eq);
 
   return (
-    <aside className="w-full lg:w-72 lg:shrink-0 flex flex-col gap-3 p-4 rounded-2xl bg-white/[0.03] ring-1 ring-white/10">
+    <aside className="w-full lg:w-72 lg:shrink-0 flex flex-col gap-3 p-4 rounded-2xl bg-white/[0.03] ring-1 ring-line">
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-zinc-100">
+        <div className="flex items-center gap-2 text-primary">
           <BarChart3 className="w-4 h-4 text-accent-300" />
           <h3 className="text-sm tracking-tight">Probabilidades</h3>
         </div>
         <button
           type="button"
           onClick={() => setHidden((v) => !v)}
-          className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-100 transition"
+          className="inline-flex items-center gap-1 text-[11px] text-secondary hover:text-primary transition"
           title={hidden ? "Mostrar" : "Ocultar"}
         >
           {hidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
           {hidden ? "Mostrar" : "Ocultar"}
         </button>
       </header>
-      <p className="text-[10px] text-zinc-500 leading-snug">
+      <p className="text-[10px] text-muted leading-snug">
         Vista privada del host. No mostrar a los jugadores.
       </p>
       {hidden ? (
-        <div className="text-xs text-zinc-500 py-4 text-center">
+        <div className="text-xs text-muted py-4 text-center">
           Información oculta.
         </div>
       ) : rows.length === 0 ? (
-        <div className="text-xs text-zinc-500 py-2">
+        <div className="text-xs text-muted py-2">
           Reparte una mano para ver equities.
         </div>
       ) : (
@@ -69,25 +69,25 @@ export function EquityPanel({
             return (
               <li
                 key={seat.player.id}
-                className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.02] ring-1 ring-white/5"
+                className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.02] ring-1 ring-line"
               >
                 <Avatar seed={seat.player.seed} size={28} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-zinc-100 truncate">
+                    <span className="text-xs text-primary truncate">
                       {seat.player.name}
                     </span>
-                    <span className="text-xs font-medium text-zinc-100 tabular-nums">
+                    <span className="text-xs font-medium text-primary tabular-nums">
                       {pct.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="mt-1 h-1 rounded-full bg-white/5 overflow-hidden">
+                  <div className="mt-1 h-1 rounded-full bg-bone/[0.04] overflow-hidden">
                     <div
                       className="h-full bg-accent-400/80"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <div className="flex items-center justify-between gap-2 mt-1 text-[10px] text-zinc-400">
+                  <div className="flex items-center justify-between gap-2 mt-1 text-[10px] text-secondary">
                     <span className="truncate">
                       {score ? categoryLabel(score) : "—"}
                     </span>

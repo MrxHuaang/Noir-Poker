@@ -1,14 +1,21 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Smartphone } from "lucide-react";
-import { BorderGlow } from "@/components/ui/BorderGlow";
-import { ACCENT_GLOW_COLORS, ACCENT_GLOW_HSL } from "@/lib/brand";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
+import { useAuth } from "@/hooks/useAuth";
 
+// A code can belong to any of the three backends. Online (server-backed)
+// rooms are checked first, then the legacy normal/tournament rooms, then the
+// presencial rooms.
 async function resolvePlayRoute(code: string): Promise<string | null> {
   const db = getDb();
+  const onlineSnap = await getDoc(doc(db, "onlineRooms", code));
+  if (onlineSnap.exists()) return `/play/online/${code}`;
   const normalSnap = await getDoc(doc(db, "normalRooms", code));
   if (normalSnap.exists()) return `/play/normal/${code}`;
   const presencialSnap = await getDoc(doc(db, "rooms", code));
@@ -23,9 +30,31 @@ function JoinInner() {
   const [code, setCode] = useState(codeFromUrl);
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(!!codeFromUrl);
+  const scope = useRef<HTMLDivElement>(null);
+  // Firestore rules require a signed-in reader: resolve only once the
+  // (anonymous or real) session exists.
+  const { uid } = useAuth();
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.from(".rise", {
+          opacity: 0,
+          y: 16,
+          duration: 0.6,
+          ease: "power3.out",
+          stagger: 0.07,
+          clearProps: "all",
+        });
+      });
+      return () => mm.revert();
+    },
+    { scope, dependencies: [] },
+  );
 
   useEffect(() => {
-    if (!codeFromUrl) return;
+    if (!codeFromUrl || !uid) return;
     resolvePlayRoute(codeFromUrl)
       .then((route) => {
         if (route) {
@@ -36,13 +65,17 @@ function JoinInner() {
       })
       .catch(() => setError("No se pudo verificar la sala. Inténtalo de nuevo."))
       .finally(() => setChecking(false));
-  }, [codeFromUrl, router]);
+  }, [codeFromUrl, router, uid]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const c = code.trim().toUpperCase();
     setError("");
-    if (c.length < 4 || c.length > 6) return;
+    if (c.length < 4 || c.length > 8) return;
+    if (!uid) {
+      setError("Conectando, inténtalo en un momento.");
+      return;
+    }
     setChecking(true);
     resolvePlayRoute(c)
       .then((route) => {
@@ -57,64 +90,99 @@ function JoinInner() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto px-4 py-16 flex flex-col items-center gap-6">
-      <Smartphone className="w-10 h-10 text-zinc-400" />
-      <h1 className="text-2xl tracking-tight text-zinc-100">Unirse a sala</h1>
-      <p className="text-sm text-muted text-center">
-        Ingresa el código de sala que te compartieron.
-      </p>
-      <BorderGlow
-        className="w-full lg-blur"
-        edgeSensitivity={26}
-        glowColor={ACCENT_GLOW_HSL}
-        backgroundColor="var(--lg-bg)"
-        borderRadius={22}
-        glowRadius={32}
-        glowIntensity={1}
-        coneSpread={24}
-        animated={false}
-        colors={ACCENT_GLOW_COLORS}
-        fillOpacity={0.48}
-      >
-        <form onSubmit={submit} className="flex w-full flex-col gap-3 p-5">
-          <input
-            type="text"
-            value={code}
-            onChange={(e) => {
-              setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
-              setError("");
-            }}
-            placeholder="CÓDIGO"
-            maxLength={6}
-            autoFocus
-            aria-invalid={!!error}
-            aria-describedby={error ? "join-code-error" : undefined}
-            className={`w-full rounded-2xl bg-black/45 px-5 py-4 text-center text-2xl uppercase tracking-[0.4em] text-zinc-100 outline-none ring-1 focus:ring-accent-500/40 ${
-              error ? "ring-rose-400/70" : "ring-white/10"
-            }`}
-          />
-          {error ? (
-            <p id="join-code-error" className="text-sm text-rose-300 text-center">
-              {error}
-            </p>
-          ) : null}
-          <button
-            type="submit"
-            disabled={code.length < 4 || checking}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent-700/70 px-5 py-3 font-medium text-accent-100 transition hover:bg-accent-600/75 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10"
-          >
-            {checking ? "Verificando..." : "Entrar"}
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
-      </BorderGlow>
+    <div ref={scope} className="relative z-[2] mx-auto w-full max-w-6xl px-5 pt-14 pb-24 sm:px-8 sm:pt-20">
+      <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-start lg:gap-8">
+        <header className="lg:col-span-6">
+          <p className="rise eyebrow mb-5 flex items-center gap-2">
+            <span className="suit suit-red text-sm" aria-hidden>
+              ♥
+            </span>
+            Unirse a una sala
+          </p>
+          <h1 className="rise display text-5xl text-primary sm:text-6xl">
+            Entra con <em className="text-accent-200">el código</em>.
+          </h1>
+          <p className="rise mt-5 max-w-[44ch] text-[15px] leading-relaxed text-secondary">
+            Escribe el código que te compartieron. Te llevamos a la mesa correcta, sea presencial,
+            online o de torneo.
+          </p>
+        </header>
+
+        <div className="rise lg:col-span-5 lg:col-start-8">
+          <form onSubmit={submit} className="sheet p-5 sm:p-7">
+            <label htmlFor="join-code" className="eyebrow">
+              Código de sala
+            </label>
+            <input
+              id="join-code"
+              type="text"
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
+                setError("");
+              }}
+              placeholder="Escríbelo aquí"
+              maxLength={6}
+              autoFocus
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              aria-invalid={!!error}
+              aria-describedby={error ? "join-code-error" : undefined}
+              className={`field numeric mt-2 h-16! text-center text-3xl! uppercase tracking-[0.3em] indent-[0.3em] placeholder:font-sans placeholder:text-base placeholder:normal-case placeholder:tracking-normal ${
+                error ? "border-rose-400/70!" : ""
+              }`}
+            />
+            {error ? (
+              <p id="join-code-error" role="alert" className="mt-3 text-sm text-rose-300">
+                {error}
+              </p>
+            ) : null}
+            <button
+              type="submit"
+              disabled={code.length < 4 || checking}
+              className="btn-primary mt-5 w-full"
+            >
+              {checking ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Verificando…
+                </>
+              ) : (
+                <>
+                  Entrar
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <p className="mt-5 text-sm leading-relaxed text-muted">
+            ¿Sin código?{" "}
+            <Link href="/lobby" className="btn-link">
+              Mira las mesas abiertas
+            </Link>{" "}
+            o{" "}
+            <Link href="/jugar" className="btn-link">
+              abre la tuya
+            </Link>
+            .
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function JoinPage() {
   return (
-    <Suspense fallback={<div className="text-center py-10 text-zinc-500 text-sm">Cargando…</div>}>
+    <Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-6xl px-5 pt-14 sm:px-8 sm:pt-20">
+          <p className="eyebrow">Cargando…</p>
+        </div>
+      }
+    >
       <JoinInner />
     </Suspense>
   );

@@ -31,17 +31,22 @@ Multi-device Texas Hold'em simulator. Big screen runs the table, phones see priv
 
 ## Color system (brand accent)
 
-The brand accent is **violet (hue ~290)**. There is ONE knob per layer — never
-hardcode amber/gold/green/blue chrome again.
+The visual language is **"Noir card room"** (see `DESIGN.md`): warm ink
+neutrals (`ink-*`, `bone`, `line`) with a muted **violet ink accent (hue ~300)**
+used sparingly for state and emphasis. There is ONE knob per layer — never
+hardcode amber/gold/green/blue chrome again, and never bring back glowing
+borders, gradient washes or `uppercase tracking-[...]` micro-labels.
 
 - **Tailwind classes** → use `accent-*` utilities ONLY: `text-accent-300`,
   `bg-accent-500/10`, `ring-accent-400/40`, `shadow-accent-700/20`, etc. The
   full `--color-accent-50…950` scale lives in `globals.css` (`@theme inline`).
   Do NOT use `amber-*`, `emerald-*` (for chrome), `yellow-*`, or raw hue values.
-- **JS / canvas / inline styles** (BorderGlow `colors`/`glowColor`, Grainient,
-  confetti, card-back gradients) → import from `src/lib/brand.ts`
-  (`ACCENT`, `ACCENT_GLOW_COLORS`, `ACCENT_GLOW_HSL`, `accentAlpha()`). Never
-  inline a hex/rgba/HSL accent literal in a component.
+- **JS / canvas / inline styles** (confetti, card-back gradients, chip colours)
+  → import from `src/lib/brand.ts` (`ACCENT`, `accentAlpha()`). Never inline a
+  hex/rgba/HSL accent literal in a component.
+- **Component classes** (`.btn-primary`, `.eyebrow`, `.display`, `.field`,
+  `.sheet`, `glass-*`) live in `@layer components` in `globals.css`, so Tailwind
+  utilities on the same element still win (`btn-primary h-9 px-4` works).
 - **To re-skin the whole app**: change the oklch hue in `globals.css` `@theme`
   AND the hex ramp in `src/lib/brand.ts`. Those two files are the single source
   of truth and MUST stay in sync.

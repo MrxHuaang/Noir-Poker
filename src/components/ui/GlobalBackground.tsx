@@ -1,100 +1,47 @@
 "use client";
+// Static backdrop for the app shell pages: a warm lamp over a dark card room
+// and the rail of a table drawn as two hairline ellipses at the bottom of the
+// viewport. No shader, no animation: cheap on phones and quiet behind content.
+// Game tables render their own felt, so they get nothing here.
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
-import Grainient from "./Grainient";
-import { ACCENT_GRAINIENT } from "@/lib/brand";
 
 const GAME_PREFIXES = ["/host", "/admin"];
-// Lobby pages under /play that are NOT game tables (should show background)
+// Pages under /play that are NOT game tables (they keep the backdrop).
 const PLAY_LOBBY_PAGES = ["/play/online"];
-const BACKGROUND_OVERLAY =
-  "radial-gradient(ellipse 100% 72% at 50% 44%, transparent 0%, rgba(8,6,14,0.58) 58%, rgba(6,5,11,0.9) 100%), linear-gradient(180deg, rgba(6,5,11,0.56) 0%, transparent 22%, transparent 78%, rgba(6,5,11,0.64) 100%)";
-
-type BackgroundMode = "live" | "mobile-live" | "mobile-static";
-
-function pickBackgroundMode() {
-  if (typeof window === "undefined") return "live" as BackgroundMode;
-
-  const isMobile = window.innerWidth < 640;
-  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const saveData = "connection" in navigator
-    && "saveData" in (navigator as Navigator & { connection?: { saveData?: boolean } }).connection!
-    && Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData);
-  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
-  const cores = navigator.hardwareConcurrency ?? 8;
-  const lowEndDevice = memory <= 4 || cores <= 4;
-
-  if (!isMobile) return "live";
-  if (prefersReducedMotion || saveData || lowEndDevice) return "mobile-static";
-  return "mobile-live";
-}
 
 export function GlobalBackground() {
   const pathname = usePathname();
-  const [mode, setMode] = useState<BackgroundMode>("live");
-
-  useEffect(() => {
-    const check = () => setMode(pickBackgroundMode());
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
   const isPlayLobby = PLAY_LOBBY_PAGES.some((p) => pathname === p);
   const isGamePage =
     !isPlayLobby &&
     (GAME_PREFIXES.some((p) => pathname.startsWith(p)) || pathname.startsWith("/play"));
   if (isGamePage) return null;
 
-  const showLive = mode === "live" || mode === "mobile-live";
-
   return (
-    <div
-      className="pointer-events-none fixed inset-0 z-[1] overflow-hidden"
-      aria-hidden
-    >
-      {showLive ? (
-        <div className="absolute inset-0">
-          <Grainient
-            color1={ACCENT_GRAINIENT.color1}
-            color2={ACCENT_GRAINIENT.color2}
-            color3={ACCENT_GRAINIENT.color3}
-            timeSpeed={mode === "mobile-live" ? 0.16 : 0.22}
-            colorBalance={0.05}
-            warpStrength={mode === "mobile-live" ? 0.55 : 0.9}
-            warpFrequency={mode === "mobile-live" ? 3 : 4}
-            warpSpeed={mode === "mobile-live" ? 1.2 : 1.8}
-            warpAmplitude={mode === "mobile-live" ? 72 : 55}
-            blendAngle={10}
-            blendSoftness={0.1}
-            rotationAmount={mode === "mobile-live" ? 220 : 340}
-            noiseScale={mode === "mobile-live" ? 1.5 : 2}
-            grainAmount={mode === "mobile-live" ? 0.12 : 0.18}
-            grainScale={1.2}
-            grainAnimated={false}
-            contrast={1.4}
-            gamma={0.9}
-            saturation={mode === "mobile-live" ? 0.48 : 0.55}
-            centerX={0}
-            centerY={0}
-            zoom={mode === "mobile-live" ? 0.94 : 0.88}
-            maxDpr={mode === "mobile-live" ? 1.2 : 2}
-            targetFps={mode === "mobile-live" ? 24 : undefined}
-          />
-        </div>
-      ) : (
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse 140% 92% at 50% 10%, rgba(167,139,250,0.18) 0%, rgba(61,42,107,0.14) 28%, rgba(13,10,18,0.94) 74%, rgba(9,7,16,1) 100%)",
-          }}
-        />
-      )}
+    <div className="pointer-events-none fixed inset-0 z-[1] overflow-hidden" aria-hidden>
+      {/* Lamp: a single warm pool of light from above. */}
+      <div
+        className="absolute inset-x-0 -top-[20vh] h-[80vh]"
+        style={{
+          background:
+            "radial-gradient(ellipse 50% 60% at 50% 30%, oklch(0.93 0.035 85 / 0.07) 0%, oklch(0.93 0.035 85 / 0.025) 45%, transparent 75%)",
+        }}
+      />
+      {/* Table rail, seen from a chair. */}
+      <svg
+        className="absolute left-1/2 -translate-x-1/2 bottom-[-58vh] w-[180vw] max-w-[2600px] h-[100vh]"
+        viewBox="0 0 1000 560"
+        preserveAspectRatio="none"
+      >
+        <ellipse cx="500" cy="280" rx="490" ry="270" fill="none" stroke="oklch(0.93 0.012 85 / 0.07)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        <ellipse cx="500" cy="280" rx="440" ry="232" fill="oklch(0.2 0.02 160 / 0.10)" stroke="oklch(0.93 0.012 85 / 0.045)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {/* Vignette keeps the edges dark so content stays the brightest thing. */}
       <div
         className="absolute inset-0"
         style={{
-          background: BACKGROUND_OVERLAY,
+          background:
+            "radial-gradient(ellipse 110% 85% at 50% 35%, transparent 50%, oklch(0.1 0.005 60 / 0.7) 100%)",
         }}
       />
     </div>

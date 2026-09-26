@@ -18,7 +18,7 @@ export function CardBackPicker({ value, onChange }: Props) {
               type="button"
               onClick={() => onChange(back.id)}
               className={`relative w-full aspect-[2/3] rounded-lg ring-1 transition overflow-hidden ${
-                selected ? "ring-accent-400/70" : "ring-white/10 hover:ring-white/30"
+                selected ? "ring-accent-400/70" : "ring-line hover:ring-white/30"
               }`}
               style={{ background: back.background }}
               title={back.label}

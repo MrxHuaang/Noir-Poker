@@ -2,8 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Loader2, UserRound } from "lucide-react";
-import { BorderGlow } from "@/components/ui/BorderGlow";
+import { AlertCircle, ArrowRight, Loader2, UserRound } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 function GoogleIcon() {
@@ -98,106 +97,103 @@ function LoginPageInner() {
       if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
         setError(null);
       } else {
-        setError("No se pudo iniciar sesion. Intenta de nuevo.");
+        setError("No se pudo iniciar sesión. Intenta de nuevo.");
       }
     } finally {
       setBusy(null);
     }
   }
 
+  const shownError = error ?? authError;
+
   return (
-    <div className="relative isolate min-h-full w-full flex items-center justify-center px-4 py-12">
-      <div className="relative z-[2] w-full max-w-md">
-        <BorderGlow
-          className="w-full lg-blur"
-          edgeSensitivity={26}
-          glowColor="0 0 82"
-          backgroundColor="var(--lg-bg)"
-          borderRadius={24}
-          glowRadius={36}
-          glowIntensity={1.05}
-          coneSpread={22}
-          animated
-          colors={["#ededf2", "#a0a0a8", "#52525b"]}
-          fillOpacity={0.4}
+    <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
+      <div className="grid grid-cols-1 gap-12 pt-14 pb-24 sm:pt-20 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-12 lg:items-center lg:gap-8 lg:pt-16 lg:pb-16">
+        {/* Declaracion editorial */}
+        <section className="lg:col-span-7 lg:pr-10">
+          <p className="eyebrow mb-6 flex items-center gap-2">
+            <span className="suit text-sm" aria-hidden>
+              ♣
+            </span>
+            Cuenta
+          </p>
+          <h1 className="display text-5xl text-primary sm:text-6xl lg:text-7xl">
+            Inicia sesión y la mesa <em className="text-accent-200">te recuerda.</em>
+          </h1>
+          <p className="mt-7 max-w-[46ch] text-base leading-relaxed text-secondary">
+            Guarda tu progreso, monedas y rango. Tu partida como invitado se conserva al entrar.
+          </p>
+          <p className="eyebrow mt-8">Monedas  ·  Rango por experiencia  ·  Historial de partidas</p>
+        </section>
+
+        {/* Acciones */}
+        <section
+          aria-label="Opciones de inicio de sesión"
+          className="border-t border-line pt-10 lg:col-span-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-12"
         >
-          <div className="flex flex-col gap-6 p-7 sm:p-9">
-            <header className="flex flex-col gap-2 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight text-primary">
-                Inicia sesion
-              </h1>
-              <p className="text-sm text-muted">
-                Guarda tu progreso, monedas y rango. Tu partida como invitado se
-                conserva al entrar.
+          {alreadyLoggedIn ? (
+            <div className="flex max-w-sm flex-col gap-5">
+              <p className="eyebrow">Sesión activa</p>
+              <p className="font-display text-2xl leading-snug text-primary">
+                Ya tienes una sesión abierta.
               </p>
-            </header>
+              <Link href={next} className="btn-primary w-full">
+                {next === "/perfil" ? "Ver mi perfil" : "Continuar"}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          ) : (
+            <div className="flex max-w-sm flex-col gap-3">
+              <p className="eyebrow mb-2">Elige cómo entrar</p>
 
-            {alreadyLoggedIn ? (
-              <div className="flex flex-col gap-3">
-                <p className="text-center text-sm text-secondary">
-                  Ya tienes una sesion activa.
+              <button
+                type="button"
+                onClick={() => handle("google")}
+                disabled={busy !== null}
+                aria-busy={busy === "google"}
+                className="btn-primary w-full"
+              >
+                {busy === "google" ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleIcon />}
+                Continuar con Google
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handle("github")}
+                disabled={busy !== null}
+                aria-busy={busy === "github"}
+                className="btn-quiet w-full"
+              >
+                {busy === "github" ? <Loader2 className="h-5 w-5 animate-spin" /> : <GithubMark />}
+                Continuar con GitHub
+              </button>
+
+              {shownError && (
+                <p
+                  role="alert"
+                  className="mt-1 flex items-start gap-2 border-l-2 border-rose-400/70 py-1 pl-3 text-sm leading-snug text-rose-300"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  {shownError}
                 </p>
-                <Link
-                  href={next}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 transition btn-press"
-                >
-                  {next === "/perfil" ? "Ver mi perfil" : "Continuar"}
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+              )}
+
+              <div className="flex items-center gap-3 py-3" aria-hidden>
+                <span className="rule flex-1" />
+                <span className="eyebrow">o</span>
+                <span className="rule flex-1" />
               </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => handle("google")}
-                  disabled={busy !== null}
-                  className="inline-flex items-center justify-center gap-3 px-5 py-3 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-zinc-200 transition btn-press disabled:opacity-60"
-                >
-                  {busy === "google" ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <GoogleIcon />
-                  )}
-                  Continuar con Google
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => handle("github")}
-                  disabled={busy !== null}
-                  className="inline-flex items-center justify-center gap-3 px-5 py-3 rounded-2xl bg-white/[0.06] text-zinc-100 ring-1 ring-white/15 font-semibold text-sm hover:bg-white/[0.12] hover:ring-white/25 transition btn-press disabled:opacity-60"
-                >
-                  {busy === "github" ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <GithubMark />
-                  )}
-                  Continuar con GitHub
-                </button>
-
-                {(error || authError) && (
-                  <p className="text-center text-xs text-rose-400/90">{error ?? authError}</p>
-                )}
-
-                <div className="flex items-center gap-3 py-1">
-                  <span className="h-px flex-1 bg-white/10" />
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-600">
-                    o
-                  </span>
-                  <span className="h-px flex-1 bg-white/10" />
-                </div>
-
-                <Link
-                  href={rawNext ? next : "/"}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-zinc-400 hover:text-zinc-200 ring-1 ring-white/10 hover:ring-white/20 bg-white/[0.02] hover:bg-white/[0.05] text-sm font-semibold transition btn-press"
-                >
-                  <UserRound className="w-4 h-4" />
-                  Continuar como invitado
-                </Link>
-              </div>
-            )}
-          </div>
-        </BorderGlow>
+              <Link
+                href={rawNext ? next : "/"}
+                className="btn-link inline-flex items-center gap-2 self-start text-sm"
+              >
+                <UserRound className="h-4 w-4" aria-hidden />
+                Continuar como invitado
+              </Link>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

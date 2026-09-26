@@ -31,7 +31,7 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = false, onClo
           <button
             type="button"
             onClick={onClose}
-            className="glass-icon-button btn-press absolute right-2.5 top-2.5 rounded-full p-1.5 text-zinc-400"
+            className="glass-icon-button btn-press absolute right-2.5 top-2.5 rounded-full p-1.5 text-secondary"
             aria-label="Cerrar"
           >
             <X className="h-4 w-4" />
@@ -42,30 +42,30 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = false, onClo
           <div className="glass-icon-button rounded-full p-1.5 text-accent-300">
             <Zap className="h-3.5 w-3.5" />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-accent-300">
+          <span className="eyebrow text-[11px] text-accent-300">
             All-in
           </span>
         </div>
 
         <div className="space-y-1">
-          <h3 className="text-sm font-black tracking-tight text-white">Correr el board</h3>
-          <p className="text-[11px] leading-relaxed text-zinc-400">
+          <h3 className="text-sm font-semibold tracking-tight text-primary">Correr el board</h3>
+          <p className="text-[11px] leading-relaxed text-secondary">
             Elige cuantas corridas quieres antes de cerrar la mano.
           </p>
         </div>
 
         {Object.keys(equity).length > 0 && (
           <div className="glass rounded-2xl p-2.5">
-            <div className="mb-2 text-[9px] font-black uppercase tracking-[0.22em] text-zinc-500">
+            <div className="eyebrow text-[11px] mb-2">
               Equity
             </div>
             <div className="grid gap-1.5">
               {neg.playerIds.map((id) => (
                 <div key={id} className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className="min-w-0 truncate text-zinc-300">
+                  <span className="min-w-0 truncate text-secondary">
                     {seatsById.get(id)?.name ?? id}
                   </span>
-                  <span className="font-mono font-black text-accent-200 tabular-nums">
+                  <span className="font-mono font-semibold text-accent-200 tabular-nums">
                     {equity[id] ?? 0}%
                   </span>
                 </div>
@@ -87,23 +87,23 @@ export function AllInVoteModal({ gameState, selfUid, onVote, open = false, onClo
                     : "glass-button glass-button-ghost"
                 }`}
               >
-                <span className="block text-base font-black text-inherit">{n}x</span>
-                <span className="block text-[8px] font-black uppercase tracking-[0.18em] opacity-70">
+                <span className="block text-base font-semibold text-inherit">{n}x</span>
+                <span className="eyebrow text-[11px] block opacity-70">
                   {n === 1 ? "Normal" : "Runs"}
                 </span>
               </button>
             ))}
           </div>
         ) : (
-          <div className="glass rounded-2xl px-3 py-2 text-center text-xs text-zinc-400">
+          <div className="glass rounded-2xl px-3 py-2 text-center text-xs text-secondary">
             Solo los jugadores all-in pueden votar
           </div>
         )}
 
         <div className="glass rounded-2xl p-2.5">
-          <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+          <div className="eyebrow text-[11px] mb-2 flex items-center justify-between gap-2">
             <span>Consenso</span>
-            <span className="font-mono text-zinc-400">
+            <span className="font-mono text-secondary">
               {neg.agreedN ? `${neg.agreedN}x` : `${totalVoted}/${total}`}
             </span>
           </div>

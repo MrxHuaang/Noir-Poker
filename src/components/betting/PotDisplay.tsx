@@ -13,7 +13,7 @@ export function PotDisplay({
 }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+      <span className="eyebrow text-[11px]">
         Bote
       </span>
       <span className="text-2xl font-semibold text-accent-200 tabular-nums">
@@ -24,7 +24,7 @@ export function PotDisplay({
           {sidePots.map((sp, i) => (
             <span
               key={i}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 ring-1 ring-white/10 text-zinc-400 tabular-nums"
+              className="text-[10px] px-2 py-0.5 rounded-full bg-bone/[0.04] ring-1 ring-line text-secondary tabular-nums"
             >
               Bote {i + 1}: {formatChips(sp.amount)}
             </span>
@@ -32,7 +32,7 @@ export function PotDisplay({
         </div>
       )}
       {currentBet > 0 && (
-        <span className="text-[11px] text-zinc-500">
+        <span className="text-[11px] text-muted">
           Apuesta actual: {formatChips(currentBet)}
         </span>
       )}
