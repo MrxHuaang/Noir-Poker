@@ -146,7 +146,64 @@ describe("resolveRunItN", () => {
 
     const result = resolveRunItN(s, holeCards, 1);
 
-    expect(result.runs[0].winners).toEqual(["a", "b"]);
+    // Winner order follows the button (odd chips go left of it first).
+    expect([...result.runs[0].winners].sort()).toEqual(["a", "b"]);
     expect(result.winningsByPlayer).toEqual({ a: 51, b: 51 });
   });
+
+  it("pays chips bet on the all-in street (stale betting.sidePots regression)", () => {
+    // Heads-up: limp/check preflop (10 + 10), flop all-in 990 + call 990.
+    // betting.sidePots was computed when the flop was dealt ([20]) and never
+    // refreshed, so only 20 of the 2000 chips used to be paid.
+    const seats = [seat("a", 1000), seat("b", 1000)];
+    const deck = [card("7", "S"), card("5", "H"), card("8", "S"), card("9", "S")];
+    const s: NormalGameState = {
+      ...state(deck),
+      seats,
+      community: [card("2", "C"), card("3", "C"), card("4", "D")],
+      street: "flop",
+      phase: "flop",
+      betting: {
+        ...state(deck).betting,
+        pot: 2000,
+        sidePots: [{ amount: 20, eligibleIds: ["a", "b"] }],
+      },
+    };
+    const holeCards: Record<string, [Card, Card]> = {
+      a: [card("A", "S"), card("A", "D")],
+      b: [card("K", "S"), card("K", "D")],
+    };
+
+    const result = resolveRunItN(s, holeCards, 1);
+
+    expect(result.perRunPot).toEqual([2000]);
+    expect(Object.values(result.winningsByPlayer).reduce((sum, n) => sum + n, 0)).toBe(2000);
+    expect(result.winningsByPlayer.a).toBe(2000);
+    expect(result.winners).toEqual(["a"]);
+  });
+
+  it("returns an uncalled all-in excess to its owner and never counts it as a win", () => {
+    // a shoves 1000, b calls all-in for 500 and wins: a gets its 500 back.
+    const seats = [seat("a", 1000), seat("b", 500)];
+    const deck = [
+      card("7", "S"), card("2", "C"), card("3", "C"), card("4", "D"),
+      card("8", "S"), card("5", "H"), card("9", "H"), card("9", "S"),
+    ];
+    const s: NormalGameState = {
+      ...state(deck),
+      seats,
+      betting: { ...state(deck).betting, pot: 1500, sidePots: [] },
+    };
+    const holeCards: Record<string, [Card, Card]> = {
+      a: [card("Q", "S"), card("Q", "D")],
+      b: [card("A", "H"), card("A", "D")],
+    };
+
+    const result = resolveRunItN(s, holeCards, 1);
+
+    expect(result.winningsByPlayer).toEqual({ a: 500, b: 1000 });
+    expect(result.winners).toEqual(["b"]);
+    expect(result.runs[0].winners).toEqual(["b"]);
+  });
 });
+

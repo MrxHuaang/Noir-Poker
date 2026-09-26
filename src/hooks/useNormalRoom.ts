@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   subscribeNormalRoom,
   subscribeNormalLobby,
+  subscribeNormalLobbyState,
   subscribeNormalHole,
   subscribeOpenRooms,
   subscribeQueue,
@@ -80,6 +81,64 @@ export function useNormalLobby(code: string | null): NormalLobbyPlayer[] {
     return subscribeNormalLobby(code, setList);
   }, [code]);
   return code ? list : [];
+}
+
+const NO_PLAYERS: NormalLobbyPlayer[] = [];
+
+// Lobby with a readiness flag, for the host. `ready` is true only while the
+// list reflects a successful snapshot: before the first one and after a
+// listener error it is false (the last good list is kept) and the listener is
+// retried with backoff. The host must not read "missing from the lobby" as
+// "left the table" unless `ready` is true.
+export function useNormalLobbyState(
+  code: string | null,
+): { players: NormalLobbyPlayer[]; ready: boolean } {
+  const [state, setState] = useState<{
+    code: string | null;
+    players: NormalLobbyPlayer[];
+    ready: boolean;
+  }>({ code: null, players: [], ready: false });
+  const retryRef = useRef(0);
+
+  useEffect(() => {
+    if (!code) return;
+    retryRef.current = 0;
+    let unsub: (() => void) | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+
+    function connect() {
+      if (cancelled) return;
+      unsub = subscribeNormalLobbyState(
+        code!,
+        (players) => {
+          if (cancelled) return;
+          retryRef.current = 0;
+          setState({ code, players, ready: true });
+        },
+        () => {
+          if (cancelled) return;
+          setState((prev) => ({ ...prev, ready: false }));
+          const delay = RETRY_DELAYS[Math.min(retryRef.current, RETRY_DELAYS.length - 1)];
+          retryRef.current++;
+          timer = setTimeout(() => {
+            unsub?.();
+            connect();
+          }, delay);
+        },
+      );
+    }
+
+    connect();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      unsub?.();
+    };
+  }, [code]);
+
+  if (!code || state.code !== code) return { players: NO_PLAYERS, ready: false };
+  return { players: state.players, ready: state.ready };
 }
 
 // Lobby: live public rooms. `ready` is false until the first snapshot arrives

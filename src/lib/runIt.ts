@@ -1,6 +1,6 @@
-import type { NormalGameState, SidePot } from "./betting";
-import { computeSidePots } from "./betting";
-import { bestHand, categoryFor, compareScore, type Category, type Score } from "./handEval";
+import type { NormalGameState } from "./betting";
+import { bestHand, categoryFor, type Category, type Score } from "./handEval";
+import { awardPots, buildPotTiers, isInHand, orderFromButton } from "./showdownPayout";
 import type { Card } from "./poker";
 
 export type RunStreetStep = {
@@ -120,41 +120,22 @@ function dealRunout(
   return { community, deck: nextDeck, burns: nextBurns, steps };
 }
 
-function bestIds(scores: Record<string, Score>, ids: string[]): string[] {
-  const scoredIds = ids.filter((id) => scores[id]);
-  if (scoredIds.length <= 1) return scoredIds;
-  let best = scores[scoredIds[0]];
-  for (const id of scoredIds) {
-    if (compareScore(scores[id], best) > 0) best = scores[id];
-  }
-  return scoredIds.filter((id) => compareScore(scores[id], best) === 0);
-}
-
-function splitAmount(amount: number, winners: string[]): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (winners.length === 0 || amount <= 0) return out;
-  const share = Math.floor(amount / winners.length);
-  const remainder = amount - share * winners.length;
-  winners.forEach((id, idx) => {
-    out[id] = share + (idx === 0 ? remainder : 0);
-  });
-  return out;
-}
-
 export function resolveRunItN(
   state: NormalGameState,
   holeCards: Record<string, [Card, Card]>,
   requestedRunCount: number,
 ): RunItResolution {
   const runCount = clampRunCount(requestedRunCount, state);
-  const pots = state.betting.sidePots.length > 0
-    ? state.betting.sidePots
-    : computeSidePots(state.seats, state.betting.pot);
-  const liveIds = state.seats
-    .filter((s) => s.status !== "folded" && s.status !== "out")
-    .map((s) => s.id);
+  // Always rebuild the pots from each seat's cumulative commitment:
+  // betting.sidePots is only refreshed when a street advances, so it misses
+  // every chip bet on the street where the all-in happened.
+  const tiers = buildPotTiers(state.seats);
+  const order = orderFromButton(state.seats, state.betting.dealerIdx);
+  const liveIds = state.seats.filter(isInHand).map((s) => s.id);
   const runs: RunItRun[] = [];
   const winningsByPlayer: Record<string, number> = {};
+  // Winnings excluding uncalled chips handed back to their owner.
+  const wonByPlayer: Record<string, number> = {};
   const perRunPot = Array.from({ length: runCount }, () => 0);
   let deck = [...state.deck];
   let burns = [...state.burns];
@@ -170,48 +151,42 @@ export function resolveRunItN(
       if (hole) scores[id] = bestHand([...hole, ...dealt.community]);
     }
 
+    const settlement = awardPots(tiers, scores, order, (tier) => {
+      const baseShare = Math.floor(tier.amount / runCount);
+      return runIdx === runCount - 1 ? tier.amount - baseShare * (runCount - 1) : baseShare;
+    });
+
     const potResults: RunPotResult[] = [];
-    const runWinnerSet = new Set<string>();
     let bestRunCategory: Category = 0;
-
-    pots.forEach((pot: SidePot, potIndex) => {
-      const baseShare = Math.floor(pot.amount / runCount);
-      const runPotAmount =
-        runIdx === runCount - 1 ? pot.amount - baseShare * (runCount - 1) : baseShare;
-      perRunPot[runIdx] += runPotAmount;
-
-      const eligible = pot.eligibleIds.filter((id) => liveIds.includes(id));
-      const winnerIds = bestIds(scores, eligible);
-      const finalWinnerIds = winnerIds.length > 0 ? winnerIds : eligible.slice(0, 1);
-      for (const id of finalWinnerIds) {
-        runWinnerSet.add(id);
-        const category = scores[id] ? categoryFor(scores[id]) : 0;
-        if (category > bestRunCategory) bestRunCategory = category;
-      }
-
-      const payouts = splitAmount(runPotAmount, finalWinnerIds);
-      for (const [id, amount] of Object.entries(payouts)) {
+    for (const award of settlement.awards) {
+      perRunPot[runIdx] += award.amount;
+      for (const [id, amount] of Object.entries(award.payouts)) {
         winningsByPlayer[id] = (winningsByPlayer[id] ?? 0) + amount;
+        if (!award.refund) wonByPlayer[id] = (wonByPlayer[id] ?? 0) + amount;
       }
       potResults.push({
-        potIndex,
-        amount: runPotAmount,
-        eligibleIds: eligible,
-        winnerIds: finalWinnerIds,
+        potIndex: award.potIndex,
+        amount: award.amount,
+        eligibleIds: award.eligibleIds,
+        winnerIds: award.winnerIds,
       });
-    });
+    }
+    for (const id of settlement.winners) {
+      const category = scores[id] ? categoryFor(scores[id]) : 0;
+      if (category > bestRunCategory) bestRunCategory = category;
+    }
 
     runs.push({
       community: dealt.community,
-      winners: [...runWinnerSet],
+      winners: settlement.winners,
       category: bestRunCategory,
       potResults,
       steps: dealt.steps,
     });
   }
 
-  const maxWon = Math.max(0, ...Object.values(winningsByPlayer));
-  const winners = Object.entries(winningsByPlayer)
+  const maxWon = Math.max(0, ...Object.values(wonByPlayer));
+  const winners = Object.entries(wonByPlayer)
     .filter(([, amount]) => amount === maxWon && amount > 0)
     .map(([id]) => id);
 

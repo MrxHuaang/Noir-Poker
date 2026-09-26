@@ -39,6 +39,10 @@ export type NormalSeat = {
   turnDeadline: number | null;
   // Physical slot preference (0-8 around the ellipse, independent of view rotation).
   preferredSlot?: number;
+  // joinedAt of the lobby entry this seat was built from. A lobby entry with a
+  // different joinedAt is a NEW approval (the player cashed out and came back):
+  // the old seat must never be resurrected with its old chips.
+  joinedAt?: number;
 };
 
 export type BettingRound = {
@@ -312,7 +316,10 @@ export function startHand(
     betting: {
       pot,
       sidePots: [],
-      currentBet: bbAmt,
+      // The full big blind is the bet to match even when the BB is all-in for
+      // less: using bbAmt let everyone limp for the short amount and left the
+      // SB with a negative amount to call (no check/call/fold offered).
+      currentBet: bb,
       minRaise: bb,
       bigBlind: bb,
       toActId: resolvedToActId,
@@ -353,7 +360,7 @@ export function handleAction(
       break;
 
     case "call": {
-      const toCall = Math.min(bet.currentBet - seat.bet, seat.chips);
+      const toCall = Math.min(Math.max(0, bet.currentBet - seat.bet), seat.chips);
       seat.chips -= toCall;
       seat.bet += toCall;
       seat.totalBet += toCall;
@@ -451,7 +458,8 @@ function advanceAction(state: NormalGameState): NormalGameState {
   // If the round is complete and 1 or fewer players can still act, betting is permanently closed
   if (roundDone && active.length <= 1) {
     if (activePlayers(seats).length <= 1) {
-      return { ...state, phase: "showdown" };
+      // Nobody acts at showdown: a stale toActId would get a turn clock.
+      return { ...state, phase: "showdown", betting: { ...betting, toActId: null } };
     }
     // All players all-in or only one active with chips: close action for all-in runout
     return {
@@ -530,7 +538,12 @@ function advanceStreet(state: NormalGameState): NormalGameState {
     newPhase = "river";
   } else {
     // River done → showdown
-    return { ...state, seats: newSeats, phase: "showdown" };
+    return {
+      ...state,
+      seats: newSeats,
+      phase: "showdown",
+      betting: { ...betting, toActId: null },
+    };
   }
 
   const activeSeatIndices = newSeats
@@ -579,8 +592,11 @@ export function computeSidePots(
   seats: NormalSeat[],
   totalPot: number,
 ): SidePot[] {
+  // Only seats still in the hand can win a pot: folded, sitting-out, waiting
+  // and "out" seats are never eligible.
+  const inHand = (s: NormalSeat) => s.status === "active" || s.status === "all-in";
   const contributors = seats.filter((s) => s.totalBet > 0);
-  if (contributors.length === 0) return [{ amount: totalPot, eligibleIds: seats.filter(s => s.status !== "folded").map(s => s.id) }];
+  if (contributors.length === 0) return [{ amount: totalPot, eligibleIds: seats.filter(inHand).map(s => s.id) }];
 
   const sortedAmounts = [
     ...new Set(contributors.map((s) => s.totalBet)),
@@ -599,11 +615,7 @@ export function computeSidePots(
     }
 
     const eligible = seats
-      .filter(
-        (s) =>
-          s.totalBet >= cap &&
-          s.status !== "folded",
-      )
+      .filter((s) => s.totalBet >= cap && inHand(s))
       .map((s) => s.id);
 
     if (potAmt > 0) {
@@ -620,7 +632,7 @@ export function getValidActions(
   betting: BettingRound,
 ): { action: BettingAction; min?: number; max?: number }[] {
   if (seat.chips === 0) return [];
-  const toCall = betting.currentBet - seat.bet;
+  const toCall = Math.max(0, betting.currentBet - seat.bet);
   const actions: { action: BettingAction; min?: number; max?: number }[] = [];
 
   // Fold always available when there's a bet to face

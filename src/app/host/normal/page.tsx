@@ -9,7 +9,7 @@ const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
   ssr: false,
 });
 import { usePresenceMap } from "@/hooks/usePresenceMap";
-import { useNormalLobby, useNormalRoom, useStackRequests, useQueue } from "@/hooks/useNormalRoom";
+import { useNormalLobbyState, useNormalRoom, useStackRequests, useQueue } from "@/hooks/useNormalRoom";
 import { useNormalHole } from "@/hooks/useNormalRoom";
 import { useNormalGame } from "@/hooks/useNormalGame";
 import { useChat } from "@/hooks/useChat";
@@ -35,6 +35,7 @@ import { getUserProfile } from "@/lib/users";
 import { availableCoins } from "@/lib/economy";
 import type { Card } from "@/lib/poker";
 import { randomSeed } from "@/lib/dicebear";
+import { cashOutHost, seatHost } from "@/lib/hostSeat";
 import { TableShell } from "@/components/table/TableShell";
 import { OptionsMenu } from "@/components/settings/OptionsMenu";
 import { HostSettings } from "@/components/settings/HostSettings";
@@ -69,13 +70,13 @@ export default function HostNormalPage() {
 }
 
 function HostNormalPageInner() {
-  const { uid, loading, profile } = useAuth();
+  const { uid, loading, profile, isGuest, getToken } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
   const [dockOpen, setDockOpen] = useState(false);
 
   const room = useNormalRoom(code);
-  const lobby = useNormalLobby(code);
+  const { players: lobby, ready: lobbyReady } = useNormalLobbyState(code);
   const requests = useStackRequests(code);
   const { queue } = useQueue(code, uid);
   const presenceMap = usePresenceMap(code);
@@ -94,7 +95,8 @@ function HostNormalPageInner() {
     isProcessing,
     runs,
     dismissRuns,
-  } = useNormalGame(code, room ?? null, lobby, uid, holeCards);
+    canStartHand,
+  } = useNormalGame(code, room ?? null, lobby, uid, holeCards, { lobbyReady, getToken });
 
   const creatingRef = useRef(false);
   const [openAllInVoteHand, setOpenAllInVoteHand] = useState<number | null>(null);
@@ -138,11 +140,15 @@ function HostNormalPageInner() {
     patchNormalRoom(code, { playerCount: lobby.length }).catch(() => {});
   }, [code, uid, room?.hostUid, lobby.length]);
 
-  // Auto-seat the head of the wait queue whenever a seat is free. Seats added
-  // here are dealt in on the next hand (startNewHand merges new lobby members).
+  // Casual rooms: auto-seat the head of the wait queue whenever a seat is free
+  // (free stacks, no coins involved). Seats added here are dealt in on the next
+  // hand (startNewHand merges new lobby members). Coins rooms never grant a
+  // stack here: the head of the queue gets the join form on its phone and goes
+  // through the normal buy-in + approval flow.
   // TODO(roadmap): 30s accept countdown before promoting, instead of auto-seat.
   useEffect(() => {
     if (!code || !uid || room?.hostUid !== uid) return;
+    if ((room?.economy ?? "coins") !== "casual") return;
     const max = room?.maxPlayers ?? 9;
     if (lobby.length >= max || queue.length === 0) return;
     const head = queue[0];
@@ -151,7 +157,7 @@ function HostNormalPageInner() {
     approveJoin(code, head.uid, head.name, head.seed, stack)
       .then(() => leaveQueue(code, head.uid))
       .catch(() => {});
-  }, [code, uid, room?.hostUid, room?.maxPlayers, room?.config?.startingStack, lobby, queue]);
+  }, [code, uid, room?.hostUid, room?.economy, room?.maxPlayers, room?.config?.startingStack, lobby, queue]);
 
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(() => gameState?.seats.find((s) => s.id === uid) ?? null, [gameState, uid]);
@@ -192,7 +198,11 @@ function HostNormalPageInner() {
     };
   }, [economy, lobbyUidsKey]);
   const result = room?.result ?? null;
-  const canDeal = !gameState && lobby.length >= 2 && lobby.length <= 9;
+  // Deal button: before the first hand, and between hands (e.g. after a host
+  // reload voided the hand in progress). canStartHand counts who would really
+  // be dealt in (departed / sitting-out excluded, approved rebuys included).
+  const showDealControls = !gameState || gameState.phase === "between-hands";
+  const canDeal = canStartHand;
 
   const joinUrl =
     typeof window !== "undefined" && code
@@ -250,14 +260,38 @@ function HostNormalPageInner() {
 
   const myUseTimeBank = myLobbyEntry?.useTimeBank !== false;
 
-  function handleJoinAsHost(slotIndex?: number) {
+  async function handleJoinAsHost(slotIndex?: number) {
     if (!uid || !code) return;
     // Convert visual slot to physical slot (remove current rotationOffset — host page
     // doesn't track rotationOffset so we use slotIndex as physical directly, and
     // the RoundPokerTable rotate button will shift the view as needed).
     const hostName = profile?.nickname?.trim() || "Host";
     const hostSeed = profile?.avatarSeed || randomSeed();
-    approveJoin(code, uid, hostName, hostSeed, config.startingStack, slotIndex).catch(() => {});
+    // Coins: the host buys in like everyone else before taking a seat.
+    try {
+      await seatHost({
+        code,
+        uid,
+        name: hostName,
+        seed: hostSeed,
+        amount: config.startingStack,
+        slot: slotIndex,
+        coins: economy === "coins",
+        isGuest,
+        getToken,
+      });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo tomar asiento.");
+    }
+  }
+
+  async function handleLeaveRoom() {
+    if (!confirm("¿Salir de la sala? Los jugadores perderán el host.")) return;
+    // Coins: settle the host's own seat before leaving (pays its stack back).
+    if (code && myLobbyEntry && economy === "coins") {
+      await cashOutHost(code, getToken).catch(() => {});
+    }
+    window.location.href = "/";
   }
 
   if (loading || !code) {
@@ -270,18 +304,18 @@ function HostNormalPageInner() {
 
   const centerOverlay = (
     <>
-      {!gameState && (
+      {showDealControls && (
         <div className="flex flex-col items-center gap-4">
-          {lobby.length < 2 ? (
+          {lobby.length < 2 || (!!gameState && !canDeal) ? (
             <div className="px-6 py-3 rounded-2xl bg-zinc-900/80 backdrop-blur-md ring-1 ring-white/10 text-zinc-400 text-sm font-bold uppercase tracking-widest shadow-2xl">
-              Esperando jugadores ({lobby.length}/2)
+              Esperando jugadores ({Math.min(lobby.length, 2)}/2)
             </div>
           ) : (
             <button
               type="button"
               disabled={!canDeal || isProcessing}
               onClick={() => {
-                startNewHand();
+                void startNewHand();
                 setDockOpen(false);
               }}
               className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-accent-700 hover:bg-accent-600 disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-accent-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-accent-700/25 btn-press animate-in zoom-in fade-in duration-500"
@@ -292,7 +326,7 @@ function HostNormalPageInner() {
           {!lobby.some((p) => p.uid === uid) && (
             <button
               type="button"
-              onClick={() => handleJoinAsHost()}
+              onClick={() => void handleJoinAsHost()}
               className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-widest transition btn-press"
             >
               Unirme como jugador
@@ -342,7 +376,7 @@ function HostNormalPageInner() {
         lastAction={gameState?.lastAction}
         timeBankByUid={timeBankByUid}
         turnTimeMs={config.turnTime}
-        onSit={!myLobbyEntry ? handleJoinAsHost : undefined}
+        onSit={!myLobbyEntry ? (slot?: number) => void handleJoinAsHost(slot) : undefined}
         onToggleAway={myLobbyEntry ? handleToggleAway : undefined}
         amSittingOut={myLobbyEntry?.sittingOut === true}
         presenceMap={presenceMap}
@@ -353,11 +387,7 @@ function HostNormalPageInner() {
             onOpenSettings={() => setDockOpen(true)}
             away={myLobbyEntry?.sittingOut === true}
             onToggleAway={myLobbyEntry ? handleToggleAway : undefined}
-            onLeave={() => {
-              if (confirm("¿Salir de la sala? Los jugadores perderán el host.")) {
-                window.location.href = "/";
-              }
-            }}
+            onLeave={() => void handleLeaveRoom()}
             leaveLabel="Salir de la sala"
             badge={requests.filter((r) => r.status === "pending").length}
           />

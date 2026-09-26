@@ -1,6 +1,6 @@
 "use client";
 import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Play, Trophy } from "lucide-react";
 
@@ -9,7 +9,7 @@ const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
 });
 import { useAuth } from "@/hooks/useAuth";
 import { usePresenceMap } from "@/hooks/usePresenceMap";
-import { useNormalLobby, useNormalRoom, useStackRequests } from "@/hooks/useNormalRoom";
+import { useNormalLobbyState, useNormalRoom, useStackRequests } from "@/hooks/useNormalRoom";
 import { useNormalHole } from "@/hooks/useNormalRoom";
 import { useNormalGame } from "@/hooks/useNormalGame";
 import { useChat } from "@/hooks/useChat";
@@ -19,11 +19,11 @@ import { ReactionBar } from "@/components/reactions/ReactionBar";
 import {
   createNormalRoom,
   postPlayerAction,
-  approveJoin,
   patchNormalRoom,
   lobbyToSeats,
   setHostHeartbeat,
 } from "@/lib/normalRooms";
+import { cashOutHost, seatHost } from "@/lib/hostSeat";
 import { formatChips, TOURNAMENT_LEVELS } from "@/lib/betting";
 import type {
   BettingAction,
@@ -37,6 +37,8 @@ import { CATEGORY_LABEL } from "@/lib/handEval";
 import {
   advanceLevel,
   initTournamentState,
+  isLastLevel,
+  levelTimeRemaining,
   pauseTournament,
   resumeTournament,
   startTournament,
@@ -88,7 +90,7 @@ export default function HostTorneoPage() {
 }
 
 function HostTorneoPageInner() {
-  const { uid, loading, profile } = useAuth();
+  const { uid, loading, profile, isGuest, getToken } = useAuth();
   const [code, setCode] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [holeCards] = useState<Record<string, [Card, Card]>>({});
@@ -99,7 +101,7 @@ function HostTorneoPageInner() {
   const [showPodium, setShowPodium] = useState(false);
 
   const room = useNormalRoom(code);
-  const lobby = useNormalLobby(code);
+  const { players: lobby, ready: lobbyReady } = useNormalLobbyState(code);
   const requests = useStackRequests(code);
   const presenceMap = usePresenceMap(code);
   const hole = useNormalHole(code, uid);
@@ -115,7 +117,8 @@ function HostTorneoPageInner() {
     setAllChips,
     kickPlayer,
     isProcessing,
-  } = useNormalGame(code, room ?? null, lobby, uid, holeCards);
+    canStartHand,
+  } = useNormalGame(code, room ?? null, lobby, uid, holeCards, { lobbyReady, getToken });
 
   useEffect(() => {
     if (loading || !uid || code || creating) return;
@@ -156,14 +159,19 @@ function HostTorneoPageInner() {
     patchNormalRoom(code, { playerCount: lobby.length }).catch(() => {});
   }, [code, uid, room?.hostUid, lobby.length]);
 
-  // Detect tournament end: started + only 1 player with chips remaining
+  // Detect tournament end: started + only 1 player with chips remaining, and
+  // only once the hand is actually settled. Mid-runout every all-in seat
+  // shows 0 chips behind, which used to pop the podium before the board ran.
+  const handSettled =
+    !!gameState &&
+    (gameState.phase === "between-hands" || (gameState.phase === "showdown" && !!room?.result));
   useEffect(() => {
-    if (!tournament.started || showPodium) return;
+    if (!tournament.started || showPodium || !handSettled || isProcessing) return;
     const active = gameState?.seats.filter((s) => s.chips > 0) ?? [];
     if (active.length === 1 && (gameState?.seats.length ?? 0) > 1) {
       setShowPodium(true);
     }
-  }, [tournament.started, showPodium, gameState?.seats]);
+  }, [tournament.started, showPodium, handSettled, isProcessing, gameState?.seats]);
 
   const myLobbyEntry = useMemo(() => lobby.find((p) => p.uid === uid), [lobby, uid]);
   const mySeat = useMemo(
@@ -188,12 +196,34 @@ function HostTorneoPageInner() {
   }, [showPodium, gameState, tournament.knockouts]);
 
   const config: RoomConfig = room?.config ?? DEFAULT_TORNEO_CONFIG;
+
+  // Blind level auto-advance (host only). Fires when the level clock runs out;
+  // the last level of the structure stays for the rest of the tournament. The
+  // ref guards against advancing twice from the same level while the write is
+  // in flight.
+  const advancedFromLevelRef = useRef<number>(-1);
+  useEffect(() => {
+    if (!code || !isAdmin || !tournament.started || tournament.paused) return;
+    if (isLastLevel(tournament, config)) return;
+    const remaining = levelTimeRemaining(tournament, config);
+    const t = setTimeout(() => {
+      if (advancedFromLevelRef.current === tournament.currentLevel) return;
+      advancedFromLevelRef.current = tournament.currentLevel;
+      const next = advanceLevel(tournament);
+      setTournament(next);
+      patchNormalRoom(code, { tournament: next }).catch(() => {
+        advancedFromLevelRef.current = -1;
+      });
+    }, Math.max(0, remaining));
+    return () => clearTimeout(t);
+  }, [code, isAdmin, tournament, config]);
+
   const theme: TableThemeId = (room?.theme as TableThemeId) ?? "sapphire";
   const cardBack: CardBackId = (room?.cardBack as CardBackId) ?? "classic-blue";
   const roomBg = room?.roomBg ?? "onyx";
   const result = room?.result ?? null;
   const isShowdown = gameState?.phase === "showdown";
-  const canDeal = !gameState && lobby.length >= 2 && lobby.length <= 9;
+  const canDeal = canStartHand;
 
   const joinUrl =
     typeof window !== "undefined" && code
@@ -221,11 +251,34 @@ function HostTorneoPageInner() {
     if (code) patchNormalRoom(code, { config: newConfig }).catch(() => {});
   }
 
-  function handleJoinAsHost(slotIndex?: number) {
+  async function handleJoinAsHost(slotIndex?: number) {
     if (!uid || !code) return;
     const hostName = profile?.nickname?.trim() || "Host";
     const hostSeed = profile?.avatarSeed || randomSeed();
-    approveJoin(code, uid, hostName, hostSeed, config.startingStack, slotIndex).catch(() => {});
+    // Coins: the host buys in like everyone else before taking a seat.
+    try {
+      await seatHost({
+        code,
+        uid,
+        name: hostName,
+        seed: hostSeed,
+        amount: config.startingStack,
+        slot: slotIndex,
+        coins: (room?.economy ?? "coins") === "coins",
+        isGuest,
+        getToken,
+      });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo tomar asiento.");
+    }
+  }
+
+  async function handleLeaveTournament() {
+    if (!confirm("¿Salir del torneo? Los jugadores perderán el host.")) return;
+    if (code && myLobbyEntry && (room?.economy ?? "coins") === "coins") {
+      await cashOutHost(code, getToken).catch(() => {});
+    }
+    window.location.href = "/";
   }
 
   function togglePause() {
@@ -246,9 +299,11 @@ function HostTorneoPageInner() {
 
   async function handleStartTournament() {
     if (!code) return;
-    const started = startTournament(tournament);
-    setTournament(started);
-    await patchNormalRoom(code, { tournament: started }).catch(() => {});
+    if (!tournament.started) {
+      const started = startTournament(tournament);
+      setTournament(started);
+      await patchNormalRoom(code, { tournament: started }).catch(() => {});
+    }
     await startNewHand();
     setDockOpen(false);
   }
@@ -263,11 +318,11 @@ function HostTorneoPageInner() {
 
   const centerOverlay = (
     <>
-      {!gameState && (
+      {(!gameState || gameState.phase === "between-hands") && !showPodium && (
         <div className="flex flex-col items-center gap-4">
-          {lobby.length < 2 ? (
+          {lobby.length < 2 || (!!gameState && !canDeal) ? (
             <div className="px-6 py-3 rounded-2xl bg-zinc-900/80 backdrop-blur-md ring-1 ring-white/10 text-zinc-400 text-sm font-bold uppercase tracking-widest shadow-2xl">
-              Esperando jugadores ({lobby.length}/2)
+              Esperando jugadores ({Math.min(lobby.length, 2)}/2)
             </div>
           ) : (
             <button
@@ -276,13 +331,14 @@ function HostTorneoPageInner() {
               onClick={handleStartTournament}
               className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-400 disabled:ring-1 disabled:ring-white/10 disabled:cursor-not-allowed text-zinc-900 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-black/40 btn-press animate-in zoom-in fade-in duration-500"
             >
-              <Play className="w-5 h-5 fill-current" /> Iniciar torneo
+              <Play className="w-5 h-5 fill-current" />
+              {tournament.started ? "Repartir" : "Iniciar torneo"}
             </button>
           )}
           {!lobby.some((p) => p.uid === uid) && (
             <button
               type="button"
-              onClick={() => handleJoinAsHost()}
+              onClick={() => void handleJoinAsHost()}
               className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-300 text-[11px] font-bold uppercase tracking-widest transition btn-press"
             >
               Unirme como jugador
@@ -337,11 +393,7 @@ function HostTorneoPageInner() {
             name={myLobbyEntry?.name ?? profile?.nickname ?? "Host"}
             seed={myLobbyEntry?.seed}
             onOpenSettings={() => setDockOpen(true)}
-            onLeave={() => {
-              if (confirm("¿Salir del torneo? Los jugadores perderán el host.")) {
-                window.location.href = "/";
-              }
-            }}
+            onLeave={() => void handleLeaveTournament()}
             leaveLabel="Salir del torneo"
             badge={requests.filter((r) => r.status === "pending").length}
           />

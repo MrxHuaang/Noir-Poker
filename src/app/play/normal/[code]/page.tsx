@@ -3,7 +3,7 @@ import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
-import { Clock, Trophy, Eye, Hourglass, Users } from "lucide-react";
+import { Clock, Trophy, Eye, Hourglass, Users, LogIn } from "lucide-react";
 
 // Importar con ssr:false porque VoicePanel usa navigator.mediaDevices,
 // RTCPeerConnection y AudioContext que no existen en Node.
@@ -13,7 +13,13 @@ const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
 import { useAuth } from "@/hooks/useAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { usePresenceMap } from "@/hooks/usePresenceMap";
-import { useNormalRoom, useNormalLobby, useNormalHole, useQueue } from "@/hooks/useNormalRoom";
+import {
+  useNormalRoom,
+  useNormalLobby,
+  useNormalHole,
+  useQueue,
+  useStackRequests,
+} from "@/hooks/useNormalRoom";
 import { useChat } from "@/hooks/useChat";
 import { useReactions } from "@/hooks/useReactions";
 import { ReactionBar } from "@/components/reactions/ReactionBar";
@@ -88,7 +94,7 @@ function PlayNormalPageInner() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
   const code = params.code?.toUpperCase() ?? null;
-  const { uid, loading, profile } = useAuth();
+  const { uid, loading, profile, isGuest } = useAuth();
   const [mySeed, setMySeed] = useState(() => Math.random().toString(36).slice(2));
 
   // Contadores de sesion para XP / historial + total comprado para el neto.
@@ -117,7 +123,8 @@ function PlayNormalPageInner() {
   const hole = useNormalHole(code, uid);
   const chatMessages = useChat(code);
   const reactions = useReactions(code);
-  const { position: queuePos } = useQueue(code, uid);
+  const { queue, position: queuePos } = useQueue(code, uid);
+  const stackRequests = useStackRequests(code);
   const [spectating, setSpectating] = useState(false);
 
   // Register/unregister spectator presence while watching.
@@ -156,7 +163,15 @@ function PlayNormalPageInner() {
 
   const inLobby = uid ? lobby.some((p) => p.uid === uid) : false;
   const maxPlayers = room?.maxPlayers ?? 9;
-  const roomFull = lobby.length >= maxPlayers;
+  // Pending join requests from others already claim a free seat.
+  const pendingJoinsOthers = stackRequests.filter(
+    (r) => r.type === "join" && r.status === "pending" && r.uid !== uid,
+  ).length;
+  const roomFull = lobby.length + pendingJoinsOthers >= maxPlayers;
+  // A freed seat belongs to the head of the wait queue first.
+  const queueAhead = queue.length > 0 && queuePos !== 1;
+  const seatBlocked = roomFull || queueAhead;
+  const isQueueHead = queuePos === 1;
   const myLobbyEntry = uid ? lobby.find((p) => p.uid === uid) : null;
   const result = room?.result ?? null;
   const currentHandNum = gs?.betting.handNum ?? EMPTY_BETTING.handNum;
@@ -261,22 +276,19 @@ function PlayNormalPageInner() {
   }, [lobby]);
   const myPreferredSlot = myLobbyEntry?.preferredSlot;
 
+  // Mensaje legible para los errores de negocio del buy-in.
+  function buyInErrorMessage(err: unknown, fallback: string): string {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg === "Cuenta de invitado") return "Inicia sesion para jugar en una mesa con monedas.";
+    if (msg === "Saldo insuficiente") return fallback;
+    return msg || fallback;
+  }
+
   async function handleJoinRequest(name: string, stack: number, seed: string) {
     if (!uid || !code) return;
     setMySeed(seed);
-    // Modo casual: no se toca el wallet — el host define/aprueba el stack libre.
-    if (!isCasual) {
-      // Descontar monedas del wallet (escrow) ANTES de pedir el asiento.
-      try {
-        await buyIn(uid, code, stack);
-        boughtInRef.current += stack;
-        settledRef.current = false;
-      } catch {
-        alert("No tienes monedas suficientes para esa entrada.");
-        return;
-      }
-    }
-    try {
+    if (isCasual) {
+      // Modo casual: no se toca el wallet — el host define/aprueba el stack libre.
       await submitStackRequest(code, {
         uid,
         name,
@@ -285,28 +297,25 @@ function PlayNormalPageInner() {
         type: "join",
         ts: Date.now(),
       });
-    } catch (err) {
-      // Revertir el escrow si no se pudo crear la solicitud (solo modo monedas).
-      if (!isCasual) {
-        await refundBuyIn(uid, code, stack).catch(() => {});
-        boughtInRef.current -= stack;
+    } else {
+      // El servidor descuenta el escrow y crea la solicitud en la MISMA
+      // transaccion: no hay solicitud sin monedas ni monedas sin solicitud.
+      try {
+        await buyIn(uid, code, stack, { type: "join", name, seed });
+        boughtInRef.current += stack;
+        settledRef.current = false;
+      } catch (err) {
+        alert(buyInErrorMessage(err, "No tienes monedas suficientes para esa entrada."));
+        return;
       }
-      throw err;
     }
+    // La solicitud ya ocupa el asiento libre: salir de la fila.
+    if (queuePos > 0) leaveQueue(code, uid).catch(() => {});
   }
 
   async function handleRebuyRequest(stack: number) {
     if (!uid || !code || !myLobbyEntry) return;
-    if (!isCasual) {
-      try {
-        await buyIn(uid, code, stack);
-        boughtInRef.current += stack;
-      } catch {
-        alert("No tienes monedas suficientes para ese rebuy.");
-        return;
-      }
-    }
-    try {
+    if (isCasual) {
       await submitStackRequest(code, {
         uid,
         name: myLobbyEntry.name,
@@ -315,14 +324,36 @@ function PlayNormalPageInner() {
         type: "rebuy",
         ts: Date.now(),
       });
-    } catch (err) {
-      // Revertir SOLO el rebuy (no borrar el escrow completo del buy-in previo).
-      if (!isCasual) {
-        await refundBuyIn(uid, code, stack).catch(() => {});
-        boughtInRef.current -= stack;
-      }
-      throw err;
+      return;
     }
+    try {
+      await buyIn(uid, code, stack, {
+        type: "rebuy",
+        name: myLobbyEntry.name,
+        seed: myLobbyEntry.seed,
+      });
+      boughtInRef.current += stack;
+    } catch (err) {
+      alert(buyInErrorMessage(err, "No tienes monedas suficientes para ese rebuy."));
+    }
+  }
+
+  // Cancela una solicitud pendiente. Con monedas el servidor devuelve el
+  // escrow de esa solicitud y la borra (ya no se puede aprobar).
+  async function handleCancelRequest() {
+    if (!uid || !code || !myRequest) return;
+    const amt = myRequest.requestedStack ?? 0;
+    if (!isCasual) {
+      try {
+        await refundBuyIn(uid, code, amt);
+        boughtInRef.current = Math.max(0, boughtInRef.current - amt);
+      } catch {
+        alert("No se pudo cancelar la solicitud.");
+        return;
+      }
+    }
+    await dismissStackRequest(code, uid).catch(() => {});
+    setMyRequest(null);
   }
 
   async function handleAction(action: BettingAction, amount?: number) {
@@ -369,7 +400,8 @@ function PlayNormalPageInner() {
     if (myRequest?.status !== "rejected" || myRequest.type !== "rebuy") return;
     const amt = myRequest.requestedStack ?? 0;
     (async () => {
-      // En casual no hay escrow que devolver.
+      // En casual no hay escrow que devolver. Con monedas el servidor devuelve
+      // el escrow de la solicitud rechazada y borra el doc.
       if (!isCasual && amt > 0) {
         await refundBuyIn(uid, code, amt).catch(() => {});
         boughtInRef.current = Math.max(0, boughtInRef.current - amt);
@@ -426,10 +458,13 @@ function PlayNormalPageInner() {
       return;
     }
     if (!confirm("¿Salir de la sala? Perderás tu lugar en esta mano.")) return;
+    // Con monedas el cash-out del servidor paga el stack Y retira la entrada
+    // del lobby en la misma transaccion (no se borra desde el cliente).
     await settleSession();
-    try {
-      await kickFromLobby(code, uid);
-    } catch { /* ignore */ }
+    if (isCasual) {
+      // Casual: no hay cash-out; el jugador retira su propia entrada.
+      await kickFromLobby(code, uid).catch(() => {});
+    }
     router.push("/lobby");
   }
 
@@ -512,6 +547,14 @@ function PlayNormalPageInner() {
                 />
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={handleCancelRequest}
+              className="mt-8 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-400 text-[11px] font-bold uppercase tracking-widest transition btn-press"
+            >
+              Cancelar solicitud
+            </button>
           </div>
         ) : myRequest?.status === "rejected" ? (
           <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
@@ -531,7 +574,12 @@ function PlayNormalPageInner() {
               Intentar de nuevo
             </button>
           </div>
-        ) : roomFull ? (
+        ) : !isCasual && isGuest ? (
+          <GuestCoinsPanel
+            code={code ?? ""}
+            onSpectate={() => setSpectating(true)}
+          />
+        ) : seatBlocked ? (
           <FullRoomPanel
             code={code ?? ""}
             playerCount={lobby.length}
@@ -547,6 +595,11 @@ function PlayNormalPageInner() {
           />
         ) : (
           <div className="fixed inset-0 bg-[#0b0b0b] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {isQueueHead && (
+              <div className="mx-auto mt-6 w-fit rounded-full bg-accent-500/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-accent-300 ring-1 ring-accent-400/25">
+                Se libero un asiento: elige tu entrada
+              </div>
+            )}
             <JoinWithStack
               defaultName={profile?.nickname ?? ""}
               suggestedStack={config?.startingStack ?? 1000}
@@ -563,7 +616,11 @@ function PlayNormalPageInner() {
   }
 
   const isOut = mySeat?.status === "out";
-  const needsRebuy = isOut && !myRequest;
+  // Rebuy aprobado por el host pero aun no aplicado (entra la proxima mano).
+  const approvedRebuy = (uid && room?.pendingRebuys?.[uid]) || 0;
+  // `myRequest === undefined` = la suscripcion aun no respondio: no ofrecer el
+  // formulario todavia (evita pedir dos rebuys seguidos).
+  const needsRebuy = isOut && myRequest === null && approvedRebuy <= 0;
   const rebuyPending = myRequest?.status === "pending" && myRequest.type === "rebuy";
 
   const isShowdown = gs?.phase === "showdown";
@@ -601,7 +658,7 @@ function PlayNormalPageInner() {
 
   const playerExtra =
     isShowdown && showMuckUI ? showMuckUI :
-    needsRebuy || rebuyPending ? (
+    needsRebuy || rebuyPending || (isOut && approvedRebuy > 0) ? (
       <div className="mt-3">
         {needsRebuy && (
           <JoinWithStack
@@ -615,6 +672,11 @@ function PlayNormalPageInner() {
         {rebuyPending && (
           <div className="glass-panel rounded-2xl py-3 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-accent-200">
             Rebuy pendiente ({formatChips(myRequest!.requestedStack)})
+          </div>
+        )}
+        {!rebuyPending && isOut && approvedRebuy > 0 && (
+          <div className="glass-panel rounded-2xl py-3 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-accent-200">
+            Rebuy aprobado ({formatChips(approvedRebuy)}): entras la proxima mano
           </div>
         )}
       </div>
@@ -795,8 +857,50 @@ function PlayNormalPageInner() {
   );
 }
 
+// Mesas con monedas: los invitados (cuenta anonima) no pueden comprar entrada.
+function GuestCoinsPanel({
+  code,
+  onSpectate,
+}: {
+  code: string;
+  onSpectate: () => void;
+}) {
+  const next = encodeURIComponent(`/play/normal/${code}`);
+  return (
+    <div className="fixed inset-0 bg-[#0b0b0b] flex items-center justify-center p-6 animate-in fade-in duration-500">
+      <div className="glass-panel flex w-full max-w-sm flex-col gap-5 rounded-[30px] p-6 text-center">
+        {code && (
+          <div className="glass-chip mx-auto px-4 py-1.5 text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-400">
+            Sala {code}
+          </div>
+        )}
+        <h2 className="text-xl font-bold text-zinc-50">Mesa con monedas</h2>
+        <p className="text-sm text-zinc-400">
+          Para sentarte necesitas una cuenta. Como invitado puedes observar la mesa.
+        </p>
+        <a
+          href={`/login?next=${next}`}
+          className="glass-button glass-button-accent btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em]"
+        >
+          <LogIn className="w-4 h-4" />
+          Iniciar sesion
+        </a>
+        <button
+          type="button"
+          onClick={onSpectate}
+          className="glass-button glass-button-ghost btn-press inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-bold uppercase tracking-[0.18em]"
+        >
+          <Eye className="w-4 h-4" />
+          Observar la mesa
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Shown when the room is full: spectate now, or take a numbered spot in the
-// wait queue (the host auto-seats the head when a seat frees).
+// wait queue. When a seat frees, the head of the queue gets the join form
+// (coins: normal buy-in + approval; casual: the host seats it directly).
 function FullRoomPanel({
   code,
   playerCount,
@@ -843,7 +947,7 @@ function FullRoomPanel({
               <span className="text-zinc-50 font-black text-lg">#{queuePos}</span>
             </p>
             <p className="text-[11px] text-zinc-500">
-              Te sentaremos automáticamente cuando se libere un asiento.
+              Cuando se libere un asiento te toca a ti primero.
             </p>
             <button
               type="button"

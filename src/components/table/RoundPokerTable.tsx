@@ -262,10 +262,21 @@ export function RoundPokerTable({
     const n = seats.length;
     if (n === 0) return out;
 
+    // More seats than positions (should not happen: the host caps the table at
+    // 9): keep the players still in play and drop retired "out" seats first,
+    // instead of losing whoever happens to be last in the list.
+    const shown =
+      n > MAX_SEATS
+        ? [
+            ...seats.filter((seat) => seat.status !== "out"),
+            ...seats.filter((seat) => seat.status === "out"),
+          ].slice(0, MAX_SEATS)
+        : seats;
+
     const unplaced: NormalSeat[] = [];
 
     // Phase 1: place seats that have a preferred slot
-    for (const seat of seats) {
+    for (const seat of shown) {
       if (seat.preferredSlot !== undefined) {
         const visual = ((seat.preferredSlot + rotationOffset) % MAX_SEATS + MAX_SEATS) % MAX_SEATS;
         if (out[visual] === null) {

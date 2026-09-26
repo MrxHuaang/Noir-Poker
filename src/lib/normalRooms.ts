@@ -4,6 +4,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  increment,
   onSnapshot,
   orderBy,
   query,
@@ -366,6 +367,26 @@ export function subscribeNormalLobby(
   );
 }
 
+// Same subscription, but a listener error is reported instead of being turned
+// into an empty list: the host treats a missing lobby entry as "that player
+// left the table", so a transient error must never look like everyone left.
+export function subscribeNormalLobbyState(
+  code: string,
+  cb: (players: NormalLobbyPlayer[]) => void,
+  onError: () => void,
+): () => void {
+  const db = getDb();
+  const q = query(
+    collection(db, "normalRooms", code, "lobby"),
+    orderBy("joinedAt", "asc"),
+  );
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data() as NormalLobbyPlayer)),
+    () => onError(),
+  );
+}
+
 export async function approveJoin(
   code: string,
   uid: string,
@@ -403,6 +424,57 @@ export async function patchLobbyPlayer(
 ): Promise<void> {
   const db = getDb();
   await updateDoc(doc(db, "normalRooms", code, "lobby", uid), patch as Record<string, unknown>);
+}
+
+// Host-only: mirror seat stacks into lobby/{uid}.chips, one write per player.
+// Individual writes (not a batch) so a lobby doc deleted in the meantime (that
+// player cashed out) cannot block the others.
+export async function syncLobbyChips(
+  code: string,
+  chipsByUid: Record<string, number>,
+): Promise<void> {
+  const db = getDb();
+  await Promise.allSettled(
+    Object.entries(chipsByUid).map(([uid, chips]) =>
+      updateDoc(doc(db, "normalRooms", code, "lobby", uid), { chips }),
+    ),
+  );
+}
+
+// Host-only: settle write. The room patch (state/result) and the lobby chips
+// land in ONE batch so the economy server never sees a settled table with
+// stale lobby chips. If the batch is rejected (typically a lobby doc vanished
+// because that player cashed out in between) the room patch is retried alone
+// and each lobby write is applied individually.
+export async function commitNormalSettle(
+  code: string,
+  patch: Record<string, unknown>,
+  chipsByUid: Record<string, number>,
+): Promise<void> {
+  const db = getDb();
+  const batch = writeBatch(db);
+  batch.update(doc(db, "normalRooms", code), stripUndefined(patch));
+  for (const [uid, chips] of Object.entries(chipsByUid)) {
+    batch.update(doc(db, "normalRooms", code, "lobby", uid), { chips });
+  }
+  try {
+    await batch.commit();
+  } catch {
+    await updateDoc(doc(db, "normalRooms", code), stripUndefined(patch));
+    await syncLobbyChips(code, chipsByUid);
+  }
+}
+
+// Room patch that consumes exactly the applied rebuy amounts (a rebuy approved
+// while the deal was being prepared survives for the next hand).
+export function consumePendingRebuysPatch(
+  applied: Record<string, number>,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {};
+  for (const [uid, amount] of Object.entries(applied)) {
+    if (amount > 0) patch[`pendingRebuys.${uid}`] = increment(-amount);
+  }
+  return patch;
 }
 
 export async function kickFromLobby(
@@ -475,12 +547,20 @@ function stripUndefined<T>(value: T): T {
   return value;
 }
 
+// `extra.roomPatch` / `extra.lobbyChips` ride in the same batch as the deal
+// (consumed rebuys + the stacks the hand starts with), so the economy server
+// never sees a rebuy both pending and already on the seat. The whole batch
+// fails if one of those lobby docs vanished; the caller then retries the deal.
 export async function writeNormalDealt(
   code: string,
   gs: NormalGameState,
   holeCards: Record<string, [Card, Card]>,
   ownerByPlayerId: Record<string, string | null>,
   pubKeyByOwner: Record<string, string | undefined> = {},
+  extra: {
+    roomPatch?: Record<string, unknown>;
+    lobbyChips?: Record<string, number>;
+  } = {},
 ): Promise<void> {
   const db = getDb();
   // Encrypt each hole to the owner's published public key. If a key is missing
@@ -506,6 +586,7 @@ export async function writeNormalDealt(
 
   const batch = writeBatch(db);
   batch.update(doc(db, "normalRooms", code), {
+    ...stripUndefined(extra.roomPatch ?? {}),
     state: stripUndefined(toPublicState(gs)),
     result: null,
     runResults: null,
@@ -514,6 +595,9 @@ export async function writeNormalDealt(
   });
   for (const { seatId, data } of docs) {
     batch.set(doc(db, "normalRooms", code, "holes", seatId), data);
+  }
+  for (const [uid, chips] of Object.entries(extra.lobbyChips ?? {})) {
+    batch.update(doc(db, "normalRooms", code, "lobby", uid), { chips });
   }
   await batch.commit();
 }

@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  configForHand,
   getLevel,
+  isLastLevel,
+  knockoutsFromHand,
   levelTimeRemaining,
   initTournamentState,
+  recordKnockout,
   startTournament,
 } from "./tournament";
 import { TOURNAMENT_LEVELS, DEFAULT_CONFIG, type RoomConfig } from "./betting";
@@ -61,5 +65,31 @@ describe("levelTimeRemaining", () => {
     const started = startTournament(initTournamentState());
     const now = started.levelStartedAt + tcfg.blindLevelDuration! + 5_000;
     expect(levelTimeRemaining(started, tcfg, now)).toBe(0);
+  });
+});
+
+describe("configForHand / knockoutsFromHand", () => {
+  it("deals each hand with the current level's blinds and ante", () => {
+    const st = { ...initTournamentState(), currentLevel: 3 };
+    const cfg = configForHand(tcfg, st);
+    expect(cfg.smallBlind).toBe(TOURNAMENT_LEVELS[3].sb);
+    expect(cfg.bigBlind).toBe(TOURNAMENT_LEVELS[3].bb);
+    expect(cfg.ante).toBe(TOURNAMENT_LEVELS[3].ante);
+    // Cash games keep the room blinds.
+    expect(configForHand(DEFAULT_CONFIG, st)).toBe(DEFAULT_CONFIG);
+    expect(isLastLevel({ ...st, currentLevel: TOURNAMENT_LEVELS.length - 1 }, tcfg)).toBe(true);
+    expect(isLastLevel(st, tcfg)).toBe(false);
+  });
+
+  it("records busted seats smallest starting stack first, departed players excluded", () => {
+    const mk = (id: string, chips: number, totalBet: number) => ({
+      id, name: id, seed: id, ownerUid: id, chips, bet: 0, totalBet,
+      revealed: false, status: "all-in" as const, timeBank: 0, turnDeadline: null,
+    });
+    const before = [mk("big", 0, 900), mk("small", 0, 200), mk("winner", 0, 900), mk("gone", 0, 300)];
+    const ids = knockoutsFromHand(before, { big: 0, small: 0, winner: 2300, gone: 0 }, new Set(["gone"]));
+    expect(ids).toEqual(["small", "big"]);
+    const t = ids.reduce(recordKnockout, initTournamentState());
+    expect(t.knockouts).toEqual(["small", "big"]);
   });
 });

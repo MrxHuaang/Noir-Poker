@@ -20,17 +20,13 @@ import { randomSeed } from "@/lib/dicebear";
 import { Avatar } from "@/components/players/Avatar";
 import { formatChips } from "@/lib/betting";
 import type { NormalLobbyPlayer } from "@/lib/normalRooms";
+import { patchLobbyPlayer, setTableLocked } from "@/lib/normalRooms";
 import {
-  approveJoin,
-  patchLobbyPlayer,
-  setTableLocked,
-  patchNormalRoom,
-} from "@/lib/normalRooms";
-import {
+  approveStackRequest,
   rejectStackRequest,
-  dismissStackRequest,
   type StackRequest,
 } from "@/lib/stackRequests";
+import { MAX_TABLE_SEATS } from "@/lib/normalSeats";
 import type { NormalSeat } from "@/lib/betting";
 import type { RoomConfig } from "@/lib/betting";
 
@@ -57,28 +53,36 @@ function ApproveRow({
   code,
   req,
   config,
+  economy,
+  seatedCount,
 }: {
   code: string;
   req: StackRequest;
   config: RoomConfig;
+  economy: "coins" | "casual";
+  seatedCount: number;
 }) {
-  const [amount, setAmount] = useState(req.requestedStack);
+  // Con monedas el stack es exactamente lo que el jugador dejo en garantia:
+  // el host no puede aprobar otra cantidad (ni fichas sin respaldo).
+  const coins = economy === "coins";
+  const [draftAmount, setAmount] = useState(req.requestedStack);
+  const amount = coins ? req.requestedStack : draftAmount;
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleApprove() {
+    if (req.type === "join" && seatedCount >= MAX_TABLE_SEATS) {
+      alert("La mesa esta llena.");
+      return;
+    }
     setLoading(true);
     try {
-      if (req.type === "join") {
-        await approveJoin(code, req.uid, req.name, req.seed, amount);
-      } else {
-        // rebuy: add to pendingRebuys
-        await patchNormalRoom(code, {
-          [`pendingRebuys.${req.uid}`]: amount,
-        });
-      }
-      await dismissStackRequest(code, req.uid);
+      // Atomic with the request doc: a request the player already cancelled
+      // (refunded) can no longer be approved. Rebuys add up (increment).
+      await approveStackRequest(code, req.uid, amount, { coins });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo aprobar la solicitud.");
     } finally {
       setLoading(false);
     }
@@ -149,15 +153,19 @@ function ApproveRow({
             onChange={(e) => setAmount(Math.max(1, Number(e.target.value)))}
             min={1}
             step={100}
-            className="w-24 px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none focus:ring-accent-500/40 tabular-nums"
+            disabled={coins}
+            title={coins ? "Monto en garantia del jugador" : undefined}
+            className="w-24 px-2.5 py-1.5 rounded-lg bg-black/40 ring-1 ring-white/10 text-zinc-100 text-xs outline-none focus:ring-accent-500/40 tabular-nums disabled:opacity-60"
           />
-          <button
-            type="button"
-            onClick={() => setAmount(config.startingStack)}
-            className="px-2 py-1.5 rounded-lg glass ring-1 ring-white/8 text-zinc-400 text-[10px] hover:bg-white/10 transition"
-          >
-            Std
-          </button>
+          {!coins && (
+            <button
+              type="button"
+              onClick={() => setAmount(config.startingStack)}
+              className="px-2 py-1.5 rounded-lg glass ring-1 ring-white/8 text-zinc-400 text-[10px] hover:bg-white/10 transition"
+            >
+              Std
+            </button>
+          )}
           <div className="flex-1" />
           <button
             type="button"
@@ -217,7 +225,15 @@ function PlayerRow({
 
   async function handleKick() {
     if (!confirm(`¿Expulsar a ${lobbyPlayer.name}?`)) return;
-    await onKick(lobbyPlayer.uid);
+    try {
+      await onKick(lobbyPlayer.uid);
+    } catch (err) {
+      alert(
+        `No se pudo expulsar a ${lobbyPlayer.name}: ${
+          err instanceof Error ? err.message : "error desconocido"
+        }`,
+      );
+    }
   }
 
   async function handleToggleSitOut() {
@@ -529,6 +545,8 @@ export function StackRequestPanel({
                     code={code}
                     req={req}
                     config={config}
+                    economy={economy}
+                    seatedCount={lobby.length}
                   />
                 ))}
               </ul>

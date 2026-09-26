@@ -1,6 +1,6 @@
 "use client";
 import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Pause,
@@ -21,7 +21,6 @@ import { getTableTheme } from "@/lib/themes";
 import type { TableThemeId } from "@/lib/themes";
 import {
   getLevel,
-  levelTimeRemaining,
   advanceLevel,
   pauseTournament,
   resumeTournament,
@@ -80,16 +79,9 @@ function AdminTorneoPageInner() {
         : tickingLevelMs
       : 0;
 
-  // Auto-advance blind level when timer expires
-  useEffect(() => {
-    if (!tournament || !config || !code) return;
-    if (tournament.paused) return;
-    const remaining = levelTimeRemaining(tournament, config);
-    if (remaining > 0) return;
-
-    const next = advanceLevel(tournament);
-    patchNormalRoom(code, { tournament: next }).catch(() => {});
-  });
+  // Blind levels auto-advance on the host torneo page (/host/torneo), the only
+  // tab that owns the tournament. Advancing here too would skip levels when
+  // both pages are open; this panel only advances on an explicit click.
 
   if (!room) {
     return (

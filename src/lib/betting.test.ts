@@ -538,3 +538,57 @@ describe("computeSidePots — edge cases", () => {
     expect(pots).toHaveLength(4);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Short-stacked big blind
+// ---------------------------------------------------------------------------
+describe("startHand — short-stacked big blind", () => {
+  it("keeps the full big blind as the bet to match when the BB is all-in for less", () => {
+    // 3-handed, dealer p0: SB p1, BB p2 (only 3 chips), UTG p0.
+    const s = startHand(
+      [seat("p0", 1000), seat("p1", 1000), seat("p2", 3)],
+      DEFAULT_CONFIG,
+      1,
+      -1,
+    );
+    const bb = s.seats[s.betting.bbIdx];
+    expect(bb.status).toBe("all-in");
+    expect(bb.bet).toBe(3);
+    expect(s.betting.currentBet).toBe(DEFAULT_CONFIG.bigBlind);
+
+    // UTG must call the full 10, not the short 3.
+    const utg = s.seats.find((x) => x.id === s.betting.toActId)!;
+    const call = getValidActions(utg, s.betting).find((a) => a.action === "call");
+    expect(call?.min).toBe(10);
+  });
+
+  it("gives a SB that posted more than the short BB a real decision", () => {
+    // Heads-up: dealer/SB p0 posts 5, BB p1 is all-in for 3.
+    const s = startHand([seat("p0", 1000), seat("p1", 3)], DEFAULT_CONFIG, 1, -1);
+    const sb = s.seats[s.betting.sbIdx];
+    expect(sb.bet).toBe(5);
+    expect(s.betting.toActId).toBe(sb.id);
+    const names = getValidActions(sb, s.betting).map((a) => a.action);
+    expect(names).toContain("fold");
+    expect(names).toContain("call");
+    // Calling closes the action (BB is all-in): no negative amounts anywhere.
+    const after = handleAction(s, sb.id, "call");
+    expect(after.betting.toActId).toBeNull();
+    expect(after.seats.find((x) => x.id === sb.id)!.chips).toBe(990);
+    expect(after.betting.pot).toBe(13);
+  });
+});
+
+describe("getValidActions — never a negative amount to call", () => {
+  it("offers check when the seat already covers the current bet", () => {
+    const acts = getValidActions(seat("a", 100, { bet: 5 }), {
+      ...emptyBetting,
+      currentBet: 3,
+      minRaise: 10,
+    });
+    const names = acts.map((a) => a.action);
+    expect(names).toContain("check");
+    expect(names).not.toContain("fold");
+    expect(acts.every((a) => (a.min ?? 0) >= 0)).toBe(true);
+  });
+});

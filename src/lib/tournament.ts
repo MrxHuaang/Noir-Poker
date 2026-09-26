@@ -1,4 +1,4 @@
-import type { BlindLevel, RoomConfig } from "./betting";
+import type { BlindLevel, NormalSeat, RoomConfig } from "./betting";
 
 export type TournamentState = {
   currentLevel: number;
@@ -29,6 +29,41 @@ export function getLevel(
       ante: config.ante,
     }
   );
+}
+
+// Config with the blinds/ante of the tournament's current level. Outside a
+// tournament (or before its state exists) the room config is used as is.
+export function configForHand(
+  config: RoomConfig,
+  tournament: TournamentState | null | undefined,
+): RoomConfig {
+  if (config.mode !== "torneo" || !tournament) return config;
+  const level = getLevel(tournament, config);
+  return { ...config, smallBlind: level.sb, bigBlind: level.bb, ante: level.ante };
+}
+
+// True once the current level is the last one of the structure (the clock
+// stops advancing there; the blinds stay at the top level).
+export function isLastLevel(state: TournamentState, config: RoomConfig): boolean {
+  const levels = config.blindLevels ?? [];
+  return state.currentLevel >= levels.length - 1;
+}
+
+// Seats busted by the hand that just settled, in elimination order: when
+// several players bust on the same hand the one who started it with fewer
+// chips finishes lower, so it is recorded first (the podium reads knockouts
+// from last to first).
+export function knockoutsFromHand(
+  seatsBefore: NormalSeat[],
+  chipsAfter: Record<string, number>,
+  exclude: ReadonlySet<string> = new Set(),
+): string[] {
+  return seatsBefore
+    .filter((s) => !exclude.has(s.id))
+    .map((s) => ({ id: s.id, start: s.chips + s.totalBet }))
+    .filter((s) => s.start > 0 && (chipsAfter[s.id] ?? 0) === 0)
+    .sort((a, b) => a.start - b.start)
+    .map((s) => s.id);
 }
 
 export function levelTimeRemaining(
