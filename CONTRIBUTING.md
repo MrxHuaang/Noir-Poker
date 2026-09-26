@@ -8,7 +8,7 @@ Guía de trabajo, estándares técnicos y roadmap del proyecto.
 
 [![README](https://img.shields.io/badge/README-ver-555?style=for-the-badge)](README.md)
 [![Roadmap](https://img.shields.io/badge/Roadmap-activo-8b6fe8?style=for-the-badge)](#roadmap)
-[![Go Server](https://img.shields.io/badge/Go_server-migracion-00add8?style=for-the-badge&logo=go&logoColor=white)](server/README.md)
+[![Online](https://img.shields.io/badge/Online-serverless_TS-000?style=for-the-badge&logo=vercel)](docs/plan-migracion.md)
 
 </div>
 
@@ -27,13 +27,12 @@ Noir Poker es jugable de punta a punta en los modos actuales:
 | Presencial | Completo para sala física: host, teléfonos, cartas privadas, reveal, showdown y equity host-only |
 | Online legacy | Completo en features principales: apuestas, side pots, all-in run-it-N, chat, voz, economía y hand history |
 | Torneo legacy | Funcional: niveles, pausa, avance manual, knockouts y ranking |
-| Go server-backed | MVP avanzado: mano autoritativa, WebSocket, timer por turno, run-it-N básico, espectadores y lobby de salas activas |
-| Migración a Go | En progreso: Go todavía no tiene paridad con el legacy |
+| Online server-backed | Autoritativo serverless (API + Firestore): mano completa, side pots, run-it-N, timer por turno, fila de espera, economía atómica, historial y lobby de salas abiertas |
 
 La arquitectura actual mantiene dos caminos en paralelo:
 
 - Legacy host-authoritative: `/host/normal`, `/play/normal/[code]`, `useNormalGame`, Firestore.
-- Server-backed autoritativo: `/play/online/[code]`, `server/`, WebSocket, Render.
+- Server-backed autoritativo: `/play/online/[code]`, `src/lib/online/`, `/api/online`, Firestore (sin servidor aparte).
 
 El objetivo técnico es llevar el camino server-backed a paridad antes de deprecar el legacy.
 
@@ -70,15 +69,11 @@ npm test
 npm run build
 ```
 
-Para cambios en `server/`:
+Para probar flujos multijugador sin tocar producción:
 
 ```bash
-cd server
-go vet ./...
-go build ./cmd/server
+npm run dev:emu   # Next + Firebase Emulator Suite (Auth + Firestore)
 ```
-
-`go test ./...` corre en CI. En esta máquina Windows puede fallar por Smart App Control bloqueando binarios de test sin firmar.
 
 ## Commits
 
@@ -152,7 +147,7 @@ Estas reglas no son negociables:
 | Equity, outs y fuerza de mano solo en host | Esa información no debe aparecer en vista de jugadores ni sobre la mesa |
 | El jugador solo recibe sus cartas | Base de privacidad del modo teléfono y del modo server-backed |
 | Campos nuevos deben clasificarse | Decide explícitamente entre público, host-only, owner-only o no-display |
-| En Go, la lógica de juego vive en `server/internal/game` | El cliente solo renderiza estado y manda acciones |
+| En online, la lógica de juego vive en `src/lib/online/engine.ts` | El cliente solo renderiza estado y manda acciones |
 
 ## Smoke tests manuales
 
@@ -223,19 +218,17 @@ Estas reglas no son negociables:
 
 ### Migración Go
 
-| Feature | Estado en Go | Comentario |
+| Feature | Estado online | Comentario |
 | --- | --- | --- |
-| Mano completa | Hecho | Deal, betting, streets, showdown y side pots |
-| WebSocket rooms | Hecho | Estado público + holes privados por asiento |
-| Auth Firebase WS | Implementado, opcional | Depende de `FIREBASE_PROJECT_ID` en Render |
-| Timer server-side | Hecho | Auto-check/auto-fold con deadline publicado al cliente |
-| Economía/escrow | Hecho | Cash-out lee el stack final del Go (`GET /stacks`); XP/historial cuentan manos verificadas de Supabase; buy-in exige cuenta real |
-| Lobby de salas online | Hecho básico | `GET /rooms` lista salas activas del hub; falta metadata rica |
-| Run-it-N | Hecho básico | Configurable 1-3 runs desde creación; falta negociación/votación por mano |
-| Historial y stats del server | Hecho | El Go escribe `online_hand_records` en Supabase con categoría real; el cliente solo lee |
-| Torneos | Parcial | Go tiene escalado simple de ciegas; faltan niveles configurables, knockouts, ranking y payouts |
-| Espectadores/cola | Hecho | Entrada observer-first; cupo de 9 asientos con fila por orden de llegada y promoción automática |
-| Deprecar legacy | Bloqueado | Solo cuando Go alcance paridad |
+| Mano completa | Hecho | Deal, betting, streets, showdown y side pots (motor TS con fuzz de conservación) |
+| Privacidad | Hecho | Estado público en `onlineRooms/{code}`; cartas solo del dueño; mazo en documento cerrado |
+| Auth | Hecho | idToken de Firebase verificado en cada jugada |
+| Timer | Hecho | Deadline público; los clientes disparan `tick` y el servidor valida |
+| Economía/escrow | Hecho | Buy-in y cash-out atómicos con el asiento; tope por libro de sala; XP desde registros de mano |
+| Lobby de salas online | Hecho básico | Salas abiertas en `/play/online` |
+| Run-it-N | Hecho básico | Configurable 1-3 runs desde creación; falta votación por mano |
+| Torneos | Parcial | Subida de ciegas por tiempo; faltan niveles configurables, knockouts y payouts |
+| Espectadores/cola | Hecho | Observer-first; 9 asientos, fila por orden de llegada |
 
 ### Producto y calidad
 
@@ -254,15 +247,13 @@ Estas reglas no son negociables:
 | --- | --- | --- |
 | Media | SeatPicker no aparece en modo Torneo | El jugador puede jugar; la selección visual de asiento queda limitada |
 | Baja | Dealer button puede superponerse con fichas en mesa heads-up | Visual, no afecta lógica |
-| Media | Render free duerme por inactividad | Cold start aproximado de un minuto (mitigado con keep-alive ping) |
-| Baja | Reconexión con la sala llena te manda al final de la fila | El asiento se libera al desconectar entre manos; al volver entras a la cola |
+| Media | Login por redirect con `authDomain` ajeno | Navegadores con particionado de almacenamiento pueden perder el resultado; ver `docs/auth-setup.md` |
 
 ## Documentos relacionados
 
 - [README](README.md)
-- [Plan de migración Go](docs/plan-migracion.md)
+- [Arquitectura del modo online](docs/plan-migracion.md)
 - [Architecture roadmap](docs/architecture-roadmap.md)
-- [Servidor Go](server/README.md)
 - [CLI](cli/README.md)
 - [Voz WebRTC](docs/voice-setup.md)
 - [Persistencia](docs/persistence-setup.md)

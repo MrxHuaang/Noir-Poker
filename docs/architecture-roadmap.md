@@ -4,6 +4,14 @@ Strategic notes — persistence migration (F2), then the bigger question: is the
 TS + Next + Firebase stack "enough", and what would make this a standout portfolio
 piece. Written to be reviewed and argued with, not executed blindly.
 
+## STATUS UPDATE (2026-09): the Go server was replaced
+
+The authoritative online backend now runs serverless in TypeScript
+(`src/lib/online/engine.ts` + `/api/online`, one Firestore transaction per
+move), with atomic coin escrow and no process to keep awake. `server/`,
+`render.yaml` and the Render deploy were removed. See `docs/plan-migracion.md`.
+The history below is kept for context.
+
 ## STATUS UPDATE (done since this was written)
 
 - **Rust→WASM equity engine** (`engine/`): built in CI, wired into `useEquity`. DONE.

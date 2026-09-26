@@ -6,14 +6,17 @@ Project-specific guidance for working in this codebase. Read alongside the globa
 
 Multi-device Texas Hold'em simulator. Big screen runs the table, phones see private hole cards. No betting — visual sim with showdown, equity, all-in run-it-N-times, history, stats.
 
-**Stack**: Next.js 16 (App Router, Turbopack), TS, Tailwind v4, GSAP 3, Firebase Firestore + Anonymous Auth, Web Worker for equity. **Rust→WASM** equity engine (`engine/`, powers the host equity panel). **Go authoritative game server** (`server/`) for the trustless online mode, deployed on Render.
+**Stack**: Next.js 16 (App Router, Turbopack), TS, Tailwind v4, GSAP 3, Firebase Firestore + Anonymous Auth, Web Worker for equity. **Rust→WASM** equity engine (`engine/`, powers the host equity panel). **Serverless authoritative online backend in TypeScript** (`src/lib/online/` + `/api/online`, Firestore transactions). There is no separate game server: the old Go/Render server was removed.
 
 ## Two backends — pick the right one
 
 - **Legacy host-authoritative mode** (`/play/normal`, `/host/normal`, `useNormalGame`): the host browser runs the game and syncs to Firestore. Has the full feature set (economy/escrow, tournaments, queue/spectators, run-it-twice). UNCHANGED — keep it working.
-- **Server-backed online mode** (`/play/online/[code]`): the game runs on the **Go server** (`server/`). Client connects via `useGameSocket`/`useServerGame` over `NEXT_PUBLIC_GAME_WS_URL`; the server deals, validates, and pushes per-seat private holes. Renders on the same rich table as legacy (`TableShell`/`RoundPokerTable` + `BettingDock`) through the pure adapter `src/lib/onlineTable.ts`. Entry is observer-first (no forms): "Sentarme" seats you, or queues you when the 9-seat table is full (arrival order, auto-promotion). Economy is closed end-to-end: buy-in escrow = the server's `startStack`, cash-out reads the final stack from the Go server (`GET /stacks`), XP/history count verified hands from Supabase `online_hand_records` (written only by the Go server). Coin buy-ins require a non-anonymous account; guests spectate. Voice/chat mount by room code, same as legacy. A terminal client (`cli/`) speaks the same protocol (dev-only: prod WS requires Firebase tokens).
-  - **Casual mode** ("Sin fichas"): toggled at room creation. Server sets `casual: true` in config; Go server bypasses coin escrow, grants unlimited free rebuys, and allows guests to sit. The `casual` flag is surfaced in `PublicState` and forwarded to clients via the config message. Economy gate (`requireCoins`) is skipped entirely on the client when `casual` is active.
-- When adding online-mode features, port to the Go server (`server/internal/game`) + the WS protocol — do NOT add game logic to the client. The web client only renders state + sends actions.
+- **Server-backed online mode** (`/play/online/[code]`): authoritative and trustless WITHOUT a long-lived server. Every move is `POST /api/online` (verified Firebase ID token), which runs ONE Firestore transaction: load the pure engine state (`onlineRooms/{code}/private/engine`, closed to clients), apply the move with `src/lib/online/engine.ts`, settle coins, write the public state (`onlineRooms/{code}`), private holes (`holes/{uid}`, owner-only) and a hand record per showdown (`hands/{n}`). Clients subscribe with `useOnlineGame` and render on the rich table (`TableShell`/`RoundPokerTable` + `BettingDock`) through the pure adapter `src/lib/onlineTable.ts`. Full design: `docs/plan-migracion.md`.
+  - **No background process**: the turn clock is driven by clients calling `tick` after the public `deadline` (the server re-checks the time); disconnects are detected by presence heartbeats (`presence/{uid}`, 25 s, stale after 75 s) and pruned at the next deal / turn timeout; blind escalation is computed at deal time.
+  - **Economy is atomic**: sitting down escrows the buy-in (= `startStack`) in the same transaction as the seat; standing up, being pruned or all-in settlement credits the stack in the game transaction, capped by `roomLedgers/online-{code}`. Online escrow keys are `online-{code}`. XP counts `hands` records server-side. Coin tables require a non-anonymous account.
+  - **Casual mode** ("Sin fichas"): fixed at creation (`config.casual`), no coins, free rebuys, guests can sit, no XP.
+  - Observer-first entry: "Sentarme" seats you or queues you when the 9-seat table is full (arrival order, auto-promotion). The CLI (`cli/`) speaks the same contract (anonymous session: casual tables only).
+- When adding online-mode features, put the rules in `src/lib/online/engine.ts` (pure, unit-tested) and the persistence in `src/lib/online/server.ts` — do NOT add game logic to the client. The web client only renders state + sends actions.
 
 ## Repo conventions
 
@@ -71,13 +74,16 @@ hardcode amber/gold/green/blue chrome again.
 | `src/components/cards/PlayingCard.tsx`        | 3D flip card. Mount-only deal tween + flip tween on `faceUp`. |
 | `src/app/host/page.tsx`                       | Auto-creates room, subscribes lobby, mounts host PokerTable   |
 | `src/app/play/[code]/page.tsx`                | Phone: lobby form, then private game view                     |
-| `server/`                                     | Go authoritative game server. `internal/game` (Betting/Settle/Room), `internal/hub` (WS), `internal/auth` (Firebase token), `internal/session` (wiring). Deployed on Render; CI in `.github/workflows/server.yml`. |
-| `src/hooks/useGameSocket.ts` / `useServerGame.ts` | Client WS to the Go server (state/hole in, start/action/config out). Token is an async getter, re-resolved per reconnect. |
+| `src/lib/online/engine.ts`                    | Pure authoritative online engine (betting, streets, side pots, run-it-N, queue, owner). Serializable JSON state. Tests in `engine.test.ts` (incl. chip-conservation fuzz). |
+| `src/lib/online/server.ts` + `/api/online`    | One Firestore transaction per move: engine + wallet settlement + public/hole/hand writes. `server-only`. |
+| `src/hooks/useOnlineGame.ts` / `src/lib/online/client.ts` | Client: Firestore subscriptions, API calls, presence heartbeat, turn-clock `tick`. |
 | `src/lib/onlineTable.ts`                      | Pure adapter PublicState → NormalSeat[]/BettingRound/Cards for the rich table. NO game rules here. |
-| `src/app/play/online/`                        | Online routes: landing (create/join) + observer-first table page (sit/queue/spectate, economy settle on leave/pagehide). |
-| `src/lib/economyServer.ts` + `/api/economy`   | Server-authoritative wallet/XP. Online cash-out asks the Go server (`/stacks`); online XP counts Supabase hand records. |
+| `src/app/play/online/`                        | Online routes: landing (create via API, join by code, open rooms) + observer-first table page. |
+| `src/lib/economyServer.ts` + `/api/economy`   | Server-authoritative wallet/XP. Normal-mode cash-out reads the host's stack (live seat or `lobby.chips`) and removes the player from the lobby; buy-in can create the stack request atomically; refunds only unapproved requests. |
+| `src/lib/showdownPayout.ts` / `src/lib/normalSeats.ts` | Pure normal-mode pot distribution and seat lifecycle (who is dealt in, detached players, voided hand after host refresh). |
+| `src/hooks/useAuth.tsx`                       | Single app-wide `AuthProvider` (mounted in the root layout); `useAuth()` reads context. |
 | `engine/`                                     | Rust→WASM equity engine; built in CI, bundled in `src/lib/engine/`, used by `useEquity`. |
-| `cli/`                                        | Terminal poker client (same WS protocol as the web online mode). `npm run play -- CODE Name`. |
+| `cli/`                                        | Terminal poker client (same Firestore + `/api/online` contract as the web). `npm run play -- CODE Name [--app URL]`. |
 
 ## Animation rules
 
@@ -140,15 +146,22 @@ These are host-device-local. The roadmap item is to migrate per-room stats/histo
 
 ```bash
 npm run build     # turbopack, must finish clean (no TS errors, no hydration warnings)
-npm run dev       # http://localhost:3000
+npm run dev       # http://localhost:3000 (real Firebase project)
+npm run dev:emu   # Next + Firebase Emulator Suite (Auth + Firestore); `-- --port 3100` for another port
 ```
+
+`dev:emu` loads this repo's `firestore.rules` into the emulator and points both
+the browser SDK and the Admin SDK at it: test accounts (Auth emulator widget)
+and full multi-player flows can be exercised without touching production.
+If Turbopack ever spawns hundreds of `postcss.js` workers (corrupted dev
+cache), kill them and delete `.next/dev`.
 
 For live testing, the preview MCP tools work against `localhost:3000`. After edits, prefer:
 
 1. `npm run build` to catch TS errors.
 2. `preview_start` + `preview_eval` to walk a flow.
 
-Firebase calls require a real network. The smoke test path: `/host` → room code appears → `/play/CODE` → fill form → host sees lobby update.
+Firebase calls require a real network (or `npm run dev:emu`). The smoke test path: `/host` → room code appears → `/play/CODE` → fill form → host sees lobby update.
 
 ## Coding style
 

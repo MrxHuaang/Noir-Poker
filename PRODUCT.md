@@ -40,7 +40,7 @@ The product is not a marketing site. Most screens are operational surfaces used 
 - Do not show equity, outs, or private hand strength to players unless the flow explicitly reveals cards.
 - A player receives only their own private cards.
 - New state fields must be classified as public, host-only, owner-only, or no-display before wiring UI.
-- In server-backed mode, game authority lives in `server/internal/game`; the client renders public state and sends actions.
+- In server-backed mode, game authority lives in `src/lib/online/engine.ts`, executed by `/api/online` inside a Firestore transaction; the client renders public state and sends actions.
 - Components must not call `getFirestore()` directly. Use helpers in `src/lib`.
 - Hooks must run before any conditional return.
 

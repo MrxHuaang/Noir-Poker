@@ -10,7 +10,7 @@ Texas Hold'em multi-dispositivo para mesas presenciales, partidas online y torne
 [![React](https://img.shields.io/badge/React-19.2-149eca?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore-ffca28?style=for-the-badge&logo=firebase&logoColor=111)](https://firebase.google.com/)
-[![Go](https://img.shields.io/badge/Go-server-00add8?style=for-the-badge&logo=go&logoColor=white)](server/README.md)
+[![Serverless](https://img.shields.io/badge/Backend-serverless%20TS-000?style=for-the-badge&logo=vercel)](src/lib/online)
 
 <br />
 
@@ -22,7 +22,7 @@ Texas Hold'em multi-dispositivo para mesas presenciales, partidas online y torne
 
 ![Noir Poker preview](public/hero.png)
 
-Noir Poker convierte una mesa física en una experiencia sincronizada: la pantalla principal muestra el tablero y cada jugador entra desde su teléfono para ver sus cartas privadas, actuar, hablar por voz y seguir el estado de la mano. El proyecto combina una app web en Next.js, sincronización realtime, motor de equity en WASM y un servidor Go autoritativo para el modo online.
+Noir Poker convierte una mesa física en una experiencia sincronizada: la pantalla principal muestra el tablero y cada jugador entra desde su teléfono para ver sus cartas privadas, actuar, hablar por voz y seguir el estado de la mano. El proyecto combina una app web en Next.js, sincronización realtime, motor de equity en WASM y un backend autoritativo serverless en TypeScript (API routes + Firestore) para el modo online: no hay ningún servidor aparte que mantener encendido.
 
 ## Stack
 
@@ -32,7 +32,7 @@ Noir Poker convierte una mesa física en una experiencia sincronizada: la pantal
 | UI | Tailwind CSS v4, Lucide React, GSAP, OGL | Mesa, cartas 3D, animaciones, HUDs y microinteracciones |
 | Realtime | Firebase Auth anónimo, Firestore | Salas, lobby, cartas privadas, historial, economía y presencia |
 | Voz | Supabase Realtime, WebRTC, TURN opcional | Señalización P2P, mute, niveles de audio y modo solo escuchar |
-| Juego online | Go, WebSocket, Render | Servidor autoritativo para mazo, apuestas, side pots y showdown |
+| Juego online | Next.js API routes, Firestore transactions | Motor autoritativo serverless: mazo, apuestas, side pots, showdown y economía en una transacción por jugada |
 | Equity | Rust a WASM, Web Worker | Cálculo exacto y Monte Carlo sin bloquear la UI |
 | CLI | TypeScript con `tsx` | Cliente de terminal para entrar a salas online |
 | Calidad | ESLint 9, Vitest | Lint y pruebas unitarias de lógica core |
@@ -47,8 +47,9 @@ flowchart LR
   Firestore --> Player
   Host --> Worker["Equity worker"]
   Worker --> WASM["Rust/WASM engine"]
-  Online["Modo online"] <-->|WebSocket| Go["Servidor Go autoritativo"]
-  Go --> Render["Render"]
+  Online["Modo online"] -->|POST /api/online| API["Route handler + motor TS"]
+  API -->|transacción| Firestore
+  Firestore -->|onSnapshot| Online
   Voice["Voz WebRTC"] <-->|señalización| Supabase["Supabase Realtime"]
 ```
 
@@ -59,7 +60,7 @@ flowchart LR
 | Presencial | `/host` y `/play/[code]` | Mesa visual para partidas físicas. El host reparte, avanza calles y resuelve showdown; cada teléfono ve sus cartas privadas. |
 | Online | `/create`, `/lobby`, `/play/normal/[code]` | Cash game con ciegas, raises, side pots, timers, chat, voz, rebuys e historial de manos. |
 | Torneo | `/host/torneo` y `/admin/[code]` | Niveles de ciegas, pausa/reanudar, avance manual, knockouts y ranking final. |
-| Server-backed | `/play/online/[code]` | Mesa trustless: el servidor Go reparte, valida acciones y emite estado público por WebSocket. |
+| Server-backed | `/play/online/[code]` | Mesa trustless: `/api/online` reparte, valida cada jugada en una transacción de Firestore y publica solo el estado público; cada jugador lee únicamente sus cartas. |
 
 ### Flujo de una mano
 
@@ -68,13 +69,13 @@ flowchart LR
 3. El host inicia mano; las cartas privadas se guardan separadas del estado público.
 4. La mesa avanza por preflop, flop, turn, river y showdown.
 5. En Online/Torneo se procesan apuestas, side pots, all-in run-it-N, historial y stacks.
-6. En Server-backed el servidor Go es la autoridad sobre mazo, acciones y resolución.
+6. En Server-backed la API es la autoridad sobre mazo, acciones, resolución y monedas (buy-in y cash-out atómicos con el asiento).
 
 ### Privacidad y seguridad de juego
 
 - Las hole cards no se guardan en el documento público de la sala.
 - El equity y los outs son host-only; no se renderizan sobre seats de jugadores.
-- En modo server-backed, el mazo y las cartas ajenas nunca salen del servidor Go.
+- En modo server-backed, el mazo y las cartas ajenas viven en `onlineRooms/{code}/private/engine`, cerrado a los clientes por `firestore.rules`.
 - Firebase Admin SDK respalda endpoints de economía/XP; las variables sin `NEXT_PUBLIC_` quedan solo en servidor.
 - `next.config.ts` agrega cabeceras de seguridad contra framing, MIME sniffing y permisos no usados.
 
@@ -84,7 +85,7 @@ flowchart LR
 
 - Node.js 21 o superior.
 - Proyecto Firebase con Firestore y Anonymous Auth.
-- Go 1.23 o superior para correr `server/`.
+- Opcional para desarrollo local sin tocar producción: Java 11+ y `firebase-tools` (Emulator Suite).
 - Rust + `wasm-pack` solo si vas a recompilar el motor de equity.
 
 ### Instalación
@@ -107,8 +108,7 @@ El archivo base es `.env.example`. Las variables `NEXT_PUBLIC_*` se incluyen en 
 | `FIREBASE_ADMIN_*` | Admin SDK para economía/XP en route handlers |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Señalización de voz por Supabase Realtime |
 | `NEXT_PUBLIC_TURN_*` | TURN opcional para WebRTC en redes restrictivas |
-| `NEXT_PUBLIC_GAME_WS_URL` | URL del servidor Go para modo server-backed |
-| `FIREBASE_PROJECT_ID` | Servidor Go: exige idToken Firebase en handshake cuando está definido |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=self` | Opcional: sirve el helper de Auth desde el propio dominio (ver `docs/auth-setup.md`) |
 
 ### Comandos
 
@@ -118,16 +118,15 @@ npm run dev
 npm run build
 npm run start
 
+# Todo local contra Firebase Emulator Suite (Auth + Firestore)
+npm run dev:emu
+
 # Calidad
 npm run lint
 npm test
 npm run test:watch
 
-# Servidor Go autoritativo
-cd server
-go run ./cmd/server
-
-# CLI de mesa online
+# CLI de mesa online (necesita la app corriendo; --app para otra URL)
 npm run play -- MESA1 Ana
 
 # Motor Rust/WASM
@@ -142,7 +141,7 @@ Para confirmar que el repo sigue sano tras un cambio chico:
 ```bash
 npm run lint
 npm test
-cd server && go build ./cmd/server
+npm run build
 ```
 
 ### Smoke test
@@ -168,10 +167,9 @@ cd server && go build ./cmd/server
 | `/play/[code]` | Vista de teléfono para presencial |
 | `/play/normal/[code]` | Vista de jugador para online/torneo |
 | `/play/online` | Crear o unirse a mesa server-backed |
-| `/play/online/[code]` | Mesa autoritativa por WebSocket |
+| `/play/online/[code]` | Mesa autoritativa (API + Firestore) |
 | `/admin/[code]` | Panel administrativo de torneo |
 | `/perfil` y `/login` | Perfil, monedas, rango y login social |
-| `/server-demo` | Demo técnica del servidor Go |
 
 ## Estructura
 
@@ -183,13 +181,11 @@ poker-sim/
     hooks/               Auth, salas, presencia, voz, equity, servidor online
     lib/                 Poker core, Firestore helpers, economía, evaluadores
     workers/             Equity worker
-  server/                Servidor Go autoritativo por WebSocket
   engine/                Motor Rust/WASM de equity
   cli/                   Cliente de terminal para modo online
   docs/                  Planes, auditorías, voz, persistencia y seguridad
   public/                Logos, hero, favicon, assets públicos y rangos
   firestore.rules        Reglas de seguridad Firestore
-  render.yaml            Blueprint de Render para el servidor Go
 ```
 
 ## Convenciones
@@ -208,12 +204,8 @@ poker-sim/
 ### Web en Vercel
 
 1. Importa el repo en Vercel.
-2. Configura `NEXT_PUBLIC_FIREBASE_*`, Supabase y `NEXT_PUBLIC_GAME_WS_URL`.
-3. Ejecuta deploy. Vercel detecta Next.js automáticamente.
-
-### Servidor Go en Render
-
-`render.yaml` define el servicio de `server/`. En Render, crea un Blueprint desde el repo, despliega el servicio y copia la URL final a `NEXT_PUBLIC_GAME_WS_URL`.
+2. Configura `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_ADMIN_*` y Supabase (voz).
+3. Ejecuta deploy. Vercel detecta Next.js automáticamente. El modo online corre en las mismas funciones serverless: no hay servidor aparte.
 
 ### Reglas Firestore
 
@@ -225,9 +217,9 @@ firebase deploy --only firestore:rules
 
 - [Contexto de producto para agentes](PRODUCT.md)
 - [Contexto de diseño para agentes](DESIGN.md)
-- [Plan de migración](docs/plan-migracion.md)
+- [Arquitectura del modo online](docs/plan-migracion.md)
+- [Login social y dominio de Auth](docs/auth-setup.md)
 - [Roadmap y contribución](CONTRIBUTING.md)
-- [Servidor Go](server/README.md)
 - [CLI](cli/README.md)
 - [Voz WebRTC](docs/voice-setup.md)
 - [Persistencia](docs/persistence-setup.md)
