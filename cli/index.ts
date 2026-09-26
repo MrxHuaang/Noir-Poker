@@ -1,27 +1,22 @@
 // Poker Terminal — joins the SAME live online game as web users at /play/online.
 //
-// Talks the authoritative Go server's WebSocket protocol directly (see net.ts).
-// A terminal seat and a browser seat at the same room code share one server-side
-// table, so they see and play against each other. No Firebase, no betting engine
-// runs locally — the server is authoritative; we render its snapshots and act.
+// Reads the room from Firestore and sends moves to the app's /api/online route
+// (see net.ts), exactly like the web client. A terminal seat and a browser seat
+// at the same room code share one server-side table. No betting engine runs
+// locally: the server is authoritative; we render its snapshots and act.
 //
-// Run:  npm run play -- <SALA> [nombre]
+// Run:  npm run play -- <SALA> [nombre] [--app http://localhost:3000]
 //   or  npm run play            (prompts for the room code)
 
 import process from "node:process";
 import * as readline from "node:readline";
-import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
-
 import { GameConnection } from "./net";
 import { renderFrame, type View } from "./render";
 import { screen, color, accent } from "./ansi";
 import { legalActions, isMyTurn } from "./logic";
 import type { PublicState, ConnStatus } from "./types";
 
-const DEFAULT_WS = "https://poker-sim-server.onrender.com";
+const DEFAULT_APP = "http://localhost:3000";
 const dim = color.dim;
 const warn = color.yellow;
 
@@ -29,29 +24,6 @@ let view: View;
 let conn: GameConnection;
 let mode: "keys" | "line" = "keys";
 let lastHandNum = -1;
-let rejectTimer: ReturnType<typeof setTimeout> | null = null;
-
-// ---- identity (stable across runs so reconnects keep the same seat) ----------
-function getId(override?: string): string {
-  if (override) return override;
-  const f = join(homedir(), ".poker-sim-cli-id");
-  try {
-    if (existsSync(f)) {
-      const v = readFileSync(f, "utf8").trim();
-      if (v) return v;
-    }
-  } catch {
-    /* fall through to generate */
-  }
-  const id = randomUUID();
-  try {
-    writeFileSync(f, id, "utf8");
-  } catch {
-    /* non-fatal: use the ephemeral id */
-  }
-  return id;
-}
-
 // ---- args --------------------------------------------------------------------
 function parseArgs(argv: string[]) {
   const flags: Record<string, string> = {};
@@ -85,10 +57,6 @@ function setMsg(s: string): void {
 
 // ---- server frame handlers ---------------------------------------------------
 function onState(s: PublicState): void {
-  if (rejectTimer) {
-    clearTimeout(rejectTimer);
-    rejectTimer = null;
-  }
   if (s.handNum !== lastHandNum) {
     lastHandNum = s.handNum;
     view.hole = null; // fresh hand: wait for our private "hole" frame
@@ -108,27 +76,16 @@ function onStatus(status: ConnStatus): void {
   render();
 }
 
-// ---- actions -----------------------------------------------------------------
-function armRejectionCheck(): void {
-  if (rejectTimer) clearTimeout(rejectTimer);
-  rejectTimer = setTimeout(() => {
-    rejectTimer = null;
-    if (view.state && isMyTurn(view.state, view.myId)) {
-      setMsg(warn("Sin cambios — la acción pudo ser ilegal. Prueba otra."));
-      render();
-    }
-  }, 2500);
+function onError(message: string): void {
+  setMsg(warn(message));
+  render();
 }
 
+// ---- actions -----------------------------------------------------------------
 function sendAction(action: string, amount = 0): void {
-  if (!conn.action(action, amount)) {
-    setMsg(warn("Aún conectando…"));
-    render();
-    return;
-  }
   setMsg(accent(`→ ${action}${amount ? ` ${amount}` : ""}`));
-  armRejectionCheck();
   render();
+  void conn.action(action, amount);
 }
 
 function quickAction(kind: "fold" | "check" | "callOrCheck" | "allIn"): void {
@@ -191,30 +148,26 @@ function raiseFlow(): void {
       return;
     }
     const clamped = Math.max(legal.raiseMin, Math.min(Math.floor(amt), legal.raiseMax));
-    conn.action(legal.raiseVerb, clamped);
     setMsg(accent(`→ ${legal.raiseVerb} ${clamped}`));
-    armRejectionCheck();
     render();
+    void conn.action(legal.raiseVerb, clamped);
   });
 }
 
 function startHand(): void {
-  if (!conn.start()) {
-    setMsg(warn("Aún conectando…"));
-  } else {
-    setMsg(dim("Repartiendo… (se necesitan 2+ jugadores conectados)"));
-  }
+  setMsg(dim("Repartiendo… (se necesitan 2+ jugadores sentados)"));
   render();
+  void conn.start();
 }
 
 // ---- input -------------------------------------------------------------------
 function onKeypress(str: string, key: readline.Key): void {
   if (mode !== "keys") return;
-  if (key && key.ctrl && key.name === "c") return quit();
+  if (key && key.ctrl && key.name === "c") return void quit();
   const name = (key?.name || str || "").toLowerCase();
   switch (name) {
     case "q":
-      return quit();
+      return void quit();
     case "d":
     case "s":
       return startHand();
@@ -260,14 +213,15 @@ function askLine(query: string): Promise<string> {
   });
 }
 
-function quit(): void {
+async function quit(): Promise<void> {
   try {
-    conn?.close();
+    if (process.stdin.isTTY) process.stdin.setRawMode(false);
   } catch {
     /* ignore */
   }
   try {
-    if (process.stdin.isTTY) process.stdin.setRawMode(false);
+    // Stand up so the stack is settled and the seat is freed right away.
+    await conn?.close();
   } catch {
     /* ignore */
   }
@@ -276,12 +230,12 @@ function quit(): void {
 }
 
 // ---- startup -----------------------------------------------------------------
-function intro(wsBase: string, room: string): void {
+function intro(appUrl: string, room: string): void {
   process.stdout.write(screen.clear);
   process.stdout.write("\n  " + accent("♠ ♥ ♦ ♣  POKER TERMINAL") + "\n");
   process.stdout.write(
     "  " +
-      dim(`Servidor: ${wsBase}`) +
+      dim(`App: ${appUrl}`) +
       "\n  " +
       dim(`Comparte el código `) +
       color.bold(room) +
@@ -297,19 +251,8 @@ function intro(wsBase: string, room: string): void {
 }
 
 async function main(): Promise<void> {
-  if (typeof WebSocket === "undefined") {
-    console.error(
-      "Este cliente necesita Node 21+ (WebSocket global). Tu versión: " + process.version,
-    );
-    process.exit(1);
-  }
-
   const { flags, positional } = parseArgs(process.argv.slice(2));
-  const wsBase =
-    flags.server ||
-    process.env.GAME_WS_URL ||
-    process.env.NEXT_PUBLIC_GAME_WS_URL ||
-    DEFAULT_WS;
+  const appUrl = flags.app || process.env.POKER_APP_URL || DEFAULT_APP;
 
   process.stdout.write(screen.clear);
   process.stdout.write("\n  " + accent("♠ ♥ ♦ ♣  POKER TERMINAL") + "\n\n");
@@ -328,19 +271,18 @@ async function main(): Promise<void> {
     name = ((await askLine("  Tu nombre [Terminal]: ")).trim()) || "Terminal";
   }
 
-  const myId = getId(flags.id);
-  view = { state: null, hole: null, myId, myName: name, conn: "connecting", message: "" };
+  view = { state: null, hole: null, myId: "", myName: name, conn: "connecting", message: "" };
 
-  intro(wsBase, room);
+  intro(appUrl, room);
 
-  conn = new GameConnection(wsBase, room, myId, name, { onState, onHole, onStatus });
+  conn = new GameConnection(appUrl, room, name, { onState, onHole, onStatus, onError });
   setupInput();
   process.stdout.write(screen.hideCursor);
-  conn.connect();
+  view.myId = await conn.connect();
   render();
 }
 
-process.on("SIGINT", quit);
+process.on("SIGINT", () => void quit());
 process.on("exit", () => {
   process.stdout.write(screen.showCursor);
 });

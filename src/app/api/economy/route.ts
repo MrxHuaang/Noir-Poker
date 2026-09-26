@@ -9,6 +9,7 @@ import { verifyBearerUid } from "@/lib/firebaseAdmin";
 import {
   buyIn,
   cashOut,
+  hostCashOut,
   claimDailyBonus,
   ensureProfile,
   reconcileEscrows,
@@ -52,8 +53,20 @@ export async function POST(req: Request) {
       }
       case "buy-in": {
         if (!code) return NextResponse.json({ error: "Falta code" }, { status: 400 });
-        const mode = body.mode === "online" ? "online" : "normal";
-        const coins = await buyIn(uid, code, amount, mode);
+        // Solo modo normal: las mesas online hacen su propio escrow al
+        // sentarse (/api/online, misma transaccion que el asiento). Con
+        // `request`, la solicitud de asiento/rebuy se crea en la misma
+        // transaccion que el escrow.
+        const r = body.request as Record<string, unknown> | undefined;
+        const request =
+          r && typeof r === "object"
+            ? {
+                type: r.type === "rebuy" ? ("rebuy" as const) : ("join" as const),
+                name: String(r.name ?? ""),
+                seed: String(r.seed ?? ""),
+              }
+            : undefined;
+        const coins = await buyIn(uid, code, amount, "normal", request);
         return NextResponse.json({ coins });
       }
       case "refund": {
@@ -64,6 +77,14 @@ export async function POST(req: Request) {
       case "cash-out": {
         if (!code) return NextResponse.json({ error: "Falta code" }, { status: 400 });
         const coins = await cashOut(uid, code);
+        return NextResponse.json({ coins });
+      }
+      case "host-cash-out": {
+        const target = typeof body.uid === "string" ? body.uid : "";
+        if (!code || !target) {
+          return NextResponse.json({ error: "Falta code o uid" }, { status: 400 });
+        }
+        const coins = await hostCashOut(uid, code, target);
         return NextResponse.json({ coins });
       }
       case "record-session": {
@@ -85,7 +106,17 @@ export async function POST(req: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error interno";
     // Errores de negocio esperados (saldo insuficiente, monto invalido) -> 400.
-    const known = ["Saldo insuficiente", "Monto invalido", "Perfil inexistente", "Cuenta de invitado"];
+    const known = [
+      "Saldo insuficiente",
+      "Monto invalido",
+      "Perfil inexistente",
+      "Cuenta de invitado",
+      "Ya tienes una solicitud pendiente",
+      "Sala inexistente",
+    ];
+    if (message === "Solo el host") {
+      return NextResponse.json({ error: message }, { status: 403 });
+    }
     const status = known.includes(message) ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }

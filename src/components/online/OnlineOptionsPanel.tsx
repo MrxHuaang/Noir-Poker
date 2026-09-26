@@ -1,8 +1,8 @@
 "use client";
 // Options drawer for the server-backed online table: share the room (code, QR,
-// copy link), table config (owner only — applied by the Go server), and the
-// hand history persisted by the server in Supabase. Presentational: every
-// mutation goes out as a WS message; nothing is decided client-side.
+// copy link), table config (owner only, validated server-side by /api/online),
+// and the hand history the server records at every showdown. Presentational:
+// every mutation goes out through the callbacks; nothing is decided here.
 import { useState } from "react";
 import { Check, Copy, History, LogOut, Settings, Share2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -16,6 +16,7 @@ export function OnlineOptionsPanel({
   sb,
   bb,
   startStack,
+  runItN,
   history,
   onConfig,
   onStandUp,
@@ -27,8 +28,9 @@ export function OnlineOptionsPanel({
   sb: number;
   bb: number;
   startStack: number;
+  runItN: number;
   history: OnlineHandRecord[];
-  onConfig: (sb: number, bb: number, stack: number, runItN?: number, blindLevelSecs?: number) => void;
+  onConfig: (cfg: { sb: number; bb: number; stack: number; runItN: number }) => Promise<string | null>;
   onStandUp?: () => void;
   onClose: () => void;
 }) {
@@ -36,8 +38,9 @@ export function OnlineOptionsPanel({
   const [draftSb, setDraftSb] = useState(sb);
   const [draftBb, setDraftBb] = useState(bb);
   const [draftStack, setDraftStack] = useState(startStack);
-  const [draftRunItN, setDraftRunItN] = useState(1);
+  const [draftRunItN, setDraftRunItN] = useState(runItN || 1);
   const [applied, setApplied] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   async function copyLink() {
     try {
@@ -49,8 +52,13 @@ export function OnlineOptionsPanel({
     }
   }
 
-  function applyConfig() {
-    onConfig(draftSb, draftBb, draftStack, draftRunItN);
+  async function applyConfig() {
+    setConfigError(null);
+    const err = await onConfig({ sb: draftSb, bb: draftBb, stack: draftStack, runItN: draftRunItN });
+    if (err) {
+      setConfigError(err);
+      return;
+    }
     setApplied(true);
     setTimeout(() => setApplied(false), 1500);
   }
@@ -150,6 +158,7 @@ export function OnlineOptionsPanel({
             >
               {applied ? "Aplicado" : "Aplicar"}
             </button>
+            {configError && <p className="text-[11px] text-rose-300">{configError}</p>}
           </section>
         )}
 
@@ -170,7 +179,7 @@ export function OnlineOptionsPanel({
           </section>
         )}
 
-        {/* Historial (autoritativo: lo escribe el servidor Go) */}
+        {/* Historial (autoritativo: lo escribe el servidor en cada showdown) */}
         <section className="flex flex-col gap-2">
           <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 flex items-center gap-1.5">
             <History className="w-3 h-3" /> Historial ({history.length})
@@ -183,7 +192,7 @@ export function OnlineOptionsPanel({
             <div className="flex flex-col gap-1.5">
               {history.slice(0, 25).map((r) => {
                 const winnerNames = (r.winners ?? [])
-                  .map((w) => `${r.seat_names?.[w.id] ?? w.id.slice(0, 6)} +${formatChips(w.amount)}`)
+                  .map((w) => `${r.seatNames?.[w.id] ?? w.id.slice(0, 6)} +${formatChips(w.amount)}`)
                   .join(" · ");
                 const cats = r.categories
                   ? Object.values(r.categories)
@@ -193,10 +202,10 @@ export function OnlineOptionsPanel({
                   : null;
                 return (
                   <div
-                    key={r.id}
+                    key={r.handNum}
                     className="flex items-center justify-between gap-2 text-[11px] px-2.5 py-1.5 rounded-xl bg-white/[0.03] ring-1 ring-white/[0.05]"
                   >
-                    <span className="text-zinc-500 tabular-nums shrink-0">#{r.hand_num}</span>
+                    <span className="text-zinc-500 tabular-nums shrink-0">#{r.handNum}</span>
                     <span className="text-zinc-300 truncate flex-1">{winnerNames || "—"}</span>
                     {cats && <span className="text-zinc-600 shrink-0">{cats}</span>}
                     <span className="text-zinc-600 tabular-nums shrink-0">{formatChips(r.pot)}</span>

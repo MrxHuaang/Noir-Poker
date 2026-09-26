@@ -2,19 +2,12 @@
 import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
 import { BorderGlow } from "@/components/ui/BorderGlow";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Coins, Users, Wifi } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Coins, LogIn, Users, Wifi } from "lucide-react";
 import { ACCENT_GLOW_COLORS } from "@/lib/brand";
-
-const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-function genCode(): string {
-  const a = new Uint32Array(5);
-  crypto.getRandomValues(a);
-  let c = "";
-  for (let i = 0; i < 5; i++) c += ALPHABET[a[i] % ALPHABET.length];
-  return c;
-}
+import { useAuth } from "@/hooks/useAuth";
+import { callOnline, subscribeOpenOnlineRooms, type OnlineRoomSummary } from "@/lib/online/client";
+import { formatChips } from "@/lib/betting";
 
 export default function OnlineLandingPage() {
   return (
@@ -26,23 +19,58 @@ export default function OnlineLandingPage() {
 
 function OnlineLandingPageInner() {
   const router = useRouter();
+  const { user, isGuest, getToken } = useAuth();
   const [casual, setCasual] = useState(false);
   const [sb, setSb] = useState(5);
   const [bb, setBb] = useState(10);
   const [stack, setStack] = useState(1000);
   const [runItN, setRunItN] = useState(1);
   const [blindLevelMins, setBlindLevelMins] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [rooms, setRooms] = useState<OnlineRoomSummary[]>([]);
 
-  const create = () => {
-    const q = new URLSearchParams({
-      sb: String(sb),
-      bb: String(bb),
-      stack: String(stack),
-      runItN: String(runItN),
-      ...(casual ? { casual: "1" } : {}),
-      ...(blindLevelMins > 0 ? { blindLevelSecs: String(blindLevelMins * 60) } : {}),
-    });
-    router.push(`/play/online/${genCode()}?${q.toString()}`);
+  useEffect(() => {
+    if (!user) return;
+    return subscribeOpenOnlineRooms(setRooms);
+  }, [user]);
+
+  // El servidor genera el código, crea la sala y sienta al creador en la misma
+  // llamada (buy-in incluido). Un invitado en mesa con fichas la crea igual y
+  // entra observando: la mesa le ofrece iniciar sesión para sentarse.
+  const create = async () => {
+    setError(null);
+    const token = await getToken();
+    if (!token) {
+      setError("Todavía conectando, intenta de nuevo");
+      return;
+    }
+    setCreating(true);
+    try {
+      const { code } = await callOnline<{ code: string; sitError: string | null }>(token, "create", {
+        config: {
+          sb,
+          bb,
+          stack,
+          runItN,
+          casual,
+          blindLevelSecs: blindLevelMins > 0 ? blindLevelMins * 60 : 0,
+        },
+        sit: casual || !isGuest,
+      });
+      router.push(`/play/online/${code}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo crear la sala");
+      setCreating(false);
+    }
+  };
+
+  const join = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = joinCode.trim().toUpperCase();
+    if (/^[A-Z0-9]{4,8}$/.test(code)) router.push(`/play/online/${code}`);
+    else setError("Código inválido");
   };
 
   return (
@@ -167,20 +195,67 @@ function OnlineLandingPageInner() {
             <button
               type="button"
               onClick={create}
-              className="w-full px-4 py-3 rounded-2xl bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 font-black text-sm tracking-wide hover:bg-accent-500/30 hover:ring-accent-400/60 transition btn-press"
+              disabled={creating}
+              className="w-full px-4 py-3 rounded-2xl bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 font-black text-sm tracking-wide hover:bg-accent-500/30 hover:ring-accent-400/60 transition btn-press disabled:opacity-60"
             >
-              Crear mesa {casual ? "casual" : "con fichas"}
+              {creating ? "Creando mesa…" : `Crear mesa ${casual ? "casual" : "con fichas"}`}
             </button>
+            {!casual && isGuest && (
+              <p className="text-[11px] text-zinc-500 -mt-2">
+                Como invitado entras observando: inicia sesión para sentarte con fichas.
+              </p>
+            )}
+            {error && (
+              <p role="alert" className="text-xs text-rose-300 -mt-2">
+                {error}
+              </p>
+            )}
           </div>
         </BorderGlow>
 
-        <p className="text-center text-xs text-zinc-400 px-1">
-          Para unirte a una sala existente, ve al{" "}
-          <a href="/lobby" className="text-zinc-300 hover:text-zinc-100 transition underline underline-offset-2">
-            lobby
-          </a>
-          {" "}o introduce el código directamente en la URL.
-        </p>
+        <form onSubmit={join} className="flex gap-2">
+          <label className="sr-only" htmlFor="join-code">Código de sala</label>
+          <input
+            id="join-code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            placeholder="Código de sala"
+            maxLength={8}
+            autoComplete="off"
+            className="flex-1 px-4 py-2.5 rounded-2xl bg-black/40 ring-1 ring-white/10 text-zinc-100 text-sm font-mono tracking-[0.3em] uppercase outline-none focus:ring-accent-500/40 transition placeholder:tracking-normal placeholder:font-sans placeholder:text-zinc-500"
+          />
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 ring-1 ring-white/10 text-zinc-200 font-bold text-sm transition btn-press"
+          >
+            <LogIn className="w-4 h-4" /> Entrar
+          </button>
+        </form>
+
+        {rooms.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500 px-1">
+              Mesas abiertas
+            </span>
+            {rooms.slice(0, 8).map((r) => (
+              <button
+                key={r.code}
+                type="button"
+                onClick={() => router.push(`/play/online/${r.code}`)}
+                className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] ring-1 ring-white/[0.08] text-left transition btn-press"
+              >
+                <span className="font-mono font-black tracking-[0.25em] text-accent-300 text-sm">{r.code}</span>
+                <span className="text-xs text-zinc-400 tabular-nums">
+                  {formatChips(r.sb)}/{formatChips(r.bb)}
+                </span>
+                <span className="text-xs text-zinc-500">{r.casual ? "Casual" : "Con fichas"}</span>
+                <span className="inline-flex items-center gap-1 text-xs text-zinc-300 tabular-nums">
+                  <Users className="w-3.5 h-3.5" /> {r.players}
+                </span>
+              </button>
+            ))}
+          </section>
+        )}
       </div>
     </div>
   );

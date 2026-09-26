@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { adaptOnlineState, adaptOnlineRuns } from "./onlineTable";
 import { getValidActions } from "./betting";
-import type { PublicState } from "@/hooks/useGameSocket";
+import type { PublicState } from "./online/protocol";
 
 const baseState: PublicState = {
+  code: "TEST1",
   handNum: 3,
   phase: "flop",
   board: ["2C", "7D", "9S"],

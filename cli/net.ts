@@ -1,107 +1,174 @@
-// WebSocket connection to the authoritative Go game server, with reconnect.
-// Uses Node's built-in global WebSocket (stable since Node 21+), so there is
-// NO runtime dependency. Mirrors src/hooks/useGameSocket.ts and adds the
-// reconnect/backoff the reference client lacks (Render free tier sleeps ~15 min
-// and cold-starts in ~1 min). Every "state" frame is a full snapshot, never a
-// diff, so on reconnect the server's OnJoin re-pushes current state + our hole.
+// Connection to the serverless online mode, from a terminal. Same contract as
+// the web client (src/hooks/useOnlineGame.ts): state arrives through Firestore
+// (onlineRooms/{code} + our own holes/{uid}), moves go out as POST /api/online
+// to the Next.js app, which validates them inside a Firestore transaction.
+//
+// Identity: an anonymous Firebase session (fresh per run). Anonymous players
+// can only sit at casual ("Casual" / sin fichas) tables, same rule as the web.
 
-import type { PublicState, ConnStatus } from "./types";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { initializeApp } from "firebase/app";
+import { connectAuthEmulator, getAuth, signInAnonymously, type Auth } from "firebase/auth";
+import {
+  connectFirestoreEmulator,
+  doc,
+  getFirestore,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  type Firestore,
+} from "firebase/firestore";
+import type { ConnStatus, PublicState } from "./types";
 
 export type Handlers = {
   onState: (s: PublicState) => void;
   onHole: (cards: string[]) => void;
   onStatus: (status: ConnStatus) => void;
+  onError: (message: string) => void;
 };
 
+const HEARTBEAT_MS = 25_000;
+
+// NEXT_PUBLIC_FIREBASE_* from the environment, falling back to .env.local.
+function firebaseEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  const file = join(process.cwd(), ".env.local");
+  if (existsSync(file)) {
+    for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+      const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
+      if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
+  }
+  for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
+  return env;
+}
+
 export class GameConnection {
-  private ws: WebSocket | null = null;
-  private closedByUser = false;
-  private attempt = 0;
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private auth: Auth | null = null;
+  private db: Firestore | null = null;
+  private uid = "";
+  private unsubs: (() => void)[] = [];
+  private heartbeat: ReturnType<typeof setInterval> | null = null;
+  private tickTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastDeadline = 0;
 
   constructor(
-    private readonly wsBase: string,
+    private readonly appUrl: string,
     private readonly room: string,
-    private readonly id: string,
     private readonly name: string,
     private readonly h: Handlers,
   ) {}
 
-  private url(): string {
-    // http -> ws, https -> wss, strip trailing slash (same as useGameSocket.ts).
-    const base = this.wsBase.replace(/^http/, "ws").replace(/\/$/, "");
-    const nameQ = this.name ? `&name=${encodeURIComponent(this.name)}` : "";
-    return `${base}/ws?room=${encodeURIComponent(this.room)}&id=${encodeURIComponent(
-      this.id,
-    )}${nameQ}`;
-  }
-
-  connect(): void {
-    this.closedByUser = false;
-    this.h.onStatus(this.attempt === 0 ? "connecting" : "reconnecting");
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(this.url());
-    } catch {
-      this.scheduleReconnect();
-      return;
+  // Signs in, sets the display name, sits down and subscribes. Returns our uid.
+  async connect(): Promise<string> {
+    this.h.onStatus("connecting");
+    const env = firebaseEnv();
+    const app = initializeApp({
+      apiKey: env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      appId: env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    });
+    this.auth = getAuth(app);
+    this.db = getFirestore(app);
+    if (env.NEXT_PUBLIC_FIREBASE_EMULATORS === "true") {
+      connectAuthEmulator(this.auth, "http://127.0.0.1:9099", { disableWarnings: true });
+      connectFirestoreEmulator(this.db, "127.0.0.1", 8080);
     }
-    this.ws = ws;
+    const cred = await signInAnonymously(this.auth);
+    this.uid = cred.user.uid;
 
-    ws.addEventListener("open", () => {
-      this.attempt = 0;
-      this.h.onStatus("connected");
+    // Profile bootstrap (creates users/{uid}), then our visible nickname.
+    await this.post("/api/economy", { action: "ensure-profile" }).catch(() => {});
+    await updateDoc(doc(this.db, "users", this.uid), { nickname: this.name.slice(0, 40) }).catch(
+      () => {},
+    );
+
+    this.unsubs.push(
+      onSnapshot(
+        doc(this.db, "onlineRooms", this.room),
+        (snap) => {
+          if (!snap.exists()) {
+            this.h.onError(`La sala ${this.room} no existe (créala desde la web).`);
+            return;
+          }
+          this.h.onStatus("connected");
+          const state = (snap.data() as { state: PublicState }).state;
+          this.h.onState(state);
+          this.scheduleTick(state);
+        },
+        () => this.h.onStatus("error"),
+      ),
+      onSnapshot(doc(this.db, "onlineRooms", this.room, "holes", this.uid), (snap) => {
+        const d = snap.data() as { cards?: string[] } | undefined;
+        if (d?.cards) this.h.onHole(d.cards);
+      }),
+    );
+
+    const sat = await this.call("sit");
+    if (sat) {
+      const beat = () => {
+        setDoc(doc(this.db!, "onlineRooms", this.room, "presence", this.uid), {
+          uid: this.uid,
+          at: serverTimestamp(),
+        }).catch(() => {});
+      };
+      beat();
+      this.heartbeat = setInterval(beat, HEARTBEAT_MS);
+    }
+    return this.uid;
+  }
+
+  private async post(path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const token = await this.auth!.currentUser!.getIdToken();
+    const res = await fetch(`${this.appUrl.replace(/\/$/, "")}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
     });
-    ws.addEventListener("message", (ev: MessageEvent) => {
-      try {
-        const data = typeof ev.data === "string" ? ev.data : String(ev.data);
-        const msg = JSON.parse(data) as { type: string; payload?: unknown };
-        if (msg.type === "state") this.h.onState(msg.payload as PublicState);
-        else if (msg.type === "hole")
-          this.h.onHole((msg.payload as { cards: string[] }).cards);
-        // unknown types ignored, matching the web client
-      } catch {
-        /* ignore malformed frame */
-      }
-    });
-    ws.addEventListener("error", () => {
-      this.h.onStatus("error");
-      // a "close" event follows and triggers reconnect
-    });
-    ws.addEventListener("close", () => {
-      this.ws = null;
-      if (!this.closedByUser) this.scheduleReconnect();
-    });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!res.ok) throw new Error(String(data.error ?? `HTTP ${res.status}`));
+    return data;
   }
 
-  private scheduleReconnect(): void {
-    if (this.closedByUser) return;
-    this.h.onStatus("reconnecting");
-    const delay = Math.min(1000 * 2 ** this.attempt, 10_000);
-    this.attempt++;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.connect(), delay);
+  // Sends one move; reports the server's rejection (illegal action, not your
+  // turn, guest at a coin table...) through onError. Resolves true on success.
+  private async call(action: string, params: Record<string, unknown> = {}): Promise<boolean> {
+    try {
+      await this.post("/api/online", { action, code: this.room, ...params });
+      return true;
+    } catch (err) {
+      this.h.onError(err instanceof Error ? err.message : String(err));
+      return false;
+    }
   }
 
-  private send(type: string, payload?: unknown): boolean {
-    const ws = this.ws;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-    ws.send(JSON.stringify(payload !== undefined ? { type, payload } : { type }));
-    return true;
+  // The clients drive the turn clock: once the deadline passes, ask the server
+  // to apply the auto-action (it re-checks the deadline itself).
+  private scheduleTick(s: PublicState): void {
+    if (!s.deadline || !s.toAct || s.paused || s.deadline === this.lastDeadline) return;
+    this.lastDeadline = s.deadline;
+    if (this.tickTimer) clearTimeout(this.tickTimer);
+    const delay = Math.max(0, s.deadline - Date.now()) + (s.toAct === this.uid ? 400 : 2500);
+    this.tickTimer = setTimeout(() => {
+      this.post("/api/online", { action: "tick", code: this.room }).catch(() => {});
+    }, delay);
   }
 
-  start(): boolean {
-    return this.send("start");
+  start(): Promise<boolean> {
+    return this.call("start");
   }
 
-  action(action: string, amount = 0): boolean {
-    return this.send("action", { action, amount });
+  action(move: string, amount = 0): Promise<boolean> {
+    return this.call("act", { move, amount });
   }
 
-  close(): void {
-    this.closedByUser = true;
-    if (this.timer) clearTimeout(this.timer);
-    this.ws?.close();
-    this.ws = null;
+  async close(): Promise<void> {
+    if (this.heartbeat) clearInterval(this.heartbeat);
+    if (this.tickTimer) clearTimeout(this.tickTimer);
+    for (const u of this.unsubs) u();
+    if (this.auth?.currentUser) await this.call("leave");
   }
 }

@@ -1,33 +1,43 @@
 "use client";
-// Server-backed online table (modo estratégico). El juego corre en el servidor
-// Go autoritativo (NEXT_PUBLIC_GAME_WS_URL); esta página SOLO renderiza estado
-// y manda acciones — cero reglas de juego en el cliente. Usa la misma mesa rica
-// (TableShell/RoundPokerTable + BettingDock) que el modo legacy, alimentada por
-// el adaptador puro de src/lib/onlineTable.ts.
+// Mesa online (modo estratégico). El juego es autoritativo en el servidor: cada
+// jugada es un POST a /api/online que corre una transacción de Firestore, y el
+// estado público llega por suscripción a onlineRooms/{code}. Esta página SOLO
+// renderiza estado y manda acciones — cero reglas de juego en el cliente. Usa
+// la misma mesa rica (TableShell/RoundPokerTable + BettingDock) que el modo
+// legacy, alimentada por el adaptador puro de src/lib/onlineTable.ts.
 //
 // Flujo de entrada (estilo PokerStars): se entra OBSERVANDO — sin formularios.
-// Ves la mesa y los jugadores de inmediato; "Sentarme" te conecta como jugador
-// (el servidor te sienta si hay sitio o te pone en fila si la mesa está llena).
-// Los invitados pueden observar; sentarse pide cuenta real (monedas).
+// "Sentarme" te sienta si hay sitio o te pone en fila si la mesa está llena.
+// Los invitados pueden observar; sentarse en una mesa con fichas pide cuenta.
 //
-// Economía: buy-in en escrow al obtener asiento (monto = startStack del
-// servidor); cash-out + record-session al levantarse o salir (stack final lo
-// reporta el Go server via /stacks; las manos verificadas se cuentan de
-// Supabase). El cierre de pestaña se cubre con pagehide + fetch keepalive.
+// Economía: el buy-in (startStack) se descuenta del monedero en la MISMA
+// transacción que te sienta, y al levantarte el stack final vuelve al monedero
+// también de forma atómica (con el tope del libro de la sala). Si cierras la
+// pestaña, tu heartbeat caduca y el servidor te levanta y liquida solo.
 import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Armchair, Clock, Hourglass, MessageSquareQuote, Pause, Play, RefreshCw, Trophy, UserRound } from "lucide-react";
+import {
+  Armchair,
+  Clock,
+  Hourglass,
+  MessageSquareQuote,
+  Pause,
+  Play,
+  RefreshCw,
+  Trophy,
+  UserRound,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useServerGame } from "@/hooks/useServerGame";
+import { useOnlineGame } from "@/hooks/useOnlineGame";
 import { useChat } from "@/hooks/useChat";
 import { useTableChat, CANNED_PHRASES } from "@/hooks/useTableChat";
 import { useOnlineHistory } from "@/hooks/useOnlineHistory";
 import { adaptOnlineState, adaptOnlineRuns } from "@/lib/onlineTable";
-import { callEconomy, callEconomyKeepalive } from "@/lib/economyClient";
 import { formatChips, type BettingAction } from "@/lib/betting";
+import { MAX_SEATED, PRESENCE_STALE_MS, TURN_MS } from "@/lib/online/protocol";
 import { TableShell } from "@/components/table/TableShell";
 import { BettingDock } from "@/components/betting/BettingDock";
 import { OptionsMenu } from "@/components/settings/OptionsMenu";
@@ -38,8 +48,6 @@ import { RunResults } from "@/components/table/RunResults";
 const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
   ssr: false,
 });
-
-const MAX_SEATS = 9;
 
 export default function PlayOnlinePage() {
   const params = useParams<{ code: string }>();
@@ -54,210 +62,85 @@ export default function PlayOnlinePage() {
 function PlayOnlinePageInner() {
   const params = useParams<{ code: string }>();
   const code = params.code?.toUpperCase() ?? null;
-  const search = useSearchParams();
   const router = useRouter();
-  // ?spectator=1: espectador puro por URL (sin botón de sentarse).
-  const urlSpectator = search.get("spectator") === "1";
-  // ?casual=1: sala sin monedas — el creador lo propaga; lo confirmamos con state.casual.
-  const urlCasual = search.get("casual") === "1";
 
-  const { isGuest, loading: authLoading } = useAuth();
+  const { uid, isGuest, profile, loading: authLoading } = useAuth();
+  const game = useOnlineGame(code);
+  const { state, hole, presence, busy } = game;
 
-  // Intención de sentarse. El creador llega con params de mesa en la URL: se
-  // sienta de una (y reclama la autoridad de la sala). Los demás entran
-  // observando y deciden con el botón.
-  const [wantSeat, setWantSeat] = useState<boolean>(() => {
-    if (urlSpectator) return false;
-    return Number(search.get("sb")) > 0 || Number(search.get("stack")) > 0;
-  });
-  const [showLoginCta, setShowLoginCta] = useState(false);
-  const [seatOverlayDismissed, setSeatOverlayDismissed] = useState(false);
-
-  // casualConfirmed empieza con la señal de la URL y se actualiza cuando
-  // llega state.casual=true del servidor. Necesita ser state (no ref) para
-  // que asSpectator se recalcule y el WS reconecte cuando el invitado da click en Sentarme.
-  const [casualConfirmed, setCasualConfirmed] = useState(urlCasual);
-  // Conexión: jugador con intención + (cuenta real O modo casual); si no, espectador.
-  const asSpectator = urlSpectator || !wantSeat || (isGuest && !casualConfirmed);
-  const { connected, status, state, hole, uid, name, seed, error, start, action, config, pause, resume, getToken } =
-    useServerGame(authLoading ? null : code, asSpectator);
-
-  // Confirmar modo casual tan pronto llegue el primer state del servidor.
-  const isCasual = casualConfirmed || !!state?.casual;
-  useEffect(() => {
-    if (state?.casual && !casualConfirmed) setCasualConfirmed(true);
-  }, [state?.casual, casualConfirmed]);
+  const name = profile?.nickname || profile?.displayName || "Jugador";
+  const seed = profile?.avatarSeed || uid || "seed";
+  const isCasual = !!state?.casual;
 
   const chat = useChat(code);
   const { send: sendPhrase, activePhrases } = useTableChat(code, uid);
-  const showdownKey = state?.phase === "showdown" ? state.handNum : 0;
-  const { records: history } = useOnlineHistory(code, showdownKey);
-
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const { records: history } = useOnlineHistory(code, optionsOpen);
+
   const [phrasesOpen, setPhrasesOpen] = useState(false);
   const [closedRunsHand, setClosedRunsHand] = useState(0);
-  const [econError, setEconError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [showLoginCta, setShowLoginCta] = useState(false);
+  const [seatOverlayDismissed, setSeatOverlayDismissed] = useState(false);
 
-  // Aplicar config de sala una vez al conectar (solo el enlace del creador trae
-  // estos params; los joins normales usan los defaults del servidor).
-  // Reintentar hasta que el state del servidor REFLEJE la config: send() es
-  // silencioso si el WS aún no está OPEN (churn de reconexiones al cargar el
-  // perfil), así que un solo intento se perdía y la sala quedaba sin `casual`,
-  // con blinds default, etc. Solo se reintenta en fase idle (nunca mid-hand).
-  const configSent = useRef(false);
+  // Reloj grueso para detectar anfitriones con heartbeat caducado.
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!connected || configSent.current || asSpectator) return;
-    const sb = Number(search.get("sb"));
-    const bb = Number(search.get("bb"));
-    const stack = Number(search.get("stack"));
-    const runItN = Number(search.get("runItN")) || undefined;
-    const blindLevelSecs = Number(search.get("blindLevelSecs")) || undefined;
-    const wantsConfig = sb > 0 || bb > 0 || stack > 0 || runItN || blindLevelSecs || urlCasual;
-    if (!wantsConfig) {
-      configSent.current = true;
-      return;
-    }
-    if (!state) return; // espera el primer snapshot para poder verificar el echo
-    if (state.phase !== "idle") {
-      configSent.current = true; // la mano ya empezó: no tocar la config
-      return;
-    }
-    const applied =
-      (!urlCasual || !!state.casual) &&
-      (!(sb > 0) || state.sb === sb) &&
-      (!(bb > 0) || state.bb === bb) &&
-      (!(stack > 0) || state.startStack === stack);
-    if (applied) {
-      configSent.current = true;
-      return;
-    }
-    config(sb || 0, bb || 0, stack || 0, runItN, blindLevelSecs, urlCasual || undefined);
-  }, [connected, state, search, config, asSpectator, urlCasual]);
-
-  // --- Posición propia ------------------------------------------------------
-  const amSeated = !!(uid && state?.seats.some((s) => s.id === uid) && !asSpectator);
-  const queuePos = uid && state?.waiting ? state.waiting.indexOf(uid) : -1;
-  const inQueue = !asSpectator && queuePos >= 0;
-
-  // --- Economía -------------------------------------------------------------
-  // Escrow del buy-in al obtener asiento: el monto es el startStack que el
-  // servidor realmente otorga (no un parámetro de URL adivinado).
-  // En modo casual todo el bloque de economía se omite.
-  const escrowRef = useRef<{ code: string; amount: number } | null>(null);
-  const settledRef = useRef(false);
-  const tokenRef = useRef<string | null>(null);
-  const chipsRef = useRef(0);
-  const biggestPotRef = useRef(0);
-  // Ref para que settle() pueda leer isCasual sin reinicializarse como función.
-  const casualRef = useRef(isCasual);
-  useEffect(() => { casualRef.current = isCasual; }, [isCasual]);
-
-  useEffect(() => {
-    getToken().then((t) => {
-      tokenRef.current = t;
-    });
-  }, [getToken]);
-
-  useEffect(() => {
-    if (!amSeated || !code || !uid || !state || escrowRef.current) return;
-    // Modo casual: sin compra de fichas. Se usa isCasual (URL + confirmación del
-    // server) y no state.casual a secas: el creador guest llegaba con casual=1
-    // pero el primer snapshot aún no traía el flag, el buy-in corría, fallaba
-    // con 400 y lo bajaba a espectador (perdiendo asiento y autoridad de sala).
-    if (isCasual) return;
-    const amount = state.startStack || 1000;
-    escrowRef.current = { code, amount };
-    settledRef.current = false;
-    (async () => {
-      const token = await getToken();
-      if (!token) return;
-      tokenRef.current = token;
-      try {
-        // mode:"online": reconcileEscrows no auto-reembolsa mientras se juega.
-        await callEconomy(token, "buy-in", { code, amount, mode: "online" });
-        setEconError(null);
-      } catch (err) {
-        escrowRef.current = null;
-        setEconError(err instanceof Error ? err.message : "No se pudo hacer el buy-in");
-        // Sin escrow no se juega: volver a observador.
-        setWantSeat(false);
-      }
-    })();
-  }, [amSeated, code, uid, state, getToken, isCasual]);
-
-  // Stack y bote más grande visibles, para net/stats del record-session.
-  useEffect(() => {
-    if (!state || !uid) return;
-    const seat = state.seats.find((s) => s.id === uid);
-    if (seat) chipsRef.current = seat.chips + (seat.bet ?? 0);
-    if (state.pot > biggestPotRef.current) biggestPotRef.current = state.pot;
-  }, [state, uid]);
-
-  // Liquidación: cash-out (stack final lo reporta el servidor Go) + sesión
-  // (XP/historial; las manos se verifican contra Supabase). Una sola vez por
-  // escrow; volver a sentarse abre un escrow nuevo.
-  const settle = useMemo(() => {
-    return (keepalive: boolean) => {
-      if (casualRef.current) return; // modo casual: sin liquidación
-      const esc = escrowRef.current;
-      const token = tokenRef.current;
-      if (!esc || !token || settledRef.current) return;
-      settledRef.current = true;
-      escrowRef.current = null;
-      const session = {
-        code: esc.code,
-        roomName: `Online ${esc.code}`,
-        handsPlayed: 0, // el servidor cuenta las manos verificadas
-        handsWon: 0,
-        net: chipsRef.current - esc.amount,
-        biggestPot: biggestPotRef.current,
-        mode: "online",
-      };
-      if (keepalive) {
-        callEconomyKeepalive(token, "cash-out", { code: esc.code });
-        callEconomyKeepalive(token, "record-session", { session });
-      } else {
-        callEconomy(token, "cash-out", { code: esc.code })
-          .catch(() => {})
-          .finally(() => {
-            callEconomy(token, "record-session", { session }).catch(() => {});
-          });
-      }
-    };
+    const id = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(id);
   }, []);
 
-  // SPA: liquidar al desmontar. Cierre de pestaña / navegación dura: pagehide
-  // con keepalive (el unmount de React no corre en ese caso).
   useEffect(() => {
-    const onPageHide = () => settle(true);
-    window.addEventListener("pagehide", onPageHide);
-    return () => {
-      window.removeEventListener("pagehide", onPageHide);
-      settle(false);
-    };
-  }, [settle]);
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
-  // --- Acciones de asiento ----------------------------------------------------
-  function handleSit() {
+  // --- Posición propia ------------------------------------------------------
+  const amSeated = !!(uid && state?.seats.some((s) => s.id === uid));
+  const queuePos = uid && state?.waiting ? state.waiting.indexOf(uid) : -1;
+  const inQueue = queuePos >= 0;
+  const joiningNext = !!(uid && state?.joining?.includes(uid));
+  const present = amSeated || inQueue || joiningNext;
+
+  const report = (err: string | null) => {
+    if (!err) return;
+    if (err === "Cuenta de invitado") setShowLoginCta(true);
+    setNotice(err);
+  };
+
+  async function handleSit() {
     if (isGuest && !isCasual) {
       setShowLoginCta(true);
       return;
     }
-    setEconError(null);
-    setWantSeat(true); // reconecta como jugador; el servidor sienta o encola
+    setNotice(null);
+    report(await game.sit());
   }
 
-  function standUp() {
-    settle(false); // liquida el escrow con el stack actual
-    setWantSeat(false); // reconecta como espectador (libera el asiento)
+  async function standUp() {
+    report(await game.leave());
   }
 
-  function rebuy() {
-    // Recompra = levantarse (liquida el stack en 0) y volver a sentarse: el
-    // servidor otorga un stack fresco y el cliente abre un escrow nuevo. El
-    // pequeño retraso deja que el servidor procese la desconexión primero.
-    standUp();
-    setTimeout(() => setWantSeat(true), 900);
+  async function rebuy() {
+    report(await game.rebuy());
+  }
+
+  async function deal() {
+    report(await game.start());
+  }
+
+  function handleAction(a: BettingAction, amount?: number) {
+    // El modo online no soporta show-card / vote-run (decisiones del legacy).
+    if (a === "show-card" || a === "vote-run") return;
+    if (busy === "act") return;
+    game.act(a, amount ?? 0).then(report);
+  }
+
+  async function handleLeave() {
+    if (present && !confirm("¿Salir de la sala? Tu stack vuelve a tu monedero al salir.")) return;
+    if (present) await game.leave();
+    router.push("/play/online");
   }
 
   // --- Vista ----------------------------------------------------------------
@@ -267,11 +150,19 @@ function PlayOnlinePageInner() {
     [view.seats, uid],
   );
   const isMyTurn = !!(uid && state?.toAct === uid && !state?.paused && amSeated);
-  const isOwner = !!(uid && state?.owner === uid && amSeated);
+  const isOwner = !!(uid && state?.owner === uid);
   const betweenHands = !state || state.phase === "idle" || state.phase === "showdown";
   const showdown = state?.phase === "showdown";
-  const tableFull = (state?.seats.length ?? 0) >= MAX_SEATS;
+  const seatedCount = state?.seats.length ?? 0;
+  const tableFull = seatedCount >= MAX_SEATED;
   const busted = amSeated && betweenHands && (mySeat?.chips ?? 0) === 0;
+  const fundedCount = state?.seats.filter((s) => s.chips > 0).length ?? 0;
+  // Si el anfitrión cerró la pestaña, cualquiera sentado puede repartir: el
+  // servidor levanta primero a los ausentes y reasigna la autoridad.
+  const ownerBeat = state?.owner ? presence[state.owner] : undefined;
+  const ownerGone =
+    !!state?.owner && state.owner !== uid && ownerBeat !== undefined && now - ownerBeat > PRESENCE_STALE_MS;
+  const canDeal = amSeated && (isOwner || ownerGone) && fundedCount >= 2;
   const runs = useMemo(
     () =>
       showdown && state?.handNum !== closedRunsHand
@@ -279,24 +170,19 @@ function PlayOnlinePageInner() {
         : null,
     [showdown, state, closedRunsHand],
   );
+  const presenceMap = useMemo(() => {
+    const out: Record<string, boolean> = {};
+    for (const s of state?.seats ?? []) {
+      const beat = presence[s.id];
+      out[s.id] = beat === undefined || now - beat <= PRESENCE_STALE_MS;
+    }
+    return out;
+  }, [state?.seats, presence, now]);
 
   const joinUrl =
     typeof window !== "undefined" && code
       ? `${window.location.origin}/play/online/${code}`
       : "";
-
-  function handleAction(a: BettingAction, amount?: number) {
-    // El modo online no soporta show-card / vote-run (decisiones del legacy).
-    if (a === "show-card" || a === "vote-run") return;
-    action(a, amount ?? 0);
-  }
-
-  function handleLeave() {
-    if (!amSeated || confirm("¿Salir de la sala? Tu stack se liquida al salir.")) {
-      settle(false);
-      router.push("/play/online");
-    }
-  }
 
   if (authLoading) {
     return (
@@ -306,24 +192,38 @@ function PlayOnlinePageInner() {
     );
   }
 
-  const seatedCount = state?.seats.length ?? 0;
+  if (game.status === "missing") {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-[#0b0b0b] text-zinc-400 text-sm">
+        <p>
+          La sala <span className="font-mono font-black text-accent-300">{code}</span> no existe.
+        </p>
+        <Link
+          href="/play/online"
+          className="px-4 py-2 rounded-xl bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 font-bold text-sm btn-press"
+        >
+          Crear una mesa
+        </Link>
+      </div>
+    );
+  }
+
+  const primaryBtn =
+    "inline-flex items-center gap-3 px-8 py-4 rounded-full bg-accent-700 hover:bg-accent-600 text-accent-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-accent-700/25 btn-press disabled:opacity-60";
 
   const centerOverlay = (
     <>
       {!state && (
         <div className="glass-panel flex items-center gap-3 rounded-[24px] px-6 py-4 text-zinc-400 text-sm">
           <RefreshCw className="w-4 h-4 motion-safe:animate-spin" />
-          {status === "reconnecting"
-            ? "Iniciando servidor… puede tardar hasta 60 s"
-            : error ?? "Conectando con el servidor…"}
+          {game.error ?? "Conectando con la sala…"}
         </div>
       )}
 
       {/* Observador: ve la mesa y decide. Sentarse / hacer fila / seguir mirando. */}
-      {/* Show when: not yet seated AND (hasn't asked to sit, OR is a guest who can't sit). */}
-      {state && !urlSpectator && !amSeated && !inQueue && (!wantSeat || isGuest) && !seatOverlayDismissed && (
+      {state && !present && !seatOverlayDismissed && (
         <div className="glass-panel flex flex-col items-center gap-3 rounded-[28px] px-6 py-5">
-          {isGuest && !isCasual ? (
+          {(isGuest && !isCasual) || showLoginCta ? (
             <>
               <UserRound className="w-6 h-6 text-accent-400" />
               <p className="text-sm text-zinc-300 text-center max-w-[260px]">
@@ -348,16 +248,15 @@ function PlayOnlinePageInner() {
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={handleSit}
-                className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-accent-700 hover:bg-accent-600 text-accent-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-accent-700/25 btn-press"
-              >
+              <button type="button" onClick={handleSit} disabled={busy === "sit"} className={primaryBtn}>
                 <Armchair className="w-5 h-5" />
-                {tableFull ? "Hacer fila" : "Sentarme a la mesa"}
+                {busy === "sit" ? "Sentando…" : tableFull ? "Hacer fila" : "Sentarme a la mesa"}
               </button>
               <span className="text-[11px] text-zinc-500">
-                {seatedCount}/{MAX_SEATS} en mesa
+                {seatedCount}/{MAX_SEATED} en mesa
+                {isCasual
+                  ? " — mesa casual, sin monedas"
+                  : ` — buy-in ${formatChips(state.startStack)} monedas`}
                 {tableFull ? " — está llena, entras cuando se libere un asiento" : ""}
               </span>
             </>
@@ -377,7 +276,7 @@ function PlayOnlinePageInner() {
           </span>
           <button
             type="button"
-            onClick={() => setWantSeat(false)}
+            onClick={standUp}
             className="px-4 py-2 rounded-xl bg-white/5 ring-1 ring-white/10 text-zinc-300 font-bold text-xs btn-press"
           >
             Salir de la fila
@@ -385,8 +284,8 @@ function PlayOnlinePageInner() {
         </div>
       )}
 
-      {/* Pediste asiento a mitad de mano: entras al repartir la siguiente. */}
-      {state && wantSeat && !asSpectator && !amSeated && !inQueue && !betweenHands && (
+      {/* Te sentaste a mitad de mano: entras al repartir la siguiente. */}
+      {state && joiningNext && (
         <div className="glass-panel flex items-center gap-2 rounded-[24px] px-5 py-3 text-zinc-400 text-xs font-bold uppercase tracking-widest">
           <Clock className="w-3.5 h-3.5 text-accent-500 animate-pulse" />
           Entras en la próxima mano
@@ -400,9 +299,10 @@ function PlayOnlinePageInner() {
             <button
               type="button"
               onClick={rebuy}
+              disabled={busy === "rebuy"}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-accent-700 hover:bg-accent-600 text-accent-100 font-black text-xs uppercase tracking-widest transition btn-press"
             >
-              <RefreshCw className="w-4 h-4" /> Recomprar ({formatChips(state.startStack || 1000)})
+              <RefreshCw className="w-4 h-4" /> Recomprar ({formatChips(state.startStack)})
             </button>
           ) : seatedCount < 2 ? (
             <>
@@ -413,13 +313,9 @@ function PlayOnlinePageInner() {
                 Comparte el código <span className="font-mono font-black text-accent-300">{code}</span> desde el menú.
               </p>
             </>
-          ) : isOwner ? (
-            <button
-              type="button"
-              onClick={start}
-              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-accent-700 hover:bg-accent-600 text-accent-100 font-black text-sm uppercase tracking-widest transition shadow-2xl shadow-accent-700/25 btn-press"
-            >
-              <Play className="w-5 h-5 fill-current" /> Repartir
+          ) : canDeal ? (
+            <button type="button" onClick={deal} disabled={busy === "start"} className={primaryBtn}>
+              <Play className="w-5 h-5 fill-current" /> {busy === "start" ? "Repartiendo…" : "Repartir"}
             </button>
           ) : (
             <div className="flex items-center gap-2 text-zinc-500 text-[11px] font-bold uppercase tracking-widest">
@@ -450,14 +346,16 @@ function PlayOnlinePageInner() {
               <button
                 type="button"
                 onClick={rebuy}
+                disabled={busy === "rebuy"}
                 className="mt-3 inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 text-xs font-black uppercase tracking-widest btn-press"
               >
                 <RefreshCw className="w-3.5 h-3.5" /> Recomprar
               </button>
-            ) : isOwner ? (
+            ) : canDeal ? (
               <button
                 type="button"
-                onClick={start}
+                onClick={deal}
+                disabled={busy === "start"}
                 className="mt-3 inline-flex items-center gap-2 px-5 py-2 rounded-full bg-accent-500/20 ring-1 ring-accent-400/40 text-accent-100 text-xs font-black uppercase tracking-widest btn-press"
               >
                 <Play className="w-3.5 h-3.5 fill-current" /> Siguiente mano
@@ -471,19 +369,14 @@ function PlayOnlinePageInner() {
 
   const topCenter = (
     <div className="flex flex-col items-center gap-1.5">
-      {status === "reconnecting" && (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-warn-500/15 ring-1 ring-warn-400/30 text-warn-200 text-[10px] font-black uppercase tracking-[0.2em]">
-          <RefreshCw className="w-3 h-3 motion-safe:animate-spin" /> Reconectando…
-        </span>
-      )}
       {state?.paused && (
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-warn-500/15 ring-1 ring-warn-400/30 text-warn-200 text-[10px] font-black uppercase tracking-[0.2em]">
           <Pause className="w-3 h-3" /> Partida en pausa
         </span>
       )}
-      {econError && (
-        <span className="px-3 py-1.5 rounded-full bg-rose-500/15 ring-1 ring-rose-400/30 text-rose-200 text-[10px] font-bold">
-          {econError}
+      {notice && (
+        <span role="status" className="px-3 py-1.5 rounded-full bg-rose-500/15 ring-1 ring-rose-400/30 text-rose-200 text-[10px] font-bold">
+          {notice}
         </span>
       )}
       {(state?.waiting?.length ?? 0) > 0 && (
@@ -516,15 +409,15 @@ function PlayOnlinePageInner() {
         ownHole={amSeated ? view.ownHole : null}
         revealedHoles={view.revealedHoles}
         lastAction={state?.lastAction}
-        turnTimeMs={30_000}
-        isSpectator={urlSpectator}
+        turnTimeMs={TURN_MS}
+        presenceMap={presenceMap}
         topLeft={
           <OptionsMenu
             name={name}
             seed={seed}
             onOpenSettings={() => setOptionsOpen(true)}
             onLeave={handleLeave}
-            leaveLabel={amSeated ? "Salir de la mesa" : "Salir de la sala"}
+            leaveLabel={present ? "Salir de la mesa" : "Salir de la sala"}
           />
         }
         topCenter={topCenter}
@@ -532,7 +425,7 @@ function PlayOnlinePageInner() {
           isOwner && state && !betweenHands ? (
             <button
               type="button"
-              onClick={state.paused ? resume : pause}
+              onClick={() => (state.paused ? game.resume() : game.pause()).then(report)}
               className="glass-icon-button btn-press rounded-2xl p-3 text-zinc-300 shadow-xl"
               aria-label={state.paused ? "Reanudar" : "Pausar"}
             >
@@ -593,8 +486,8 @@ function PlayOnlinePageInner() {
               betting={view.betting}
               holeCards={view.ownHole}
               community={view.community}
-              isMyTurn={isMyTurn}
-              turnTimeMs={30_000}
+              isMyTurn={isMyTurn && busy !== "act"}
+              turnTimeMs={TURN_MS}
               hasResult={showdown}
               onAction={handleAction}
             />
@@ -611,9 +504,10 @@ function PlayOnlinePageInner() {
           sb={state?.sb ?? 5}
           bb={state?.bb ?? 10}
           startStack={state?.startStack ?? 1000}
+          runItN={state?.runItN ?? 1}
           history={history}
-          onConfig={config}
-          onStandUp={amSeated ? () => { standUp(); setOptionsOpen(false); } : undefined}
+          onConfig={(cfg) => game.config(cfg)}
+          onStandUp={present ? () => { standUp(); setOptionsOpen(false); } : undefined}
           onClose={() => setOptionsOpen(false)}
         />
       )}

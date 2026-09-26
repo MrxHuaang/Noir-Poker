@@ -28,6 +28,13 @@ function adminApp(): App {
   // En Vercel los saltos de linea de la clave llegan escapados.
   const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
+  // Emulator Suite: FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST make
+  // the SDK talk to 127.0.0.1; no service-account key is needed there.
+  if (projectId && process.env.FIRESTORE_EMULATOR_HOST && (!clientEmail || !privateKey)) {
+    _app = initializeApp({ projectId });
+    return _app;
+  }
+
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
       "Faltan credenciales del Admin SDK (FIREBASE_ADMIN_CLIENT_EMAIL / FIREBASE_ADMIN_PRIVATE_KEY / project id).",

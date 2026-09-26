@@ -1,12 +1,13 @@
-// Adapts the Go server's PublicState (online mode) to the view-model the rich
-// table components consume (NormalSeat / BettingRound from the legacy engine).
-// Pure mapping — NO game rules live here: the server already validated
-// everything; this only reshapes data for TableShell / BettingDock.
+// Adapts the online mode's PublicState (published by /api/online) to the
+// view-model the rich table components consume (NormalSeat / BettingRound from
+// the legacy engine). Pure mapping, NO game rules live here: the server
+// already validated everything; this only reshapes data for TableShell /
+// BettingDock.
 import type { BettingRound, NormalSeat, SeatStatus } from "./betting";
 import type { Card } from "./poker";
 import { cardFromId } from "./poker";
 import { bestHand, categoryFor } from "./handEval";
-import type { PublicState, RunResult } from "@/hooks/useGameSocket";
+import type { PublicState, RunResult } from "./online/protocol";
 import type { RunOne } from "@/hooks/useEquity";
 
 const SEAT_STATUS: Record<string, SeatStatus> = {

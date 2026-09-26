@@ -4,8 +4,22 @@
     {
       "name": "poker-sim",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000,
+      "autoPort": false
+    },
+    {
+      "name": "poker-sim-emu",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/dev-emulators.mjs",
+        "--port",
+        "3100"
+      ],
+      "port": 3100,
       "autoPort": false
     }
   ]

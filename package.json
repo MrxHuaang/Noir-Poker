@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "play": "tsx cli/index.ts",
-    "server": "node scripts/run-game-server.mjs"
+    "dev:emu": "node scripts/dev-emulators.mjs"
   },
   "dependencies": {
     "@dicebear/collection": "^9.4.2",

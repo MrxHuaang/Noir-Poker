@@ -51,3 +51,8 @@ next-env.d.ts
 server/bin/
 # go server local binary (see .env.local — modo online sin Render)
 server/server-local.exe
+
+# Firebase Emulator Suite logs (npm run dev:emu)
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

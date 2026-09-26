@@ -33,7 +33,14 @@ service cloud.firestore {
       allow update: if isSignedIn()
                     && request.auth.uid == uid
                     && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['nickname', 'displayName', 'avatarSeed']);
+                         .hasOnly(['nickname', 'displayName', 'avatarSeed'])
+                    && request.resource.data.nickname is string
+                    && request.resource.data.nickname.size() > 0
+                    && request.resource.data.nickname.size() <= 40
+                    && request.resource.data.displayName is string
+                    && request.resource.data.displayName.size() <= 80
+                    && request.resource.data.avatarSeed is string
+                    && request.resource.data.avatarSeed.size() <= 80;
 
       match /history/{id} {
         // Historial privado del dueno. Lo escribe el servidor (Admin SDK).
@@ -86,6 +93,40 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Online mode (server-authoritative, /api/online). Every write goes
+    // through the API route (Admin SDK, which bypasses these rules); clients
+    // only read the public state, their own hole cards and the hand records,
+    // and write their own presence heartbeat.
+    match /onlineRooms/{code} {
+      allow read: if isSignedIn();
+      allow write: if false;
+
+      // Deck, everyone's hole cards and the full engine state. Server only.
+      match /private/{docId} {
+        allow read, write: if false;
+      }
+
+      match /holes/{uid} {
+        allow read: if isSignedIn() && request.auth.uid == uid;
+        allow write: if false;
+      }
+
+      match /presence/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['uid', 'at'])
+          && request.resource.data.uid == uid
+          && request.resource.data.at == request.time;
+        allow delete: if isSignedIn() && request.auth.uid == uid;
+      }
+
+      match /hands/{handId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+    }
+
     // Normal + Tournament rooms
     match /normalRooms/{code} {
       allow read: if isSignedIn();
@@ -118,8 +159,8 @@ service cloud.firestore {
           && request.resource.data.state != null
           && request.resource.data.state.diff(resource.data.state)
                .affectedKeys().hasOnly(['allInNegotiation'])
-          && resource.data.state.allInNegotiation != null
-          && request.resource.data.state.allInNegotiation != null
+          && resource.data.state.get('allInNegotiation', null) != null
+          && request.resource.data.state.get('allInNegotiation', null) != null
           && resource.data.state.allInNegotiation.keys().hasAll(['votes'])
           && request.resource.data.state.allInNegotiation
                .diff(resource.data.state.allInNegotiation)
@@ -134,15 +175,18 @@ service cloud.firestore {
 
       match /lobby/{uid} {
         allow read: if isSignedIn();
-        // Host can create/delete any lobby entry (for approvals/kicks).
-        // Players can only patch their own entry (name, seed, sittingOut).
-        allow create: if isSignedIn() && (
-          request.auth.uid == uid || isHost(code)
-        );
+        // Only the host seats players (approveJoin), always with an approved
+        // stack: a player creating their own entry could name any chip count
+        // and cash it out of the room's ledger. Players can only patch their
+        // own entry (name, seed, sittingOut, preferredSlot) without touching
+        // chips, and may delete it when they leave. The server cash-out
+        // (Admin SDK) also deletes it.
+        allow create: if isHost(code);
         allow update: if isSignedIn() && request.auth.uid == uid
-                      && request.resource.data.uid == uid
-                      && request.resource.data.chips == resource.data.chips;
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['name', 'seed', 'sittingOut', 'useTimeBank', 'pubKey', 'preferredSlot']);
         allow update, delete: if isHost(code);
+        allow delete: if isSignedIn() && request.auth.uid == uid;
       }
 
       match /holes/{seatId} {
@@ -159,9 +203,13 @@ service cloud.firestore {
 
       match /stackRequests/{uid} {
         allow read: if isSignedIn();
-        // Validated create/update for own requests
+        // Own requests only in casual rooms. In coin rooms the request is
+        // created by the server in the same transaction as the buy-in escrow
+        // (/api/economy buy-in), so there is never a request without coins.
         allow create, update: if isSignedIn() && request.auth.uid == uid
+          && get(/databases/$(database)/documents/normalRooms/$(code)).data.get('economy', 'coins') == 'casual'
           && request.resource.data.uid == uid
+          && request.resource.data.status == 'pending'
           && request.resource.data.requestedStack is number
           && request.resource.data.requestedStack > 0
           && request.resource.data.requestedStack <= 1000000;

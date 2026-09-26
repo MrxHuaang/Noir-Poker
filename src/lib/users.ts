@@ -160,8 +160,20 @@ export async function claimDailyBonus(uid: string): Promise<number> {
   return granted;
 }
 
-export async function buyIn(uid: string, code: string, amount: number): Promise<number> {
-  const { coins } = await callEconomy<{ coins: number }>("buy-in", { code, amount }, uid);
+// Con `request`, el servidor crea la solicitud de asiento/rebuy
+// (normalRooms/{code}/stackRequests/{uid}) en la MISMA transaccion que el
+// escrow: nunca queda un escrow sin solicitud ni una solicitud sin escrow.
+export async function buyIn(
+  uid: string,
+  code: string,
+  amount: number,
+  request?: { type: "join" | "rebuy"; name: string; seed: string },
+): Promise<number> {
+  const { coins } = await callEconomy<{ coins: number }>(
+    "buy-in",
+    { code, amount, ...(request ? { request } : {}) },
+    uid,
+  );
   return coins;
 }
 
@@ -169,7 +181,8 @@ export async function refundBuyIn(uid: string, code: string, amount: number): Pr
   await callEconomy("refund", { code, amount }, uid);
 }
 
-// `finalChips` se ignora: el servidor lee lobby.chips (autoridad del host).
+// `finalChips` se ignora: el servidor lee el stack del host (asiento en mano o
+// lobby.chips) y ademas retira al jugador del lobby.
 // Se conserva el parametro por compatibilidad con los call sites existentes.
 export async function cashOut(
   uid: string,
