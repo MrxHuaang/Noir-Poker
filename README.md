@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/logo.png" alt="Noir Poker" width="96" />
+<img src="docs/brand/logo.svg" alt="Noir Poker" width="78" />
 
 # Noir Poker
 
@@ -23,7 +23,7 @@ Club de Texas Hold'em para jugar con amigos, cada uno desde su dispositivo, en u
 
 ![Noir Poker: portada con la mesa en vivo](docs/screenshots/hero.png)
 
-Noir Poker es un juego, no una web: un club clandestino de 1929 (ambiente *Mouse P.I. for Hire*) donde cada amigo se sienta desde su teléfono o computador. La mesa es una escena three.js en pixel art; la información vive en el mundo en vez de en paneles: las sillas son cartas de papel con agujeros de bala, las apuestas y el bote van escritos con tiza sobre el paño, el crupier Horacio habla en papelitos rotos y el reloj del turno es un cigarro en el cenicero.
+Noir Poker es un juego, no una web: un club clandestino de 1929 donde cada amigo se sienta desde su teléfono o computador. La mesa es una escena three.js en pixel art; la información vive en el mundo en vez de en paneles: las sillas son cartas de papel con agujeros de bala, las apuestas y el bote van escritos con tiza sobre el paño, el crupier Horacio habla en papelitos rotos y el reloj del turno es un cigarro en el cenicero.
 
 Detrás hay un backend autoritativo **serverless** en TypeScript: cada jugada es un `POST /api/online` que corre una transacción de Firestore. El mazo vive en el servidor y cada jugador recibe solo sus cartas. No hay ningún servidor aparte que mantener encendido.
 
