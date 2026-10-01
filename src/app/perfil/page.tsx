@@ -1,45 +1,32 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+// El expediente: the file the club keeps on you. A photo of your character
+// with your rank stamped across it, the typed record (nickname, since when,
+// experience), the figures as evidence tags, the house bonus, the rank ladder
+// and every session as a line of the bar's ledger.
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ArrowRight, Check, Gift, LogOut, Pencil, RefreshCw } from "lucide-react";
-import { Avatar } from "@/components/players/Avatar";
-import { RankTowerModal } from "@/components/profile/RankTowerModal";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  claimDailyBonus,
-  getHistory,
-  updateProfileFields,
-  type HistoryRecord,
-} from "@/lib/users";
-import { levelProgress, rankForLevel, MAX_LEVEL } from "@/lib/progression";
-import {
-  DAILY_BONUS,
-  availableCoins,
-  dailyBonusReady,
-  escrowedTotal,
-} from "@/lib/economy";
-import { formatChips } from "@/lib/betting";
-import { randomSeed } from "@/lib/dicebear";
+import { claimDailyBonus, getHistory, updateProfileFields, type HistoryRecord } from "@/lib/users";
+import { levelProgress, rankForLevel, TITLES } from "@/lib/progression";
+import { DAILY_BONUS, availableCoins, dailyBonusReady, escrowedTotal } from "@/lib/economy";
+import { CAST, castFromSeed, sceneUrl, seedForCast, type CastId } from "@/lib/noirCast";
+import { NoirRoom } from "@/components/noir/NoirRoom";
+import { CharacterPicker } from "@/components/noir/CharacterPicker";
 
-const SHELL = "mx-auto w-full max-w-6xl px-5 sm:px-8";
+const fmt = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
-export default function PerfilPage() {
+export default function ExpedientePage() {
+  const router = useRouter();
   const { user, profile, isGuest, loading, signOut } = useAuth();
-  const scope = useRef<HTMLDivElement>(null);
-  const [editing, setEditing] = useState(false);
-  const [draftNick, setDraftNick] = useState("");
+  const uid = user?.uid ?? null;
   const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [nick, setNick] = useState("");
   const [claiming, setClaiming] = useState(false);
   const [claimMsg, setClaimMsg] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-
-  const uid = user?.uid ?? null;
-  const prog = profile ? levelProgress(profile.xp) : null;
-  const rank = prog ? rankForLevel(prog.level) : null;
-  const [showTower, setShowTower] = useState(false);
 
   useEffect(() => {
     if (!uid || isGuest) return;
@@ -47,426 +34,241 @@ export default function PerfilPage() {
   }, [uid, isGuest, profile?.gamesPlayed]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
   }, []);
 
-  // Barra de XP animada (respeta prefers-reduced-motion).
-  useGSAP(
-    () => {
-      if (!prog) return;
-      const mm = gsap.matchMedia();
-      mm.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.fromTo(
-          ".xp-fill",
-          { width: "0%" },
-          { width: `${prog.ratio * 100}%`, duration: 1.1, ease: "power3.out" },
-        );
-      });
-      mm.add("(prefers-reduced-motion: reduce)", () => {
-        gsap.set(".xp-fill", { width: `${prog.ratio * 100}%` });
-      });
-      return () => mm.revert();
+  const choose = useCallback(
+    async (id: CastId) => {
+      setPicking(false);
+      if (uid) await updateProfileFields(uid, { avatarSeed: seedForCast(id) }).catch(() => {});
     },
-    { scope, dependencies: [prog?.ratio, prog?.level] },
+    [uid],
   );
 
-  // Cuenta real con el perfil aun cargando: no mostrar "Crea tu cuenta".
   if ((loading || (user && !isGuest)) && !profile) {
     return (
-      <div className={`${SHELL} pt-14 pb-24 sm:pt-20`}>
-        <p role="status" className="text-sm text-muted">
-          Cargando perfil…
-        </p>
+      <div className="fixed inset-0 grid place-items-center bg-soot-900 font-pix text-sm tracking-[.14em] text-brass-200">
+        BUSCANDO TU EXPEDIENTE
       </div>
     );
   }
 
   if (isGuest || !profile) {
     return (
-      <div className={SHELL}>
-        <section className="pt-14 pb-24 sm:pt-20 lg:pt-24">
-          <p className="eyebrow mb-6 flex items-center gap-2">
-            <span className="suit text-sm" aria-hidden>
-              ♠
-            </span>
-            Perfil
+      <NoirRoom>
+        <section className="plate grid w-[min(460px,92vw)] gap-4 px-8 pt-10 pb-8">
+          <p className="kick m-0">Sin expediente</p>
+          <h1 className="stencil m-0 text-[44px]">La casa no te conoce</h1>
+          <p className="m-0 text-[15px] text-[#dccfb1]">
+            Entra con tu cuenta y el club abre tu expediente: fichas, rango, personaje y cada noche en la mesa.
           </p>
-          <h1 className="display max-w-[16ch] text-5xl text-primary sm:text-6xl lg:text-7xl">
-            Crea tu cuenta y <em className="text-accent-200">guarda tu progreso.</em>
-          </h1>
-          <p className="mt-7 max-w-[48ch] text-base leading-relaxed text-secondary">
-            Inicia sesión para tener perfil, monedas, rango por experiencia e historial de
-            partidas.
-          </p>
-          <div className="mt-9">
-            <Link href="/login" className="btn-primary">
-              Iniciar sesión
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <Link href="/login?next=/perfil" className="tk tk-red w-fit">
+            Entrar con Google
+          </Link>
         </section>
-      </div>
+      </NoirRoom>
     );
   }
 
-  const memberSince = new Date(profile.createdAt).toLocaleDateString("es", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const winRate =
-    profile.handsPlayed > 0
-      ? Math.round((profile.handsWon / profile.handsPlayed) * 100)
-      : 0;
+  const prog = levelProgress(profile.xp);
+  const rank = rankForLevel(prog.level);
+  const nextRank = TITLES.find((t) => t.level > prog.level);
+  const me = castFromSeed(profile.avatarSeed || profile.uid);
+  const since = new Date(profile.createdAt).toLocaleDateString("es", { year: "numeric", month: "long", day: "numeric" });
+  const winRate = profile.handsPlayed > 0 ? Math.round((profile.handsWon / profile.handsPlayed) * 100) : 0;
   const locked = escrowedTotal(profile.escrows);
   const bonusReady = dailyBonusReady(profile.lastDailyBonus, now);
 
   async function saveNick() {
-    if (!uid) return;
-    const next = draftNick.trim();
-    if (next.length >= 2 && next.length <= 24) {
-      await updateProfileFields(uid, { nickname: next });
-    }
+    const v = nick.trim();
+    if (uid && v.length >= 2 && v.length <= 24) await updateProfileFields(uid, { nickname: v }).catch(() => {});
     setEditing(false);
   }
 
-  async function regenAvatar() {
-    if (!uid) return;
-    await updateProfileFields(uid, { avatarSeed: randomSeed() });
-  }
-
-  async function onClaim() {
+  async function claim() {
     if (!uid) return;
     setClaiming(true);
     setClaimMsg(null);
     try {
       const granted = await claimDailyBonus(uid);
-      setClaimMsg(
-        granted > 0
-          ? `+${formatChips(granted)} monedas`
-          : "Vuelve mañana por tu bono",
-      );
+      setClaimMsg(granted > 0 ? `La casa te invita: +${fmt(granted)} fichas` : "Vuelve mañana por tu bono");
     } finally {
       setClaiming(false);
     }
   }
 
-  const figures: { label: string; value: string | number; note?: string }[] = [
-    {
-      label: "Monedas",
-      value: formatChips(availableCoins(profile)),
-      note: locked > 0 ? `${formatChips(locked)} en juego` : "Disponibles",
-    },
-    { label: "Manos jugadas", value: profile.handsPlayed },
+  const tags: { label: string; value: string; note?: string }[] = [
+    { label: "Fichas", value: fmt(availableCoins(profile)), note: locked > 0 ? `${fmt(locked)} en la mesa` : "en el monedero" },
+    { label: "Manos jugadas", value: fmt(profile.handsPlayed) },
     { label: "Manos ganadas", value: `${winRate}%` },
-    { label: "Bote mayor", value: formatChips(profile.biggestPot) },
+    { label: "Bote mayor", value: fmt(profile.biggestPot) },
   ];
 
   return (
-    <div ref={scope} className={SHELL}>
-      {/* Identidad */}
-      <header className="grid grid-cols-1 gap-8 pt-14 sm:pt-20 lg:grid-cols-12 lg:items-end">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8 lg:col-span-9">
-          <div className="relative shrink-0 self-start sm:self-end">
-            {profile.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profile.photoURL}
-                alt={profile.nickname}
-                className="h-20 w-20 rounded-[10px] object-cover sm:h-24 sm:w-24"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <>
-                <Avatar seed={profile.avatarSeed} size={96} className="rounded-[10px]!" />
-                <button
-                  type="button"
-                  onClick={regenAvatar}
-                  title="Cambiar avatar"
-                  aria-label="Cambiar avatar"
-                  className="absolute -right-2 -bottom-2 inline-flex h-8 w-8 items-center justify-center rounded-[9px] border border-line-strong bg-ink-850 text-bone-dim transition-colors hover:bg-ink-700 hover:text-bone"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </button>
-              </>
-            )}
+    <NoirRoom
+      center={false}
+      right={
+        <button type="button" onClick={() => void signOut().then(() => router.push("/"))} className="btn-brass btn-sm">
+          Cerrar sesión
+        </button>
+      }
+    >
+      <div className="grid gap-12 pt-4">
+        {/* The file */}
+        <section className="grid gap-[clamp(24px,4vw,56px)] min-[900px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]" aria-label="Tu expediente">
+          <div className="relative w-full max-w-[420px]">
+            <div className="relative aspect-[4/5] -rotate-2 overflow-hidden bg-[#07060a] shadow-[0_0_0_10px_#e9e1cf,0_0_0_11px_#8a7f6d,0_30px_60px_rgb(0_0_0/.55)]">
+              <iframe key={me} src={sceneUrl("cameo", { id: me, turn: 0.35 })} title={CAST[me].name} className="absolute inset-0 h-full w-full border-0" />
+            </div>
+            <span className="stencil pointer-events-none absolute bottom-10 right-2 rotate-[-14deg] border-4 border-blood-400 px-3 py-1 text-3xl tracking-[.12em] text-blood-400 opacity-90 mix-blend-screen">
+              {rank.name}
+            </span>
+            <span className="absolute -top-3 left-8 h-8 w-4 rounded-[2px] bg-brass-400 shadow-[0_2px_0_#050404]" aria-hidden />
+            <button type="button" onClick={() => setPicking(true)} className="btn-brass btn-sm mt-8">
+              Cambiar de personaje
+            </button>
           </div>
 
-          <div className="min-w-0 flex-1">
-            <p className="eyebrow mb-3 flex items-center gap-2">
-              <span className="suit text-sm" aria-hidden>
-                ♠
-              </span>
-              Perfil · desde {memberSince}
-            </p>
+          <div className="grid content-start gap-5">
+            <p className="kick m-0">Expediente Nº {profile.uid.slice(0, 6).toUpperCase()}</p>
             {editing ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <label htmlFor="perfil-nick" className="sr-only">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void saveNick();
+                }}
+                className="flex max-w-[460px] items-stretch"
+              >
+                <label htmlFor="nick" className="sr-only">
                   Apodo
                 </label>
-                <div className="w-full max-w-sm">
-                  <input
-                    id="perfil-nick"
-                    autoFocus
-                    value={draftNick}
-                    onChange={(e) => setDraftNick(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveNick();
-                      if (e.key === "Escape") setEditing(false);
-                    }}
-                    maxLength={24}
-                    className="field h-14! font-display text-3xl!"
-                  />
-                </div>
-                <button type="button" onClick={saveNick} className="btn-primary">
-                  <Check className="h-4 w-4" />
-                  Guardar
+                <input
+                  id="nick"
+                  autoFocus
+                  value={nick}
+                  maxLength={24}
+                  onChange={(e) => setNick(e.target.value)}
+                  className="slot-input h-14 min-w-0 flex-1 px-4 font-stencil text-3xl font-black uppercase"
+                />
+                <button type="submit" className="tk tk-right">
+                  Firmar
                 </button>
-                <button type="button" onClick={() => setEditing(false)} className="btn-quiet">
-                  Cancelar
-                </button>
-              </div>
+              </form>
             ) : (
-              <div className="flex items-center gap-3">
-                <h1 className="display min-w-0 text-5xl text-primary [overflow-wrap:anywhere] sm:text-6xl lg:text-7xl">
-                  {profile.nickname}
-                </h1>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDraftNick(profile.nickname);
-                    setEditing(true);
-                  }}
-                  title="Editar apodo"
-                  aria-label="Editar apodo"
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[color:var(--text-muted)] transition-colors hover:bg-bone/[0.05] hover:text-bone"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              </div>
+              <h1 className="stencil m-0 text-[clamp(44px,5.6vw,84px)]">
+                {profile.nickname || profile.displayName || "Sin nombre"}
+              </h1>
             )}
-            <p className="mt-3 truncate text-sm text-muted">
-              {user?.email ?? "Cuenta de invitado"}
-            </p>
-          </div>
-        </div>
-
-        <div className="lg:col-span-3 lg:justify-self-end">
-          <button type="button" onClick={signOut} className="btn-quiet">
-            <LogOut className="h-4 w-4" />
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
-
-      {/* Rango / XP */}
-      {prog && rank && (
-        <section
-          aria-labelledby="perfil-rango"
-          className="mt-14 grid grid-cols-1 gap-8 border-t border-line pt-10 lg:grid-cols-12"
-        >
-          <div className="flex items-center gap-5 lg:col-span-5">
-            <Image
-              src={rank.emblem}
-              alt=""
-              width={72}
-              height={72}
-              className="h-16 w-16 shrink-0 object-contain sm:h-[72px] sm:w-[72px]"
-              priority
-            />
-            <div className="min-w-0">
-              <p className="eyebrow">Rango</p>
-              <h2 id="perfil-rango" className="display mt-1 text-4xl text-primary sm:text-5xl">
-                {rank.name}
-              </h2>
-              <p className="mt-2 text-sm text-muted">
-                Nivel <span className="numeric text-primary">{prog.level}</span>
-                {prog.level >= MAX_LEVEL ? " · Máximo" : ""}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col justify-end gap-3 lg:col-span-7">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <p className="text-sm text-muted">
-                <span className="numeric text-lg text-primary">{formatChips(profile.xp)}</span> XP
-              </p>
-              {!prog.isMax && (
-                <p className="text-sm text-muted">
-                  <span className="numeric text-secondary">
-                    {formatChips(prog.span - prog.xpIntoLevel)}
-                  </span>{" "}
-                  para nivel <span className="numeric text-secondary">{prog.level + 1}</span>
-                </p>
-              )}
-            </div>
-            <div
-              role="progressbar"
-              aria-label="Progreso al siguiente nivel"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(prog.ratio * 100)}
-              className="relative h-[3px] w-full"
-            >
-              <span className="absolute inset-x-0 top-px h-px bg-line-strong" aria-hidden />
-              <span
-                className="xp-fill absolute inset-y-0 left-0 bg-accent-300"
-                style={{ width: `${prog.ratio * 100}%` }}
-                aria-hidden
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pt-1">
-              <p className="max-w-[46ch] text-sm text-muted">
-                Ganas experiencia jugando manos y completando partidas.
-              </p>
-              <button type="button" onClick={() => setShowTower(true)} className="btn-link text-sm">
-                Ver todos los rangos
+            {!editing && (
+              <button
+                type="button"
+                onClick={() => {
+                  setNick(profile.nickname || profile.displayName || "");
+                  setEditing(true);
+                }}
+                className="w-fit text-[14px] text-paper-dim underline underline-offset-4 hover:text-paper"
+              >
+                Cambiar el apodo
               </button>
+            )}
+            <p className="m-0 max-w-[52ch] text-paper-dim">
+              Se sienta como <b className="text-paper">{CAST[me].name}</b>, {CAST[me].alias.toLowerCase()}. En el club desde el {since}.
+            </p>
+
+            <div className="grid max-w-[520px] gap-2">
+              <p className="m-0 flex items-baseline justify-between gap-3">
+                <span className="stencil text-2xl">
+                  {rank.name} · nivel {prog.level}
+                </span>
+                <span className="font-pix text-[12px] text-paper-mute">
+                  {prog.isMax ? "Lo más alto del club" : `${fmt(prog.xpIntoLevel)} / ${fmt(prog.span)} de experiencia`}
+                </span>
+              </p>
+              <i className="block h-1.5 bg-paper/10" aria-hidden>
+                <b className="block h-full origin-left bg-brass-400 transition-transform duration-1000" style={{ transform: `scaleX(${prog.ratio})` }} />
+              </i>
+              {nextRank && <p className="m-0 text-[13px] text-paper-mute">Próximo rango: {nextRank.name}, en el nivel {nextRank.level}.</p>}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={claim} disabled={!bonusReady || claiming} className="tk tk-red disabled:opacity-40">
+                {claiming ? "Cobrando…" : bonusReady ? `Cobrar el bono (+${fmt(DAILY_BONUS)})` : "Bono cobrado hoy"}
+              </button>
+              {claimMsg && <p className="scrap m-0 px-3 py-1.5 font-pix text-sm">{claimMsg}</p>}
             </div>
           </div>
         </section>
-      )}
 
-      {/* Cifras */}
-      <section aria-label="Estadísticas" className="mt-14">
-        <dl className="grid grid-cols-2 border-y border-line lg:grid-cols-4">
-          {figures.map((f, i) => (
-            <div key={f.label} className={`flex flex-col gap-3 border-line py-7 sm:py-9 ${FIGURE_EDGE[i]}`}>
-              <dt className="eyebrow">{f.label}</dt>
-              <dd className="numeric text-3xl leading-none text-primary sm:text-4xl lg:text-5xl">
-                {f.value}
-              </dd>
-              {f.note ? <dd className="text-xs text-muted">{f.note}</dd> : null}
+        {/* Evidence tags */}
+        <section className="grid grid-cols-2 gap-4 min-[760px]:grid-cols-4" aria-label="Tus números">
+          {tags.map((t, i) => (
+            <div
+              key={t.label}
+              className="relative bg-[linear-gradient(170deg,#efe6d3,#d6c7a8)] px-5 pt-6 pb-4 text-card-ink shadow-[0_14px_30px_rgb(0_0_0/.45)] [clip-path:polygon(18px_0,100%_0,100%_100%,0_100%,0_18px)]"
+              style={{ rotate: `${[-1.2, 0.8, -0.6, 1.1][i]}deg` } as CSSProperties}
+            >
+              <span className="absolute left-2 top-2 h-2.5 w-2.5 rounded-full bg-soot-900" aria-hidden />
+              <p className="m-0 font-pix text-[11px] uppercase tracking-[.14em] text-[#5a4d3e]">{t.label}</p>
+              <p className="stencil m-0 mt-1 text-[40px]">{t.value}</p>
+              {t.note && <p className="m-0 text-[13px] text-[#5a4d3e]">{t.note}</p>}
             </div>
           ))}
-        </dl>
+        </section>
 
-        {/* Bono diario */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line py-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <Gift className="h-4 w-4 shrink-0 text-bone-dim" aria-hidden />
-            <p className="text-sm text-secondary">
-              Bono diario de <span className="numeric text-primary">{formatChips(DAILY_BONUS)}</span>{" "}
-              monedas cada 24 horas.
-            </p>
-            <span role="status" className="text-sm text-primary">
-              {claimMsg}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onClaim}
-            disabled={claiming || !bonusReady}
-            aria-busy={claiming}
-            className={bonusReady ? "btn-primary" : "btn-quiet"}
-          >
-            {bonusReady ? "Reclamar bono" : "Bono reclamado"}
-          </button>
-        </div>
-      </section>
+        {/* Rank ladder */}
+        <section className="grid gap-4" aria-label="Rangos del club">
+          <h2 className="stencil m-0 text-[clamp(32px,3.4vw,52px)]">Tu lugar en la casa</h2>
+          <ol className="m-0 grid list-none grid-cols-2 gap-3 p-0 min-[560px]:grid-cols-4 min-[1000px]:grid-cols-7">
+            {TITLES.map((t, i) => {
+              const reached = prog.level >= t.level;
+              const current = t.name === rank.name;
+              return (
+                <li
+                  key={t.name}
+                  className={`grid justify-items-center gap-2 border-t-2 px-2 pt-5 pb-3 text-center ${current ? "border-tungsten-400" : reached ? "border-brass-700" : "border-paper/15"}`}
+                >
+                  <svg viewBox="0 0 64 72" className={`h-16 w-14 ${current ? "text-tungsten-400" : reached ? "text-brass-400" : "text-soot-700"}`} aria-hidden>
+                    <path d="M32 3 60 13v22c0 17-12 29-28 34C16 64 4 52 4 35V13Z" fill="#1d1814" stroke="currentColor" strokeWidth="3" />
+                    {Array.from({ length: i + 1 }, (_, j) => (
+                      <rect key={j} x="18" y={52 - j * 6} width="28" height="3.5" fill="currentColor" />
+                    ))}
+                  </svg>
+                  <b className={`stencil text-xl ${reached ? "text-paper" : "text-paper-mute"}`}>{t.name}</b>
+                  <span className="text-[12px] text-paper-mute">nivel {t.level}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
 
-      {/* Historial */}
-      <section aria-labelledby="perfil-historial" className="mt-20 pb-24">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="eyebrow">Partidas online</p>
-            <h2 id="perfil-historial" className="display mt-1 text-4xl text-primary sm:text-5xl">
-              Historial
-            </h2>
-          </div>
-          <p className="text-sm text-muted">
-            <span className="numeric text-primary">{profile.gamesPlayed}</span>{" "}
-            {profile.gamesPlayed === 1 ? "partida jugada" : "partidas jugadas"}
-          </p>
-        </div>
+        {/* The ledger */}
+        <section className="grid gap-4" aria-label="Tus noches en la mesa">
+          <h2 className="stencil m-0 text-[clamp(32px,3.4vw,52px)]">El libro de la barra</h2>
+          {history.length === 0 ? (
+            <p className="m-0 text-paper-dim">Todavía no hay noches apuntadas. La primera se escribe al levantarte de una mesa.</p>
+          ) : (
+            <ol className="m-0 grid max-w-[860px] list-none gap-1.5 bg-[linear-gradient(170deg,#ece3cf,#d6c7a8)] p-5 font-pix text-[14px] text-card-ink shadow-[0_20px_40px_rgb(0_0_0/.45)]">
+              {history.slice(0, 40).map((h) => (
+                <li key={h.id} className="flex items-baseline gap-3">
+                  <span className="w-24 flex-none text-[#5a4d3e]">{new Date(h.ts).toLocaleDateString("es", { day: "2-digit", month: "short" })}</span>
+                  <span className="flex-none tracking-[.14em]">{h.code}</span>
+                  <span className="text-[#5a4d3e]">
+                    {h.handsPlayed} manos · {h.handsWon} ganadas
+                  </span>
+                  <span className="flex-1 -translate-y-1 border-b-2 border-dotted border-[#8a7f6d]" />
+                  <b className={`flex-none tabular-nums ${h.net >= 0 ? "text-[#6b4f12]" : "text-blood-500"}`}>
+                    {h.net >= 0 ? "+" : ""}
+                    {fmt(h.net)}
+                  </b>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      </div>
 
-        {history.length === 0 ? (
-          <div className="border-t border-line py-12">
-            <p className="font-display text-2xl text-secondary sm:text-3xl">
-              Aún no has jugado ninguna partida online.
-            </p>
-            <Link href="/play/online" className="btn-link mt-4 inline-block text-sm">
-              Abrir una mesa online
-            </Link>
-          </div>
-        ) : (
-          <table className="w-full border-t border-line text-left">
-            <caption className="sr-only">Historial de partidas online</caption>
-            <thead>
-              <tr className="border-b border-line">
-                <th scope="col" className="eyebrow py-3 pr-4 text-left">
-                  Sala
-                </th>
-                <th scope="col" className="eyebrow hidden py-3 pr-6 text-left sm:table-cell">
-                  Fecha
-                </th>
-                <th scope="col" className="eyebrow hidden py-3 pr-6 text-right sm:table-cell">
-                  Manos
-                </th>
-                <th scope="col" className="eyebrow hidden py-3 pr-6 text-right sm:table-cell">
-                  XP
-                </th>
-                <th scope="col" className="eyebrow py-3 text-right">
-                  Resultado
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((h) => {
-                const date = new Date(h.ts).toLocaleDateString("es");
-                return (
-                  <tr
-                    key={h.id}
-                    className="border-b border-line transition-colors hover:bg-bone/[0.03]"
-                  >
-                    <td className="w-full max-w-0 py-4 pr-4">
-                      <span className="block truncate text-[15px] text-primary">
-                        {h.roomName || "Sala"}
-                      </span>
-                      <span className="mt-1 block truncate text-xs text-muted sm:hidden">
-                        {date} · {h.handsPlayed} manos · +{h.xpGained} XP
-                      </span>
-                    </td>
-                    <td className="numeric hidden py-4 pr-6 text-sm whitespace-nowrap text-secondary sm:table-cell">
-                      {date}
-                    </td>
-                    <td className="numeric hidden py-4 pr-6 text-right text-sm text-secondary sm:table-cell">
-                      {h.handsPlayed}
-                    </td>
-                    <td className="numeric hidden py-4 pr-6 text-right text-sm whitespace-nowrap text-secondary sm:table-cell">
-                      +{h.xpGained}
-                    </td>
-                    <td
-                      className={`numeric py-4 text-right text-[15px] whitespace-nowrap ${
-                        h.net >= 0 ? "text-emerald-400" : "text-rose-400"
-                      }`}
-                    >
-                      {h.net >= 0 ? "+" : ""}
-                      {formatChips(h.net)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      {showTower && prog && (
-        <RankTowerModal
-          currentLevel={prog.level}
-          onClose={() => setShowTower(false)}
-        />
-      )}
-    </div>
+      <CharacterPicker open={picking} current={me} first={false} onChosen={(id) => void choose(id)} onClose={() => setPicking(false)} />
+    </NoirRoom>
   );
 }
-
-// Hairlines between the four figures: a 2x2 grid on phones, one row on desktop.
-const FIGURE_EDGE = [
-  "pr-4",
-  "border-l pl-5 sm:pl-8",
-  "border-t pr-4 lg:border-t-0 lg:border-l lg:pl-8",
-  "border-l border-t pl-5 sm:pl-8 lg:border-t-0",
-];

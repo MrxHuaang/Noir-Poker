@@ -1,8 +1,7 @@
 "use client";
 import { type ReactNode, useEffect, useState } from "react";
-import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
-import { Monitor, Copy, Check, Smartphone } from "lucide-react";
+import { Monitor, Copy, Check } from "lucide-react";
 import { useDeviceClass } from "@/hooks/useDeviceClass";
 
 interface Props {
@@ -103,21 +102,6 @@ export function DesktopOnlyGate({ children, roomCode, href, onBypass }: Props) {
         )}
         {copied ? "Enlace copiado" : "Copiar enlace"}
       </button>
-
-      {/* Puntero al modo presencial */}
-      <div className="relative z-10 text-center max-w-xs flex flex-col items-center gap-2">
-        <p className="text-xs leading-relaxed text-muted">
-          ¿Están todos en el mismo lugar? Prueba el modo presencial, pensado
-          para jugar desde el teléfono.
-        </p>
-        <Link
-          href="/host"
-          className="btn-link inline-flex items-center gap-1.5 text-sm"
-        >
-          <Smartphone className="w-3.5 h-3.5" aria-hidden="true" />
-          Ir al modo presencial
-        </Link>
-      </div>
 
       {/* Salida de escape — solo tablets grandes en horizontal */}
       {canEscape && (

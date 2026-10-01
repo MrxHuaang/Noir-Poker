@@ -126,9 +126,6 @@ npm run lint
 npm test
 npm run test:watch
 
-# CLI de mesa online (necesita la app corriendo; --app para otra URL)
-npm run play -- MESA1 Ana
-
 # Motor Rust/WASM
 cd engine
 wasm-pack build --target web --out-dir pkg
@@ -182,7 +179,6 @@ poker-sim/
     lib/                 Poker core, Firestore helpers, economía, evaluadores
     workers/             Equity worker
   engine/                Motor Rust/WASM de equity
-  cli/                   Cliente de terminal para modo online
   docs/                  Planes, auditorías, voz, persistencia y seguridad
   public/                Logos, hero, favicon, assets públicos y rangos
   firestore.rules        Reglas de seguridad Firestore
@@ -220,7 +216,6 @@ firebase deploy --only firestore:rules
 - [Arquitectura del modo online](docs/plan-migracion.md)
 - [Login social y dominio de Auth](docs/auth-setup.md)
 - [Roadmap y contribución](CONTRIBUTING.md)
-- [CLI](cli/README.md)
 - [Voz WebRTC](docs/voice-setup.md)
 - [Persistencia](docs/persistence-setup.md)
 - [Backlog de seguridad](docs/security-backlog.md)

@@ -19,7 +19,7 @@ The history below is kept for context.
   betting → streets → showdown + side pots + reveal), Firebase-token auth, WS hub,
   per-room config. **Deployed on Render (free).** DONE + live.
 - **Server-backed online mode** (`/play/online/[code]`): trustless cash game on the
-  Go server; web client + a terminal client (`cli/`) share the protocol. DONE (MVP).
+  Go server; web client speaks the protocol (the terminal client was later removed). DONE (MVP).
 - Legacy `/play/normal` (host-authoritative, full features) untouched and coexists.
 - Pending on the server path: economy/escrow, tournaments, queue/spectators,
   run-it-twice (still legacy-only).

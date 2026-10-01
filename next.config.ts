@@ -28,9 +28,6 @@ const nextConfig: NextConfig = {
             key: "Cross-Origin-Opener-Policy",
             value: "same-origin-allow-popups",
           },
-          // Anti-clickjacking: el sitio no puede embeberse en iframes.
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
           // Evita sniffing de tipo MIME.
           { key: "X-Content-Type-Options", value: "nosniff" },
           // No filtrar la URL completa como referer a terceros.
@@ -41,6 +38,23 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), geolocation=(), browsing-topics=(), microphone=(self)",
           },
+        ],
+      },
+      {
+        // Anti-clickjacking: el sitio no puede embeberse en iframes...
+        source: "/:path((?!noir/).*)",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        ],
+      },
+      {
+        // ...salvo la escena 3D (public/noir), que la landing embebe desde el
+        // mismo origen. Nadie de fuera puede enmarcarla.
+        source: "/noir/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
         ],
       },
     ];

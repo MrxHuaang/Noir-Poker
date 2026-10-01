@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./noir.css";
 
 :root {
   /* ── Noir card room ─────────────────────────────────────────────────

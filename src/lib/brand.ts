@@ -32,3 +32,18 @@ export const ACCENT_RGB = "177,146,231";
 export function accentAlpha(alpha: number): string {
   return `rgba(${ACCENT_RGB},${alpha})`;
 }
+
+/**
+ * Noir 1929 palette (the redesign layer). Mirrors the soot / paper /
+ * tungsten / blood / brass tokens in src/app/noir.css for canvas and inline
+ * styles (landing atmosphere, 3D scene hand-off). Keep the two in sync.
+ */
+export const NOIR = {
+  soot: "#0b0908",
+  paper: "#efe6d3",
+  tungsten: "#e8b25c",
+  blood: "#c8402f",
+  brass: "#b98a3c",
+  smokeRgb: "160,150,135",
+  dustRgb: "232,190,120",
+} as const;

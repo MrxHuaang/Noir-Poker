@@ -2,7 +2,7 @@ import { ACCENT } from "./brand";
 import confetti from "canvas-confetti";
 
 // Celebratory burst fired at showdown when a winner is decided. Shared by the
-// presencial table (PokerTable) and the betting table (RoundPokerTable).
+// betting table (RoundPokerTable).
 export function fireConfetti(): void {
   const opts = {
     spread: 70,

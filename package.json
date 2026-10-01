@@ -9,7 +9,6 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "play": "tsx cli/index.ts",
     "dev:emu": "node scripts/dev-emulators.mjs"
   },
   "dependencies": {
@@ -36,7 +35,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "tsx": "^4.22.4",
     "typescript": "^5",
     "vitest": "^4.1.7"
   }

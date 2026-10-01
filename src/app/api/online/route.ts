@@ -24,6 +24,9 @@ function configFrom(raw: unknown): OnlineConfigInput {
     runItN: num(c.runItN),
     blindLevelSecs: num(c.blindLevelSecs),
     casual: c.casual === true,
+    tournament: c.tournament === true,
+    // Rules are clamped by the engine (normalizeRules); only the shape is checked here.
+    rules: c.rules && typeof c.rules === "object" ? (c.rules as OnlineConfigInput["rules"]) : undefined,
   };
 }
 
@@ -79,6 +82,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       case "rebuy":
         await online.rebuy(uid, code);
+        return NextResponse.json({ ok: true });
+      case "vote":
+        await online.vote(uid, code, typeof body.n === "number" ? body.n : 1);
+        return NextResponse.json({ ok: true });
+      case "away":
+        await online.setAway(uid, code, body.away === true);
+        return NextResponse.json({ ok: true });
+      case "approve":
+        return NextResponse.json({ result: await online.approve(uid, code, String(body.target ?? "")) });
+      case "deny":
+        await online.deny(uid, code, String(body.target ?? ""));
+        return NextResponse.json({ ok: true });
+      case "kick":
+        await online.kick(uid, code, String(body.target ?? ""));
         return NextResponse.json({ ok: true });
       default:
         return NextResponse.json({ error: "Accion desconocida" }, { status: 400 });

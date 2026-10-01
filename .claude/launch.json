@@ -21,6 +21,31 @@
       ],
       "port": 3100,
       "autoPort": false
+    },
+    {
+      "name": "prototipos",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "serve",
+        "prototypes",
+        "-l",
+        "4173",
+        "--no-clipboard"
+      ],
+      "port": 4173,
+      "autoPort": false
+    },
+    {
+      "name": "poker-sim-emu-3300",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/dev-emulators.mjs",
+        "--port",
+        "3300"
+      ],
+      "port": 3300,
+      "autoPort": false
     }
   ]
 }

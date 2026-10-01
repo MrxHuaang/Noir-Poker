@@ -89,3 +89,14 @@ export function playJoinRequest(): void {
   tone(c, { freq: 587.33, duration: 0.22, type: "sine", gain: 0.14 });
   tone(c, { freq: 783.99, duration: 0.22, type: "sine", gain: 0.12, startAt: 0.16 });
 }
+
+/** Three knocks on the club door: low wooden thumps. */
+export function playKnock(): void {
+  if (muted) return;
+  const c = getCtx();
+  if (!c) return;
+  [0, 0.26, 0.52].forEach((at) => {
+    tone(c, { freq: 120, sweepTo: 55, duration: 0.14, type: "sine", gain: 0.5, startAt: at });
+    tone(c, { freq: 420, sweepTo: 180, duration: 0.04, type: "triangle", gain: 0.08, startAt: at });
+  });
+}
