@@ -171,6 +171,12 @@ export function Nav() {
   }, [showModes, menuOpen]);
 
   if (
+    // The landing carries its own club nav.
+    path === "/" ||
+    path === "/jugar" ||
+    path === "/login" ||
+    path === "/join" ||
+    path === "/perfil" ||
     path?.startsWith("/host") ||
     path?.startsWith("/play/normal") ||
     // Online table is a fixed full-screen view (TableShell); the nav would

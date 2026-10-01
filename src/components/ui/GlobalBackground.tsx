@@ -15,7 +15,8 @@ export function GlobalBackground() {
   const isGamePage =
     !isPlayLobby &&
     (GAME_PREFIXES.some((p) => pathname.startsWith(p)) || pathname.startsWith("/play"));
-  if (isGamePage) return null;
+  // The landing paints its own room (Atmosphere).
+  if (isGamePage || ["/", "/jugar", "/login", "/join", "/perfil"].includes(pathname)) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[1] overflow-hidden" aria-hidden>

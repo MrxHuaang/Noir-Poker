@@ -185,12 +185,7 @@ Estas reglas no son negociables:
    NEXT_PUBLIC_GAME_WS_URL=http://localhost:8080
    ```
 
-3. Abre `/play/online` en dos pestañas o usa el CLI:
-
-   ```bash
-   npm run play -- MESA1 Ana
-   npm run play -- MESA1 Beto
-   ```
+3. Abre `/play/online` en dos pestañas (o dos navegadores) con cuentas distintas.
 
 4. Reparte y confirma que cada cliente solo recibe sus cartas.
 
@@ -254,7 +249,6 @@ Estas reglas no son negociables:
 - [README](README.md)
 - [Arquitectura del modo online](docs/plan-migracion.md)
 - [Architecture roadmap](docs/architecture-roadmap.md)
-- [CLI](cli/README.md)
 - [Voz WebRTC](docs/voice-setup.md)
 - [Persistencia](docs/persistence-setup.md)
 - [Backlog de seguridad](docs/security-backlog.md)

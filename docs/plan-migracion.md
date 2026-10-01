@@ -16,7 +16,6 @@ Next.js, con Firestore como estado compartido.
 | API | `src/app/api/online/route.ts` | `POST /api/online` con el idToken de Firebase (`create`, `sit`, `leave`, `start`, `act`, `tick`, `config`, `pause`, `resume`, `rebuy`). |
 | Cliente | `src/lib/online/client.ts`, `src/hooks/useOnlineGame.ts` | Suscripciones Firestore + llamadas a la API + heartbeat + reloj de turno. |
 | Vista | `src/lib/onlineTable.ts`, `src/app/play/online/**` | Adaptador puro a la mesa rica (`TableShell` + `BettingDock`). |
-| CLI | `cli/` | Mismo contrato desde la terminal (sesión anónima: mesas casuales). |
 
 ## Documentos en Firestore
 

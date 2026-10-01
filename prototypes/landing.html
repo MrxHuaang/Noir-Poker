@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Noir Poker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700..900&family=Big+Shoulders+Display:wght@600..900&family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&family=Pixelify+Sans:wght@500;700&display=swap">
+<link rel="stylesheet" href="noir.css">
+<script src="noir.js"></script>
+<style>
+/* Landing: walk into the club. Door, live table, two posters, the bar menu, what you earn, the receipt.
+   A few regulars step into the gaps between sections; the full cast stays a surprise for after login. */
+.wrap{max-width:1320px;margin:0 auto;padding-inline:clamp(18px,4vw,48px)}
+nav{position:fixed;inset:0 0 auto;z-index:50;transition:background .3s,box-shadow .3s}
+nav .wrap{height:76px;display:flex;align-items:center;gap:30px}
+nav.solid{background:rgba(11,9,8,.92);box-shadow:0 1px 0 var(--brass-lo),0 3px 0 #050404,0 4px 0 rgba(185,138,60,.35)}
+nav ul{list-style:none;display:flex;gap:4px;margin:0 0 0 auto;padding:0}
+nav ul a{display:block;padding:8px 14px;font-family:var(--f-stencil);font-weight:800;font-size:17px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--bone-2);position:relative}
+nav ul a::after{content:"";position:absolute;left:14px;right:14px;bottom:4px;height:2px;background:var(--brass);transform:scaleX(0);transform-origin:left;transition:transform .3s var(--ease)}
+nav ul a:hover{color:var(--bone)}nav ul a:hover::after{transform:scaleX(1)}
+nav .acts{display:flex;gap:12px;align-items:center}
+@media (max-width:980px){nav ul{display:none}nav .acts{margin-left:auto}}
+@media (max-width:560px){nav .acts .tk{display:none}}
+.hero{position:relative;min-height:100dvh;display:grid;align-items:center;padding-block:120px 70px;overflow:hidden;isolation:isolate}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(28px,5vw,80px);align-items:center;width:100%}
+.ghost{position:absolute;inset:0;z-index:-1;display:grid;place-items:center;font-family:var(--f-stencil);font-weight:900;font-size:min(44vw,720px);line-height:.8;color:transparent;-webkit-text-stroke:2px rgba(232,178,92,.55);
+  -webkit-mask-image:radial-gradient(circle 230px at var(--mx,70%) var(--my,40%),#000,transparent);mask-image:radial-gradient(circle 230px at var(--mx,70%) var(--my,40%),#000,transparent);opacity:.45}
+.hero h1{font-size:clamp(60px,8.6vw,132px)}
+.hero h1 .l{display:block;overflow:hidden;padding-top:.16em;margin-top:-.16em}
+.hero h1 .l span{display:inline-block}
+.hero h1 .am{color:var(--amber)}
+.hero .kick{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+.hero .kick i{width:36px;height:1px;background:var(--brass)}
+.lede{max-width:42ch;color:var(--bone-2);margin:26px 0 32px;font-size:clamp(17px,1.35vw,19px)}
+.pass{display:flex;max-width:500px;align-items:stretch}
+.pass label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.pass input{flex:1;min-width:0;height:56px;border-radius:6px 0 0 6px;background:var(--ink-3);border:1px solid var(--line-2);border-right:0;color:var(--bone);font:700 24px var(--f-pix);letter-spacing:.3em;text-transform:uppercase;padding:0 18px}
+.pass input::placeholder{color:#7a705f;letter-spacing:.14em;font-size:17px}
+.pass .tk{-webkit-mask:radial-gradient(circle 9px at 100% 50%,#0000 97%,#000);mask:radial-gradient(circle 9px at 100% 50%,#0000 97%,#000)}
+.hero .under{margin-top:14px;font-size:15px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.hero .under button{background:none;border:0;padding:0;color:var(--bone);text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.msg{min-height:1.5em;margin-top:8px;font-family:var(--f-pix);font-size:15px;color:var(--amber)}
+.doorbox{position:relative;aspect-ratio:4/5;width:100%;max-width:500px;justify-self:end;border-radius:10px;overflow:hidden;background:#07060a;box-shadow:0 0 0 1px var(--brass-lo),0 0 0 6px var(--ink),0 0 0 7px rgba(185,138,60,.35),0 40px 90px rgba(0,0,0,.6)}
+.doorbox iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.doorbox .brass{position:absolute;left:50%;bottom:18px;transform:translateX(-50%)}
+@media (max-width:920px){.hero .wrap{grid-template-columns:1fr}.doorbox{justify-self:stretch;max-width:none;aspect-ratio:1}}
+.cameo{position:relative;height:0;z-index:5;pointer-events:none}
+.cameo figure{position:absolute;margin:0;width:clamp(200px,20vw,300px);aspect-ratio:3/4;top:var(--y,-220px);-webkit-mask-image:radial-gradient(ellipse 62% 58% at 50% 55%,#000 60%,transparent 100%);mask-image:radial-gradient(ellipse 62% 58% at 50% 55%,#000 60%,transparent 100%)}
+.cameo.r figure{right:clamp(0px,4vw,80px)}.cameo.l figure{left:clamp(0px,4vw,80px)}
+.cameo iframe{width:100%;height:100%;border:0;display:block}
+.cameo figcaption{position:absolute;left:50%;top:12%;transform:translateX(-50%);font-family:var(--f-pix);font-size:14px;color:var(--ink);background:var(--bone);padding:5px 10px;border-radius:8px;white-space:nowrap;opacity:0}
+.cameo figcaption::after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;background:var(--bone);transform:translateX(-50%) rotate(45deg)}
+@media (max-width:820px){.cameo{display:none}}
+.inside{position:relative;height:300vh}
+.inside .pin{position:sticky;top:0;height:100dvh;overflow:hidden}
+.inside iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.inside .shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(11,9,8,.94),rgba(11,9,8,.62) 32%,rgba(11,9,8,0) 58%)}
+.beats{position:absolute;left:clamp(18px,4vw,48px);top:50%;transform:translateY(-50%);width:min(430px,80vw)}
+.beat{position:absolute;left:0;top:0;transform:translateY(-50%);opacity:0}
+.beat:first-child{opacity:1}
+.beat .n{font-family:var(--f-pix);font-size:14px;color:var(--brass-hi);letter-spacing:.12em}
+.beat h2{font-size:clamp(46px,5.4vw,84px);margin:10px 0 14px}
+.beat p{margin:0;color:var(--bone-2);max-width:32ch}
+.meter{position:absolute;left:clamp(18px,4vw,48px);bottom:34px;display:flex;gap:6px}
+.meter i{width:40px;height:4px;background:rgba(239,230,211,.16);overflow:hidden}
+.meter b{display:block;height:100%;background:var(--amber);transform:scaleX(0);transform-origin:left}
+.onair{position:absolute;right:clamp(18px,4vw,48px);top:96px;display:flex;align-items:center;gap:8px;font-family:var(--f-pix);font-size:13px;color:var(--bone);background:rgba(11,9,8,.8);padding:6px 12px;border:1px solid var(--line-2);border-radius:4px;margin:0}
+.onair i{width:8px;height:8px;border-radius:50%;background:var(--blood);animation:bl 1.4s steps(2) infinite}
+@keyframes bl{50%{opacity:.2}}
+.posters{padding-block:clamp(110px,13vw,190px) clamp(60px,8vw,110px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(20px,3vw,44px);align-items:end}
+.posters>h2{grid-column:1/-1;font-size:clamp(48px,6.6vw,104px);margin-bottom:10px}
+.poster{position:relative;aspect-ratio:3/4;background:#e6dcc6;color:#1a1612;padding:clamp(22px,2.6vw,36px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.6);transform:rotate(-1.6deg)}
+.poster.dark{transform:rotate(1.2deg) translateY(40px);background:#1d1814;color:var(--bone)}
+.poster::before{content:"";position:absolute;inset:10px;border:2px solid currentColor;opacity:.5;pointer-events:none}
+.poster .top{display:flex;justify-content:space-between;font-family:var(--f-pix);font-size:13px;letter-spacing:.1em}
+.poster h3{font-size:clamp(64px,8.2vw,140px);margin:auto 0 0;line-height:.82}
+.poster h3 em{font-style:normal;color:var(--blood)}
+.poster .big{font-family:var(--f-stencil);font-weight:900;font-size:clamp(90px,12vw,200px);line-height:.8;opacity:.1;position:absolute;right:-10px;top:40px}
+.poster p{margin:16px 0 22px;font-size:16px;max-width:32ch;opacity:.85}
+.poster .facts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px}
+.poster .facts span{font-family:var(--f-pix);font-size:13px;border:1.5px solid currentColor;padding:3px 9px}
+.ribbon{position:absolute;right:-54px;top:34px;transform:rotate(38deg);background:var(--blood-2);color:#fff;font-family:var(--f-stencil);font-weight:900;font-size:17px;letter-spacing:.1em;padding:6px 64px}
+.clock{font-family:var(--f-pix);display:flex;gap:18px;align-items:baseline;margin-bottom:22px}
+.clock b{font-size:44px;color:var(--amber);letter-spacing:.04em}
+.clock span{font-size:14px;opacity:.8}
+@media (max-width:820px){.posters{grid-template-columns:1fr}.poster.dark{transform:rotate(1deg)}}
+.menu{padding-block:clamp(80px,10vw,150px)}
+.card{max-width:980px;margin:0 auto;background:#ece3cf;color:#1a1612;padding:clamp(28px,5vw,64px) clamp(22px,5vw,72px);position:relative;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.card::before{content:"";position:absolute;inset:14px;border:1px solid #1a1612;outline:1px solid #1a1612;outline-offset:4px;pointer-events:none}
+.card h2{text-align:center;font-size:clamp(46px,6vw,90px)}
+.card .sub{text-align:center;font-family:var(--f-pix);font-size:14px;letter-spacing:.14em;margin:8px 0 34px;color:#5a4d3e}
+.card ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 56px}
+.card li{display:grid;gap:2px}
+.card li .row{display:flex;align-items:baseline;gap:10px;font-family:var(--f-stencil);font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:.02em}
+.card li .row i{flex:1;border-bottom:2px dotted #8a7f6d;transform:translateY(-6px)}
+.card li .row b{font-family:var(--f-pix);font-size:14px;font-weight:700;color:var(--blood-2);letter-spacing:.06em;white-space:nowrap}
+.card li p{margin:0;font-size:15px;color:#4a4034}
+@media (max-width:760px){.card ul{grid-template-columns:1fr}}
+.ranks{padding-block:clamp(60px,8vw,120px) clamp(90px,11vw,160px)}
+.ranks h2{font-size:clamp(46px,6vw,92px);max-width:14ch}
+.ladder{margin-top:44px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.rank{display:grid;justify-items:center;gap:10px;text-align:center;padding:22px 8px 18px;border-top:2px solid var(--line-2)}
+.rank svg{width:64px;height:72px}
+.rank b{font-family:var(--f-stencil);font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:.04em}
+.rank span{font-size:13px;color:var(--muted)}
+.rank.on{border-color:var(--amber)}
+@media (max-width:900px){.ladder{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.last{padding-block:40px clamp(80px,10vw,140px);display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(28px,5vw,80px);align-items:center}
+.book{position:relative;width:min(340px,76vw);aspect-ratio:3/4.2;justify-self:center;transform:rotate(-6deg)}
+.book .cv{position:absolute;inset:0;border-radius:6px;background:#8e2a22;box-shadow:0 30px 60px rgba(0,0,0,.6),inset 0 0 0 10px #7a221c,inset 0 0 0 12px var(--brass-hi);display:grid;align-content:center;justify-items:center;gap:8px;padding:24px;text-align:center}
+.book .cv b{font-family:var(--f-stencil);font-weight:900;font-size:82px;line-height:.85;color:#f3e6c8;letter-spacing:.06em}
+.book .cv span{font-family:var(--f-pix);font-size:14px;color:#f3e6c8;letter-spacing:.14em}
+.book .cv small{font-size:13px;color:var(--brass-hi);margin-top:12px}
+.book .st{position:absolute;left:0;right:0;bottom:-28px;height:34px;border-radius:0 0 6px 6px;background:repeating-linear-gradient(90deg,#3a2c1a 0 3px,#5a4630 3px 6px)}
+.flame{position:absolute;right:-16px;top:-46px;width:22px;height:40px;border-radius:50% 50% 45% 45%/60% 60% 40% 40%;background:radial-gradient(circle at 50% 70%,#fff2c6 0 18%,#ffb347 36%,#c8402f 70%,transparent 72%);opacity:0;transform:scale(.4);transform-origin:50% 100%;transition:opacity .25s,transform .4s var(--ease)}
+.last:hover .flame,.last:focus-within .flame,.last.lit .flame{opacity:1;transform:scale(1)}
+.last h2{font-size:clamp(50px,6.4vw,100px);margin-bottom:22px}
+.last p{color:var(--bone-2);max-width:40ch;margin:0 0 28px}
+.last .acts{display:flex;flex-wrap:wrap;gap:12px}
+@media (max-width:860px){.last{grid-template-columns:1fr}}
+footer{padding-block:20px 60px}
+footer .note{text-align:center;color:var(--muted);font-size:13px;margin-top:22px}
+#atmo{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}
+body{background:transparent}html{background:var(--ink)}
+.ticker{position:relative;z-index:6;overflow:hidden;border-block:1px solid var(--brass-lo);background:#0e0b09;box-shadow:0 1px 0 #050404,0 -1px 0 #050404}
+.ticker .run{display:flex;gap:56px;width:max-content;padding:14px 0;animation:run 38s linear infinite}
+.ticker span{font-family:var(--f-stencil);font-weight:800;font-size:19px;letter-spacing:.08em;text-transform:uppercase;color:var(--bone-2);white-space:nowrap;display:flex;align-items:center;gap:14px}
+.ticker span b{color:var(--amber);font-family:var(--f-num);font-weight:600;letter-spacing:0}
+.ticker span i{width:8px;height:8px;background:var(--blood);transform:rotate(45deg)}
+@keyframes run{to{transform:translateX(-50%)}}
+.reveal{display:block;overflow:hidden;padding-top:.14em;margin-top:-.14em}
+.reveal>span{display:inline-block}
+.lampcone{position:absolute;left:62%;top:-10%;width:60vw;height:120%;pointer-events:none;z-index:-1;background:radial-gradient(ellipse 30% 60% at 50% 0,rgba(232,178,92,.12),transparent 70%);transform-origin:50% 0;animation:sway 8s ease-in-out infinite alternate}
+@keyframes sway{from{transform:translateX(-50%) rotate(-3deg)}to{transform:translateX(-50%) rotate(3deg)}}
+.receipt{clip-path:inset(0 0 var(--cut,0%) 0)}
+@media (prefers-reduced-motion:reduce){.ticker .run,.lampcone{animation:none}}
+@media (prefers-reduced-motion:reduce){.inside{height:auto}.inside .pin{position:relative}.beats{display:grid;gap:22px}.beat{position:relative;opacity:1;transform:none}.beat h2{font-size:clamp(28px,3vw,42px)}.meter{display:none}.onair i{animation:none}.flame{transition:none}.cameo figcaption{opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="atmo" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+<nav id="nav"><div class="wrap">
+  <a class="logo" href="#" aria-label="Noir Poker, inicio">
+    <svg viewBox="0 0 26 34" aria-hidden="true"><path d="M13 1a9 9 0 0 1 5 16.5L21 33H5l3-15.5A9 9 0 0 1 13 1Z" fill="#efe6d3"/><path d="M13 5c2 3 6 4.6 6 8a3 3 0 0 1-5.2 2c.2 1.6.8 2.6 2 3.6h-5.6c1.2-1 1.8-2 2-3.6A3 3 0 0 1 7 13c0-3.4 4-5 6-8Z" fill="#c8402f"/></svg>
+    <span><b>NOIR</b><small>CLUB DE PÓKER · 1929</small></span>
+  </a>
+  <ul><li><a href="#adentro">La mesa</a></li><li><a href="#carteles">Modos</a></li><li><a href="#carta">La carta</a></li><li><a href="#rangos">Rangos</a></li></ul>
+  <div class="acts"><button class="brass" type="button" data-login><span class="dot"></span>Entrar</button><button class="tk sm red" type="button" data-login>Jugar</button></div>
+</div></nav>
+
+<header class="hero" id="hero">
+  <div class="lampcone" aria-hidden="true"></div>
+  <div class="ghost" aria-hidden="true" data-depth="-18">1929</div>
+  <div class="wrap">
+    <div>
+      <p class="kick"><i></i>Club privado, abierto de noche</p>
+      <h1 class="stencil" aria-label="Nadie aquí enseña la cara"><span class="l"><span>Nadie aquí</span></span><span class="l"><span>enseña</span></span><span class="l"><span class="am">la cara.</span></span></h1>
+      <p class="lede">Póker entre amigos en una trastienda de 1929. Abres una mesa, pasas la contraseña y se reparte.</p>
+      <form class="pass" id="pass" autocomplete="off"><label for="code">Contraseña de la mesa</label><input id="code" maxlength="6" placeholder="Contraseña" aria-describedby="msg"><button class="tk" type="submit">Pasar</button></form>
+      <p class="msg" id="msg" role="status"></p>
+      <p class="under">¿Sin contraseña? <button type="button" data-login>Abre tu propia mesa</button></p>
+    </div>
+    <div class="doorbox" data-depth="10"><iframe id="doorFrame" src="mesa-pixel?mode=door" title="Puerta del club con mirilla"></iframe><button class="brass" id="knock" type="button"><span class="dot"></span>Tocar tres veces</button></div>
+  </div>
+</header>
+
+<div class="ticker" aria-label="Ahora en el club"><div class="run"><span><i></i>Mesas abiertas <b>14</b></span><span><i></i>Jugando ahora <b>132</b></span><span><i></i>El Viernes Negro empieza en <b>04:12</b></span><span><i></i>Bote más grande de la noche <b>18.460</b></span><span><i></i>Personaje de la semana <b class="tkFeat">Casimiro Iturbe</b></span><span><i></i>Mesas abiertas <b>14</b></span><span><i></i>Jugando ahora <b>132</b></span><span><i></i>El Viernes Negro empieza en <b>04:12</b></span><span><i></i>Bote más grande de la noche <b>18.460</b></span><span><i></i>Personaje de la semana <b class="tkFeat">Casimiro Iturbe</b></span></div></div>
+
+<section class="inside" id="adentro" aria-label="La mesa en vivo">
+  <div class="pin">
+    <iframe src="mesa-pixel?mode=embed" title="Partida simulada en vivo" loading="lazy"></iframe>
+    <div class="shade" aria-hidden="true"></div>
+    <p class="onair"><i aria-hidden="true"></i>Mano simulada en directo</p>
+    <div class="beats">
+      <article class="beat"><span class="n">El crupier</span><h2 class="stencil">Reparte la casa</h2><p>Nadie toca el mazo. Ni siquiera quien abre la mesa.</p></article>
+      <article class="beat"><span class="n">El reloj</span><h2 class="stencil">Un cigarrillo por turno</h2><p>Treinta segundos sobre el cenicero y dos de reserva para las manos difíciles.</p></article>
+      <article class="beat"><span class="n">El all-in</span><h2 class="stencil">Se apaga la luz</h2><p>Cartas boca arriba y el río llegando despacio.</p></article>
+    </div>
+    <div class="meter" aria-hidden="true"><i><b></b></i><i><b></b></i><i><b></b></i></div>
+  </div>
+</section>
+
+<div class="cameo r" style="--y:-40px"><figure><iframe loading="lazy" src="mesa-pixel?mode=cameo&id=anselmo&turn=-.5" title="Don Anselmo, de pie con su bastón"></iframe><figcaption>¿Otra ronda, joven?</figcaption></figure></div>
+<section class="posters wrap" id="carteles" aria-label="Modos de juego">
+  <h2 class="stencil"><span class="reveal"><span>Dos maneras de</span></span><span class="reveal"><span>perder la camisa</span></span></h2>
+  <article class="poster">
+    <div class="top"><span>MESA DE SIEMPRE</span><span>2 A 9 SILLAS</span></div><span class="big" aria-hidden="true">9</span>
+    <h3 class="stencil">Partida <em>abierta</em></h3>
+    <p>Entras y sales cuando quieres. Pides asiento con las fichas que traes y el libro de la sesión lleva las cuentas.</p>
+    <div class="facts"><span>RUN IT TWICE</span><span>STRADDLE</span><span>BOMB POT</span></div>
+    <button class="tk sm" type="button" data-login>Abrir una mesa</button>
+  </article>
+  <article class="poster dark">
+    <span class="ribbon">CADA VIERNES</span>
+    <div class="top"><span>TORNEO</span><span>HASTA 45 JUGADORES</span></div>
+    <h3 class="stencil">Uno <em>solo</em> se levanta</h3>
+    <p>Todos empiezan con las mismas fichas. Las ciegas suben con el reloj.</p>
+    <div class="clock"><b id="clk">04:12</b><span>para el nivel 5<br>ciegas 75/150</span></div>
+    <button class="tk sm red" type="button" data-login>Inscribirme</button>
+  </article>
+</section>
+
+<div class="cameo l" style="--y:-120px"><figure><iframe loading="lazy" src="mesa-pixel?mode=cameo&id=lulu&turn=.5" title="Lulú Medianoche, de pie"></iframe><figcaption>Canto a las once, juego a las doce.</figcaption></figure></div>
+
+<section class="menu wrap" id="carta">
+  <div class="card">
+    <h2 class="stencil">La carta de la casa</h2>
+    <p class="sub">SE SIRVE EN TODAS LAS MESAS</p>
+    <ul>
+      <li><div class="row">Run it twice<i></i><b>DOS TABLEROS</b></div><p>En un all-in se reparte dos veces y el bote se parte.</p></li>
+      <li><div class="row">Bomb pot<i></i><b>TODOS AL CENTRO</b></div><p>Todos ponen antes del flop y la mano arranca en el flop.</p></li>
+      <li><div class="row">Straddle<i></i><b>DOBLE CIEGA</b></div><p>Para quien quiere comprar la acción antes de ver sus cartas.</p></li>
+      <li><div class="row">Reloj de cigarrillo<i></i><b>30 SEGUNDOS</b></div><p>Con dos cigarrillos de reserva por sesión.</p></li>
+      <li><div class="row">Voz en la mesa<i></i><b>DE LA CASA</b></div><p>Habla con los tuyos sin salir de la mano.</p></li>
+      <li><div class="row">Película de la mano<i></i><b>EN BLANCO Y NEGRO</b></div><p>Cualquier mano del historial, con grano y rótulos.</p></li>
+      <li><div class="row">Libro de la sesión<i></i><b>A CUENTA</b></div><p>Quién entró con cuánto y quién salió con más.</p></li>
+      <li><div class="row">Cartas cifradas<i></i><b>SOLO TUYAS</b></div><p>El mazo no sale del servidor y nadie ve lo que no debe.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="ranks wrap" id="rangos">
+  <h2 class="stencil"><span class="reveal"><span>Aquí el respeto</span></span><span class="reveal"><span>se gana en la mesa</span></span></h2>
+  <div class="ladder" id="ladder"></div>
+</section>
+
+<div class="cameo r" style="--y:-60px"><figure><iframe loading="lazy" src="mesa-pixel?mode=cameo&id=iturbe&turn=-.4" title="Casimiro Iturbe con cartas flotando"></iframe><figcaption>Elija una carta. Cualquiera.</figcaption></figure></div>
+
+<section class="last wrap" id="abrir">
+  <div class="book" aria-hidden="true"><div class="cv"><b>NOIR</b><span>CLUB PRIVADO</span><small>Pregunte por Nico. Toque tres veces.</small></div><div class="st"></div><span class="flame"></span></div>
+  <div>
+    <h2 class="stencil"><span class="reveal"><span>Quedan sillas</span></span><span class="reveal"><span>libres esta noche</span></span></h2>
+    <p>Entra con tu cuenta y elige quién eres. Adentro esperan las mesas, los torneos y los habituales.</p>
+    <div class="acts"><button class="tk red" type="button" data-login>Entrar al club</button><a class="brass" href="#hero" style="height:56px"><span class="dot"></span>Tengo contraseña</a></div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <div class="receipt" role="contentinfo">
+    <h4>NOIR</h4>
+    <p class="c">Club de póker · Mesa 9 · Cuenta de la casa</p>
+    <div class="ln"><a href="#carteles">Modos de juego</a><span></span><span>2</span></div>
+    <div class="ln"><a href="#carta">La carta</a><span></span><span>8</span></div>
+    <div class="ln"><a href="#">Mesas abiertas</a><span></span><span>14</span></div>
+    <div class="ln"><a href="#">Privacidad y normas</a><span></span><span>1</span></div>
+    <div class="ln"><b>TOTAL</b><span></span><b>0,00</b></div>
+    <p class="c">Las fichas no valen dinero. La casa invita.</p>
+    <div class="bar" aria-hidden="true"></div>
+  </div>
+  <p class="note">Hecho para jugar entre amigos.</p>
+</footer>
+
+<dialog class="door" id="login">
+  <div class="plate door-card">
+    <button class="x" type="button" aria-label="Cerrar" data-close>&times;</button>
+    <p class="kick">La mirilla se abre</p>
+    <h2 class="stencil">¿Quién llama?</h2>
+    <p>Entra con tu cuenta para guardar tus fichas, tu rango y tu personaje.</p>
+    <a class="tk" href="panel.html" data-knock data-login-ok>Continuar con Google</a>
+    <div class="or">o bien</div>
+    <a class="brass" href="panel?guest=1" data-knock><span class="dot"></span>Entrar como invitado</a>
+    <p style="font-size:13px;color:#b9a684">Los invitados solo juegan mesas sin fichas.</p>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+gsap.registerPlugin(ScrollTrigger);
+(() => { const c = document.createElement("canvas"); c.width = c.height = 120; const x = c.getContext("2d"), im = x.createImageData(120, 120); for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } x.putImageData(im, 0, 0); document.documentElement.style.setProperty("--noise", `url(${c.toDataURL()})`); })();
+ScrollTrigger.create({ start: 60, onUpdate: s => $("#nav").classList.toggle("solid", s.scroll() > 60) });
+const hero = $("#hero"); hero.addEventListener("pointermove", e => { const r = hero.getBoundingClientRect(); hero.style.setProperty("--mx", e.clientX - r.left + "px"); hero.style.setProperty("--my", e.clientY - r.top + "px"); });
+const dlg = $("#login");
+document.querySelector("[data-login-ok]").addEventListener("click", () => { try { localStorage.setItem("np-logged", "1"); } catch (e) {} });
+document.querySelectorAll(".tkFeat").forEach(b => b.textContent = NOIR.CAST[NOIR.featured][0]);
+// atmosphere: slow smoke and dust in the lamp light, drifting with the scroll
+(() => { const cv = $("#atmo"), g = cv.getContext("2d"); let W = 0, H = 0; const fit = () => { W = cv.width = innerWidth; H = cv.height = innerHeight; }; fit(); addEventListener("resize", fit);
+  const puffs = Array.from({ length: 16 }, () => ({ x: Math.random(), y: Math.random(), r: .12 + Math.random() * .22, vx: (Math.random() - .5) * .00006, a: .025 + Math.random() * .03 }));
+  const motes = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 1.6 + .4, v: .00004 + Math.random() * .00008, p: Math.random() * 6 }));
+  let last = 0; function draw(t) { const dt = Math.min(50, t - last || 16); last = t; const sy = scrollY * .00012; g.clearRect(0, 0, W, H);
+    for (const p of puffs) { p.x += p.vx * dt; if (p.x < -.3) p.x = 1.3; if (p.x > 1.3) p.x = -.3; const y = ((p.y - sy) % 1 + 1) % 1; const R = p.r * Math.max(W, H); const gr = g.createRadialGradient(p.x * W, y * H, 0, p.x * W, y * H, R); gr.addColorStop(0, `rgba(160,150,135,${p.a})`); gr.addColorStop(1, "rgba(160,150,135,0)"); g.fillStyle = gr; g.fillRect(p.x * W - R, y * H - R, R * 2, R * 2); }
+    for (const m of motes) { m.y -= m.v * dt; if (m.y < -.02) m.y = 1.02; const y = ((m.y - sy * 2) % 1 + 1) % 1; const tw = .35 + Math.sin(t / 900 + m.p) * .25; g.fillStyle = `rgba(232,190,120,${tw})`; g.fillRect(m.x * W + Math.sin(t / 2000 + m.p) * 8, y * H, m.s, m.s); }
+    if (!NOIR.RM) requestAnimationFrame(draw); }
+  requestAnimationFrame(draw); })();
+// pointer parallax on the hero
+if (!NOIR.RM) hero.addEventListener("pointermove", e => { const dx = e.clientX / innerWidth - .5, dy = e.clientY / innerHeight - .5; document.querySelectorAll("[data-depth]").forEach(el => { const d = Number(el.dataset.depth); gsap.to(el, { x: dx * d * 2, y: dy * d * 1.4, duration: .9, ease: "power3.out" }); }); });
+document.querySelectorAll("[data-login]").forEach(b => b.addEventListener("click", () => dlg.showModal()));
+dlg.addEventListener("click", e => { if (e.target === dlg || e.target.closest("[data-close]")) dlg.close(); });
+const knock = () => $("#doorFrame").contentWindow?.postMessage({ knock: true }, "*");
+$("#knock").addEventListener("click", knock);
+$("#pass").addEventListener("submit", e => { e.preventDefault(); const v = $("#code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (v.length < 4) { $("#msg").textContent = "Son cuatro letras o números. Pídela a quien abrió la mesa."; $("#code").focus(); return; }
+  knock(); $("#msg").textContent = `Mesa ${v}. Te abren.`; setTimeout(() => dlg.showModal(), 1500); });
+const RANKS = [["Mirón", "Primeras manos"], ["Parroquiano", "Club de jazz"], ["Habitual", "Paños y reversos"], ["Socio", "El muelle y torneos"], ["Capo", "Personajes raros"], ["Padrino", "Tu propia sala"]];
+$("#ladder").innerHTML = RANKS.map(([n, u], k) => `<div class="rank${k === 2 ? " on" : ""}"><svg viewBox="0 0 64 72" aria-hidden="true"><path d="M32 3 60 13v22c0 17-12 29-28 34C16 64 4 52 4 35V13Z" fill="${k === 2 ? "#2c2115" : "#1d1814"}" stroke="${k === 2 ? "#e8b25c" : "#6b5024"}" stroke-width="3"/>${Array.from({ length: k + 1 }, (_, j) => `<rect x="18" y="${48 - j * 7}" width="28" height="4" fill="${k === 2 ? "#e8b25c" : "#b98a3c"}"/>`).join("")}</svg><b>${n}</b><span>${u}</span></div>`).join("");
+let secs = 252; setInterval(() => { secs = secs > 0 ? secs - 1 : 300; $("#clk").textContent = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`; }, 1000);
+const mm = gsap.matchMedia();
+mm.add("(prefers-reduced-motion: no-preference)", () => {
+  gsap.from(".hero h1 .l span", { yPercent: 110, duration: 1.1, ease: "expo.out", stagger: .12, delay: .15 });
+  gsap.from(".hero .kick, .lede, .pass, .under", { opacity: 0, y: 16, duration: .8, ease: "power3.out", stagger: .08, delay: .6 });
+  gsap.from(".doorbox", { opacity: 0, scale: .95, duration: 1.2, ease: "power3.out", delay: .3 });
+  const beats = gsap.utils.toArray(".beat"), bars = gsap.utils.toArray(".meter b");
+  const tl = gsap.timeline({ scrollTrigger: { trigger: ".inside", start: "top top", end: "bottom bottom", scrub: .6 } });
+  beats.forEach((b, k) => { if (k) tl.fromTo(b, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: .5 }, k); tl.to(bars[k], { scaleX: 1, duration: 1, ease: "none" }, k); if (k < beats.length - 1) tl.to(b, { opacity: 0, y: -40, duration: .5 }, k + .75); });
+  gsap.utils.toArray(".cameo").forEach(c => { const fig = c.querySelector("figure"), cap = c.querySelector("figcaption"), fromX = c.classList.contains("r") ? 120 : -120;
+    gsap.fromTo(fig, { x: fromX, opacity: 0 }, { x: 0, opacity: 1, duration: 1.2, ease: "power3.out", scrollTrigger: { trigger: c, start: "top 85%" } });
+    gsap.to(cap, { opacity: 1, duration: .4, delay: .9, scrollTrigger: { trigger: c, start: "top 85%" } });
+    gsap.to(fig, { yPercent: -12, ease: "none", scrollTrigger: { trigger: c, start: "top bottom", end: "top top", scrub: true } }); });
+  gsap.from(".poster", { y: 80, opacity: 0, duration: 1.1, ease: "expo.out", stagger: .15, scrollTrigger: { trigger: ".posters", start: "top 70%" } });
+  gsap.from(".card li", { opacity: 0, y: 20, duration: .6, ease: "power3.out", stagger: .06, scrollTrigger: { trigger: ".card", start: "top 70%" } });
+  gsap.from(".rank", { opacity: 0, y: 30, duration: .7, ease: "power3.out", stagger: .08, scrollTrigger: { trigger: ".ladder", start: "top 80%" } });
+  gsap.from(".book", { opacity: 0, rotate: -18, y: 60, duration: 1.1, ease: "expo.out", scrollTrigger: { trigger: ".last", start: "top 75%" } });
+  gsap.fromTo(".receipt", { "--cut": "100%" }, { "--cut": "0%", ease: "none", scrollTrigger: { trigger: "footer", start: "top 95%", end: "bottom bottom", scrub: .5 } });
+  gsap.utils.toArray(".reveal > span").forEach(sp => gsap.from(sp, { yPercent: 110, duration: 1, ease: "expo.out", scrollTrigger: { trigger: sp, start: "top 88%" } }));
+  gsap.to(".ghost", { yPercent: 30, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
+  gsap.to(".hero h1", { yPercent: -18, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
+  gsap.to(".poster:not(.dark)", { yPercent: -10, rotate: -3, ease: "none", scrollTrigger: { trigger: ".posters", start: "top bottom", end: "bottom top", scrub: true } });
+  gsap.to(".poster.dark", { yPercent: 8, rotate: 3, ease: "none", scrollTrigger: { trigger: ".posters", start: "top bottom", end: "bottom top", scrub: true } });
+  gsap.fromTo(".card", { rotate: -1.5, y: 40 }, { rotate: .6, y: -30, ease: "none", scrollTrigger: { trigger: ".menu", start: "top bottom", end: "bottom top", scrub: true } });
+  gsap.from(".rank svg", { rotateY: 180, duration: 1, ease: "back.out(1.4)", stagger: .08, scrollTrigger: { trigger: ".ladder", start: "top 80%" } });
+  ScrollTrigger.create({ trigger: ".last", start: "top 60%", onEnter: () => { document.querySelector(".last").classList.add("lit"); } });
+});
+</script>
+</body>
+</html>

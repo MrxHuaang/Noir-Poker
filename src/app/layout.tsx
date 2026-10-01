@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Big_Shoulders, Big_Shoulders_Stencil, Geist, Geist_Mono, Instrument_Serif, Pixelify_Sans } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { GlobalBackground } from "@/components/ui/GlobalBackground";
@@ -23,10 +23,33 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+// Noir 1929 layer: crate stencil for display, condensed grotesk for labels,
+// pixel type for printed tags (see src/app/noir.css).
+const bigStencil = Big_Shoulders_Stencil({
+  variable: "--font-big-stencil",
+  subsets: ["latin"],
+  axes: ["opsz"],
+  // No metric overrides exist for this family; skip the fallback shim.
+  adjustFontFallback: false,
+});
+
+const bigShoulders = Big_Shoulders({
+  variable: "--font-big-shoulders",
+  subsets: ["latin"],
+  axes: ["opsz"],
+  // No metric overrides exist for this family; skip the fallback shim.
+  adjustFontFallback: false,
+});
+
+const pixelify = Pixelify_Sans({
+  variable: "--font-pixelify",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "Noir — Poker multi-dispositivo",
   description:
-    "Plataforma premium de Texas Hold'em multi-dispositivo. Mesas públicas y privadas, modo presencial, sala normal y torneos.",
+    "Club de póker de 1929 para jugar entre amigos. Mesas abiertas y torneos, cada uno desde su teléfono.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
@@ -47,7 +70,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${bigStencil.variable} ${bigShoulders.variable} ${pixelify.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <GlobalBackground />

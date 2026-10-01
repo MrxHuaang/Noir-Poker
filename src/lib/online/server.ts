@@ -17,6 +17,7 @@
 // heartbeat) credits the final stack. The credit is capped by the room ledger
 // so the table can never mint coins.
 import "server-only";
+import { CAST, castFromSeed } from "@/lib/noirCast";
 import { FieldValue, type Transaction } from "firebase-admin/firestore";
 import { adminAuth, adminDb } from "../firebaseAdmin";
 import { cappedCredit } from "../economy";
@@ -318,9 +319,12 @@ export async function sit(uid: string, code: string): Promise<E.SitResult> {
       if (w.coins < st.startStack) throw new OnlineError("Saldo insuficiente");
       debit = { uid, amount: st.startStack };
     }
-    const name = (w?.nickname || w?.displayName || "Jugador").slice(0, 40);
     const seed = w?.avatarSeed || uid;
+    // Nameless guests sit under their character's name, so "Jugador" never
+    // appears twice at the same table.
+    const name = (w?.nickname || w?.displayName || CAST[castFromSeed(seed)].tag).slice(0, 40);
     const res = E.sit(st, uid, name, seed, !st.casual);
+    if (res === "requested") debit = undefined;
     return { result: res, changed: true, debit, presenceFor: uid };
   });
   return result;
@@ -365,6 +369,25 @@ export async function act(
 export async function tick(code: string): Promise<{ applied: boolean; retryInMs: number }> {
   const { result, payouts } = await runRoom(code, async (st, { tx, now }) => {
     const b = st.betting;
+    // A finished hand: deal the next one when its pause is over, standing up
+    // anyone whose heartbeat went stale first (same as a manual deal).
+    if (st.phase === "showdown" && st.autoDeal) {
+      if (!st.deadline || now < st.deadline) {
+        return { result: { applied: false, retryInMs: st.deadline ? Math.max(0, st.deadline - now) : 0 }, changed: false };
+      }
+      const stale = await stalePlayers(tx, code, st, now);
+      for (const id of stale) E.leave(st, id, now);
+      const applied = E.autoNext(st, now);
+      return { result: { applied, retryInMs: 0 }, changed: applied || stale.size > 0 };
+    }
+    // All-in vote: when its clock runs out the missing votes count as "once".
+    if (st.runVote) {
+      if (!st.deadline || now < st.deadline) {
+        return { result: { applied: false, retryInMs: st.deadline ? Math.max(0, st.deadline - now) : 0 }, changed: false };
+      }
+      const applied = E.timeout(st, now, () => false);
+      return { result: { applied, retryInMs: 0 }, changed: applied };
+    }
     if (!b || !b.toAct || !st.deadline || now < st.deadline) {
       return {
         result: { applied: false, retryInMs: st.deadline ? Math.max(0, st.deadline - now) : 0 },
@@ -377,6 +400,61 @@ export async function tick(code: string): Promise<{ applied: boolean; retryInMs:
   });
   await recordPayoutSessions(code, payouts);
   return result;
+}
+
+// All-in: a player involved picks one or two boards.
+export async function vote(uid: string, code: string, n: number): Promise<void> {
+  const { payouts } = await runRoom(code, async (st, { now }) => {
+    E.voteRun(st, uid, n, now);
+    return { result: null, changed: true };
+  });
+  await recordPayoutSessions(code, payouts);
+}
+
+// Steps away from the table (or comes back).
+export async function setAway(uid: string, code: string, away: boolean): Promise<void> {
+  await runRoom(code, async (st) => {
+    E.setAway(st, uid, away);
+    return { result: null, changed: true };
+  });
+}
+
+// The owner lets someone in: their buy-in is escrowed now, in the same
+// transaction that seats them.
+export async function approve(uid: string, code: string, target: string): Promise<E.SitResult> {
+  const { result } = await runRoom(code, async (st, { tx, wallets }) => {
+    const req = st.requests?.[target];
+    if (!req) throw new OnlineError("Esa persona ya no está esperando");
+    let debit: Debit | undefined;
+    if (req.coins) {
+      await readWallets(tx, [target], wallets);
+      const w = wallets.get(target) ?? null;
+      if (!w || w.coins < st.startStack) {
+        E.deny(st, uid, target);
+        throw new OnlineError("No le alcanzan las fichas para sentarse");
+      }
+      debit = { uid: target, amount: st.startStack };
+    }
+    const res = E.approve(st, uid, target);
+    return { result: res, changed: true, debit, presenceFor: target };
+  });
+  return result;
+}
+
+export async function deny(uid: string, code: string, target: string): Promise<void> {
+  await runRoom(code, async (st) => {
+    E.deny(st, uid, target);
+    return { result: null, changed: true };
+  });
+}
+
+// The owner stands a player up; their stack is paid out like a normal leave.
+export async function kick(uid: string, code: string, target: string): Promise<void> {
+  const { payouts } = await runRoom(code, async (st, { now }) => {
+    E.kick(st, uid, target, now);
+    return { result: null, changed: true };
+  });
+  await recordPayoutSessions(code, payouts);
 }
 
 export async function configure(uid: string, code: string, cfg: OnlineConfigInput): Promise<void> {

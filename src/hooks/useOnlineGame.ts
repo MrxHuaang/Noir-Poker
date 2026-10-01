@@ -40,6 +40,11 @@ export type OnlineGame = {
   pause: () => Promise<string | null>;
   resume: () => Promise<string | null>;
   rebuy: () => Promise<string | null>;
+  vote: (n: number) => Promise<string | null>;
+  away: (on: boolean) => Promise<string | null>;
+  approve: (target: string) => Promise<string | null>;
+  deny: (target: string) => Promise<string | null>;
+  kick: (target: string) => Promise<string | null>;
 };
 
 // Deferred stand-up on unmount, keyed by room. React Strict Mode unmounts and
@@ -97,7 +102,8 @@ export function useOnlineGame(code: string | null): OnlineGame {
     state &&
     (state.seats.some((s) => s.id === uid) ||
       state.waiting?.includes(uid) ||
-      state.joining?.includes(uid))
+      state.joining?.includes(uid) ||
+      state.requests?.some((r) => r.id === uid))
   );
   const presentRef = useRef(present);
   useEffect(() => {
@@ -146,9 +152,12 @@ export function useOnlineGame(code: string | null): OnlineGame {
   const deadline = state?.deadline ?? 0;
   const toAct = state?.toAct ?? "";
   const paused = !!state?.paused;
+  // At showdown the deadline is the pause before the automatic next deal.
+  const nextDeal = state?.phase === "showdown";
+  const voting = !!state?.runVote;
   useEffect(() => {
-    if (!code || !uid || !deadline || !toAct || paused) return;
-    const mine = toAct === uid;
+    if (!code || !uid || !deadline || (!toAct && !nextDeal && !voting) || paused) return;
+    const mine = toAct === uid || ((nextDeal || voting) && state?.owner === uid);
     const seated = !!state?.seats.some((s) => s.id === uid);
     const backoff = mine ? 400 : seated ? 1200 + Math.random() * 1800 : 5000 + Math.random() * 3000;
     let timer: ReturnType<typeof setTimeout>;
@@ -172,7 +181,7 @@ export function useOnlineGame(code: string | null): OnlineGame {
     };
     // state?.seats intentionally omitted: only the clock inputs reschedule.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, uid, deadline, toAct, paused, getToken]);
+  }, [code, uid, deadline, toAct, nextDeal, voting, paused, getToken]);
 
   // Stand up when leaving the page inside the app (back button, links). A
   // reload or closed tab keeps the seat: the heartbeat goes stale and the
@@ -206,6 +215,11 @@ export function useOnlineGame(code: string | null): OnlineGame {
       pause: () => call("pause"),
       resume: () => call("resume"),
       rebuy: () => call("rebuy"),
+      vote: (n: number) => call("vote", { n }),
+      away: (on: boolean) => call("away", { away: on }),
+      approve: (target: string) => call("approve", { target }),
+      deny: (target: string) => call("deny", { target }),
+      kick: (target: string) => call("kick", { target }),
     }),
     [call],
   );

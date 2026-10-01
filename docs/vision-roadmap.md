@@ -329,13 +329,13 @@ estratégico, luego paridad, luego lo divertido. Durante toda la migración, el 
     cron externo gratis: cron-job.org, GitHub Actions schedule, o UptimeRobot). Verifica
     que un solo servicio encendido cabe en las 750h/mes. Documentar el setup. Ruta de
     upgrade documentada: VM en Oracle Cloud Always Free (systemd + TLS con Caddy).
-  - Reconexión robusta en el cliente: portar el backoff del CLI (`cli/net.ts`) a
+  - Reconexión robusta en el cliente: backoff exponencial en
     `src/hooks/useGameSocket.ts` (hoy solo reconecta por cambio de deps). Estado-al-
     reconectar ya existe en el server.
   - Test de paridad de los tres evaluadores (TS/Rust/Go): un fixture compartido de manos
     con su ranking esperado, verificado en CI, para que no diverjan.
 - **Archivos:** `server/cmd/server/`, infra/deploy docs, `src/hooks/useGameSocket.ts`,
-  `cli/net.ts`, un test de paridad (CI).
+  un test de paridad (CI).
 - **Aceptación:** abrir una mesa online tras horas de inactividad responde en <2s; matar
   el wifi del cliente y volver re-sincroniza la mesa; el test de paridad pasa en CI.
 
@@ -497,8 +497,7 @@ cd server && go vet ./... && go build ./cmd/server
 **Smoke tests:**
 - Presencial: `/host` → unir 2 jugadores desde `/play/CODE` → repartir, avanzar, revelar,
   showdown.
-- Online (Go): server corriendo + `NEXT_PUBLIC_GAME_WS_URL` → `/play/online` en 2 pestañas
-  (o CLI `npm run play -- MESA Ana`) → repartir, jugar la mano, showdown con reveals.
+- Online (Go): server corriendo + `NEXT_PUBLIC_GAME_WS_URL` → `/play/online` en 2 pestañas → repartir, jugar la mano, showdown con reveals.
 - Torneo: niveles, pausa, avance, knockouts (legacy hoy; Go tras EPIC 2).
 - Device gate (EPIC 0): teléfono vertical, desktop y tablet horizontal.
 

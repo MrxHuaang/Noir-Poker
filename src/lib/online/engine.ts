@@ -17,9 +17,13 @@
 import { bestHand, compareScore, type Score } from "../handEval";
 import { cardFromId, makeDeck, shuffle, type Card } from "../poker";
 import {
+  DEFAULT_RULES,
   MAX_SEATED,
-  TURN_MS,
+  RUN_VOTE_MS,
+  type BlindLevel,
   type GameWinner,
+  type LedgerLine,
+  type TableRules,
   type LastAction,
   type OnlineConfigInput,
   type OnlineHandDoc,
@@ -116,7 +120,64 @@ export type EngineState = {
   // Players who stood up while all-in: their stack settles at showdown.
   leaving: Record<string, { buyIn: number; coins: boolean }>;
   payouts: Payout[]; // consumed (and cleared) by the server layer
+  // Once the owner deals the first hand the table keeps dealing on its own:
+  // each showdown arms a short deadline and the next tick deals again.
+  autoDeal?: boolean;
+  nextBlindsAt?: number;
+  tournament?: boolean;
+  tStarted?: boolean;
+  tFinished?: boolean;
+  tRanking?: string[];
+  // Board length when betting closed with everyone all-in (-1: no runout).
+  runoutFrom?: number;
+  // House rules (PokerNow-style room settings). Missing on old rooms: defaults.
+  rules?: TableRules;
+  level?: number; // current blind level, 1-based, when there is a schedule
+  ante?: number; // ante posted this hand
+  bank?: Record<string, number>; // time bank left per player (seconds)
+  bankCount?: Record<string, number>; // hands since the bank was refilled
+  usingBank?: string; // player on the clock running on their time bank
+  away?: Record<string, boolean>; // stepped away from the table
+  requests?: Record<string, { name: string; seed: string; coins: boolean; ts: number }>;
+  runVote?: { voters: string[]; votes: Record<string, number>; needed: number };
+  rabbit?: string[];
+  ledger?: { id: string; name: string; buyIn: number; out: number }[]; // players who left
 };
+
+/** Effective rules of a room (old rooms predate them). */
+export function rulesOf(st: EngineState): TableRules {
+  return st.rules ?? DEFAULT_RULES;
+}
+
+// Clamps whatever the client sent into sane rules, starting from the current ones.
+export function normalizeRules(input: Partial<TableRules> | undefined, prev: TableRules = DEFAULT_RULES): TableRules {
+  const r: TableRules = { ...prev, levels: prev.levels.map((l) => ({ ...l })) };
+  if (!input || typeof input !== "object") return r;
+  const num = (v: unknown, lo: number, hi: number, fb: number) => {
+    const n = Math.floor(Number(v));
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fb;
+  };
+  if (input.ante !== undefined) r.ante = num(input.ante, 0, MAX_BLIND, r.ante);
+  if (Array.isArray(input.levels)) {
+    r.levels = input.levels.slice(0, 30).map((l: Partial<BlindLevel>) => {
+      const sb = num(l?.sb, 1, MAX_BLIND, 5);
+      const bb = Math.max(sb, num(l?.bb, 1, MAX_BLIND, sb * 2));
+      return { sb, bb, ante: num(l?.ante, 0, MAX_BLIND, 0), mins: num(l?.mins, 0, 240, 0) };
+    });
+  }
+  if (input.turnSecs !== undefined) { const t = num(input.turnSecs, 0, 300, r.turnSecs); r.turnSecs = t === 0 ? 0 : Math.max(5, t); }
+  if (input.bankSecs !== undefined) r.bankSecs = num(input.bankSecs, 0, 300, r.bankSecs);
+  if (input.bankHands !== undefined) r.bankHands = num(input.bankHands, 1, 100, r.bankHands);
+  if (input.autoStart !== undefined) r.autoStart = input.autoStart === true;
+  if (input.showdownSecs !== undefined) { const v = num(input.showdownSecs, 3, 9, 6); r.showdownSecs = v <= 4 ? 3 : v >= 8 ? 9 : 6; }
+  if (input.revealAllIn !== undefined) r.revealAllIn = input.revealAllIn === true;
+  if (input.runItMode === "once" || input.runItMode === "ask" || input.runItMode === "twice") r.runItMode = input.runItMode;
+  if (input.rabbit !== undefined) r.rabbit = input.rabbit === true;
+  if (input.maxSeats !== undefined) r.maxSeats = num(input.maxSeats, 2, MAX_SEATED, r.maxSeats);
+  if (input.approveSeats !== undefined) r.approveSeats = input.approveSeats === true;
+  if (input.dealAway !== undefined) r.dealAway = input.dealAway === true;
+  return r;
+}
 
 export const DEFAULT_SB = 5;
 export const DEFAULT_BB = 10;
@@ -164,6 +225,8 @@ export function createRoom(
     blindLevelSecs: 0,
     blindsSince: now,
     casual: !!cfg.casual,
+    tournament: !!cfg.tournament,
+    rules: normalizeRules(cfg.rules, { ...DEFAULT_RULES, runItMode: (cfg.runItN ?? 1) > 1 ? "twice" : DEFAULT_RULES.runItMode }),
     paused: false,
     phase: "idle",
     betting: null,
@@ -209,6 +272,17 @@ function applyConfig(st: EngineState, cfg: OnlineConfigInput, now: number): void
     const n = int(cfg.runItN);
     if (n >= 1 && n <= 3) st.runItN = n;
   }
+  if (cfg.rules) {
+    const next = normalizeRules(cfg.rules, rulesOf(st));
+    if (JSON.stringify(next.levels) !== JSON.stringify(rulesOf(st).levels) && next.levels.length) {
+      st.blindsSince = now;
+      st.baseSb = next.levels[0].sb;
+      st.baseBb = next.levels[0].bb;
+      st.sb = st.baseSb;
+      st.bb = st.baseBb;
+    }
+    st.rules = next;
+  }
   if (cfg.blindLevelSecs !== undefined) {
     const s = int(cfg.blindLevelSecs);
     const secs = s <= 0 ? 0 : Math.min(3600, Math.max(60, s));
@@ -229,7 +303,8 @@ export function configure(
 ): void {
   if (ownerOf(st) !== uid) throw new OnlineError("Solo el anfitrion configura la mesa", 403);
   // casual is part of the room's economy contract: never flipped afterwards.
-  applyConfig(st, { ...cfg, casual: undefined }, now);
+  if (st.tournament && st.tStarted) throw new OnlineError("El torneo ya empezó: la mesa no se configura");
+  applyConfig(st, { ...cfg, casual: undefined, tournament: undefined }, now);
 }
 
 // Owner = the creator while present, otherwise the earliest arrival.
@@ -256,7 +331,7 @@ function syncSeats(st: EngineState): void {
   st.seatIds = [];
   st.waiting = [];
   for (const p of orderedPlayers(st)) {
-    if (st.seatIds.length < MAX_SEATED) st.seatIds.push(p.id);
+    if (st.seatIds.length < rulesOf(st).maxSeats) st.seatIds.push(p.id);
     else st.waiting.push(p.id);
   }
 }
@@ -271,7 +346,7 @@ export function inLiveHand(st: EngineState, uid: string): boolean {
 // Seating
 // ---------------------------------------------------------------------------
 
-export type SitResult = "seated" | "queued" | "joining" | "already";
+export type SitResult = "seated" | "queued" | "joining" | "already" | "requested";
 
 export function sit(
   st: EngineState,
@@ -281,10 +356,24 @@ export function sit(
   coins: boolean,
 ): SitResult {
   if (st.players[uid]) return "already";
+  if (st.tournament && st.tStarted) throw new OnlineError("El torneo ya empezó. Puedes mirar desde la barra.");
   if (st.betting && !betweenHands(st) && st.betting.seats.some((s) => s.id === uid)) {
     // Left mid-hand and came straight back: the old seat is still settling.
     throw new OnlineError("Espera a que termine la mano para volver a sentarte");
   }
+  // The owner lets people in: everyone but the creator (or the first one at an
+  // empty table) waits at the door.
+  const owner = ownerOf(st);
+  if (rulesOf(st).approveSeats && uid !== st.creator && owner && owner !== uid) {
+    st.requests = st.requests ?? {};
+    st.requests[uid] = { name: name.slice(0, 40) || "Jugador", seed: seed.slice(0, 80) || uid, coins, ts: st.nextSeq++ };
+    return "requested";
+  }
+  return seatPlayer(st, uid, name, seed, coins);
+}
+
+function seatPlayer(st: EngineState, uid: string, name: string, seed: string, coins: boolean): SitResult {
+  if (st.requests) delete st.requests[uid];
   st.players[uid] = {
     id: uid,
     name: name.slice(0, 40) || "Jugador",
@@ -296,6 +385,8 @@ export function sit(
   st.names[uid] = st.players[uid].name;
   st.seeds[uid] = st.players[uid].seed;
   st.chips[uid] = st.startStack;
+  st.bank = st.bank ?? {};
+  st.bank[uid] = rulesOf(st).bankSecs;
   st.bustedOrder = st.bustedOrder.filter((id) => id !== uid);
   if (betweenHands(st)) {
     syncSeats(st);
@@ -325,6 +416,8 @@ export function leave(st: EngineState, uid: string, now: number): void {
   const behind = seat ? seat.chips : (st.chips[uid] ?? 0);
   delete st.chips[uid];
   st.payouts.push({ uid, amount: behind, buyIn: p.buyIn, coins: p.coins });
+  (st.ledger = st.ledger ?? []).push({ id: uid, name: p.name, buyIn: p.buyIn, out: behind });
+  if (st.away) delete st.away[uid];
   if (b && seat && seat.status === "active") {
     seat.status = "folded";
     if (!b.acted.includes(uid)) b.acted.push(uid);
@@ -339,6 +432,7 @@ export function leave(st: EngineState, uid: string, now: number): void {
 export function rebuy(st: EngineState, uid: string): number {
   const p = st.players[uid];
   if (!p) throw new OnlineError("No estas sentado");
+  if (st.tournament) throw new OnlineError("En el torneo no hay recompras");
   if (!betweenHands(st)) throw new OnlineError("Espera a que termine la mano");
   if ((st.chips[uid] ?? 0) > 0) throw new OnlineError("Todavia tienes fichas");
   st.chips[uid] = st.startStack;
@@ -357,6 +451,33 @@ export function setPaused(st: EngineState, uid: string, paused: boolean, now: nu
 // ---------------------------------------------------------------------------
 // Hand flow
 // ---------------------------------------------------------------------------
+
+type Blinds = { sb: number; bb: number; ante: number; level: number; nextAt: number };
+
+// The blinds of a hand dealt at `now`: the level schedule when there is one
+// (each level lasts `mins`, 0 = forever, the last one holds), else the fixed
+// blinds (or the legacy doubling every blindLevelSecs).
+export function blindsAt(st: EngineState, now: number): Blinds {
+  const levels = rulesOf(st).levels;
+  if (levels.length) {
+    let t = Math.max(0, now - st.blindsSince);
+    let start = st.blindsSince;
+    for (let i = 0; i < levels.length; i++) {
+      const l = levels[i];
+      const len = l.mins * 60_000;
+      if (len <= 0 || i === levels.length - 1 || t < len) {
+        const nextAt = len > 0 && i < levels.length - 1 ? start + len : 0;
+        return { sb: l.sb, bb: l.bb, ante: l.ante, level: i + 1, nextAt };
+      }
+      t -= len;
+      start += len;
+    }
+  }
+  const { sb, bb } = currentBlinds(st, now);
+  const step = st.blindLevelSecs * 1000;
+  const nextAt = step > 0 ? st.blindsSince + (Math.floor((now - st.blindsSince) / step) + 1) * step : 0;
+  return { sb, bb, ante: rulesOf(st).ante, level: 0, nextAt };
+}
 
 function currentBlinds(st: EngineState, now: number): { sb: number; bb: number } {
   if (st.blindLevelSecs <= 0) return { sb: st.baseSb, bb: st.baseBb };
@@ -379,14 +500,49 @@ export function startHand(
   if (!betweenHands(st)) throw new OnlineError("Ya hay una mano en curso");
   if (st.paused) throw new OnlineError("La partida esta en pausa");
   if (ownerOf(st) !== uid) throw new OnlineError("Solo el anfitrion reparte", 403);
+  dealHand(st, now, deck);
+}
+
+// Deals a hand; the caller checked who may deal. From here on the table keeps
+// dealing by itself (autoDeal) until it runs out of funded players or pauses.
+function dealHand(st: EngineState, now: number, deck: string[]): void {
+  if (st.tournament) {
+    if (st.tFinished) throw new OnlineError("El torneo terminó");
+    standUpBusted(st, now);
+    if (!st.tStarted) {
+      st.tStarted = true;
+      st.blindsSince = now;
+      st.baseSb = st.sb;
+      st.baseBb = st.bb;
+    }
+  }
 
   syncSeats(st);
-  const funded = st.seatIds.filter((id) => (st.chips[id] ?? 0) > 0);
+  const rules = rulesOf(st);
+  // Players who stepped away sit this one out unless the table deals to them.
+  const funded = st.seatIds.filter((id) => (st.chips[id] ?? 0) > 0 && (rules.dealAway || !st.away?.[id]));
   if (funded.length < 2) throw new OnlineError("Se necesitan al menos 2 jugadores con fichas");
 
-  const blinds = currentBlinds(st, now);
+  const blinds = blindsAt(st, now);
+  st.nextBlindsAt = blinds.nextAt;
+  st.level = blinds.level;
   st.sb = blinds.sb;
   st.bb = blinds.bb;
+  st.ante = blinds.ante;
+  st.usingBank = "";
+  st.runVote = undefined;
+  st.rabbit = undefined;
+  // Time bank: refilled after `bankHands` hands played.
+  st.bank = st.bank ?? {};
+  st.bankCount = st.bankCount ?? {};
+  for (const id of funded) {
+    if (st.bank[id] === undefined) st.bank[id] = rules.bankSecs;
+    st.bankCount[id] = (st.bankCount[id] ?? 0) + 1;
+    if (st.bankCount[id] >= rules.bankHands) {
+      st.bank[id] = rules.bankSecs;
+      st.bankCount[id] = 0;
+    }
+  }
 
   // Button: next funded player after the previous dealer, by arrival order.
   const seqOf = (id: string) => st.players[id]?.joinSeq ?? 0;
@@ -395,6 +551,8 @@ export function startHand(
   st.dealerId = funded[dealerIdx];
   st.dealerSeq = seqOf(st.dealerId);
 
+  st.autoDeal = true;
+  st.runoutFrom = -1;
   st.handNum++;
   st.board = [];
   st.winners = [];
@@ -453,6 +611,16 @@ export function startHand(
     b.pot += put;
     if (s.chips === 0) s.status = "all-in";
   };
+  // Antes are dead money: into the pot, not part of anyone's bet.
+  if (st.ante > 0) {
+    for (const s of seats) {
+      const put = Math.min(st.ante, s.chips);
+      s.chips -= put;
+      s.totalBet += put;
+      b.pot += put;
+      if (s.chips === 0) s.status = "all-in";
+    }
+  }
   post(sbPos, st.sb);
   post(bbPos, st.bb);
   st.betting = b;
@@ -485,8 +653,71 @@ export function act(
   if (!Number.isFinite(amount) || amount < 0) throw new OnlineError("Monto invalido");
   applyBet(b, uid, action, Math.floor(amount));
   st.lastAction = { seatId: uid, action, ...(amount > 0 ? { amount: Math.floor(amount) } : {}), ts: now };
+  st.usingBank = "";
   maybeAdvance(st);
   armDeadline(st, now);
+}
+
+// All-in: a player involved votes 1 or 2 boards. Twice only if all agree.
+export function voteRun(st: EngineState, uid: string, n: number, now: number): void {
+  const v = st.runVote;
+  if (!v) throw new OnlineError("No hay nada que votar");
+  if (!v.voters.includes(uid)) throw new OnlineError("Solo votan los que están en el all-in");
+  v.votes[uid] = n === 2 ? 2 : 1;
+  if (v.voters.every((id) => v.votes[id] !== undefined)) resolveRunVote(st);
+  armDeadline(st, now);
+}
+
+function resolveRunVote(st: EngineState): void {
+  const v = st.runVote;
+  if (!v) return;
+  const n = v.voters.every((id) => v.votes[id] === 2) ? 2 : 1;
+  st.runVote = undefined;
+  runout(st, v.needed, n);
+}
+
+// Deals the rest of the board (once or n times) and settles the hand.
+function runout(st: EngineState, needed: number, n: number): void {
+  if (n > 1 && needed > 0 && st.deck.length >= needed * n) {
+    settleRunItN(st, needed, n);
+  } else {
+    while (st.board.length < 5) dealNextStreet(st);
+    settleShowdown(st);
+  }
+}
+
+// Steps away from the table (or comes back). Away players are not dealt in
+// unless the table deals to them.
+export function setAway(st: EngineState, uid: string, away: boolean): void {
+  if (!st.players[uid]) throw new OnlineError("No estas sentado");
+  st.away = st.away ?? {};
+  if (away) st.away[uid] = true;
+  else delete st.away[uid];
+}
+
+function ownerOnly(st: EngineState, uid: string): void {
+  if (ownerOf(st) !== uid) throw new OnlineError("Solo el anfitrion puede hacerlo", 403);
+}
+
+// The owner lets a waiting player in (the server escrows their buy-in).
+export function approve(st: EngineState, owner: string, target: string): SitResult {
+  ownerOnly(st, owner);
+  const req = st.requests?.[target];
+  if (!req) throw new OnlineError("Esa persona ya no está esperando");
+  return seatPlayer(st, target, req.name, req.seed, req.coins);
+}
+
+export function deny(st: EngineState, owner: string, target: string): void {
+  ownerOnly(st, owner);
+  if (st.requests) delete st.requests[target];
+}
+
+// The owner stands a player up (their stack is paid out as if they left).
+export function kick(st: EngineState, owner: string, target: string, now: number): void {
+  ownerOnly(st, owner);
+  if (target === owner) throw new OnlineError("No puedes echarte a ti mismo");
+  if (st.requests) delete st.requests[target];
+  leave(st, target, now);
 }
 
 // Turn timer. Auto-checks when possible, otherwise auto-folds; a player whose
@@ -498,6 +729,12 @@ export function timeout(
   isStale: (uid: string) => boolean,
 ): boolean {
   const b = st.betting;
+  if (st.runVote && !st.paused) {
+    if (!st.deadline || now < st.deadline) return false;
+    resolveRunVote(st);
+    armDeadline(st, now);
+    return true;
+  }
   if (!b || betweenHands(st) || st.paused || !b.toAct || !st.deadline) return false;
   if (now < st.deadline) return false;
   const id = b.toAct;
@@ -505,6 +742,15 @@ export function timeout(
     leave(st, id, now);
     return true;
   }
+  // The clock ran out: light another cigarette if there is time in the bank.
+  const bank = st.bank?.[id] ?? 0;
+  if (bank > 0 && st.usingBank !== id) {
+    st.usingBank = id;
+    st.bank![id] = 0;
+    st.deadline = now + bank * 1000;
+    return true;
+  }
+  st.usingBank = "";
   const seat = b.seats.find((s) => s.id === id);
   const canCheck = !!seat && seat.bet >= b.currentBet;
   applyBet(b, id, canCheck ? "check" : "fold", 0);
@@ -516,7 +762,77 @@ export function timeout(
 
 function armDeadline(st: EngineState, now: number): void {
   const b = st.betting;
-  st.deadline = b && !betweenHands(st) && b.toAct && !st.paused ? now + TURN_MS : 0;
+  if (st.phase === "showdown" && st.tournament && st.tStarted && !st.tFinished) finishIfWon(st);
+  if (st.phase === "showdown" && st.autoDeal && !st.paused) {
+    // Without auto-start the owner deals each hand by hand.
+    st.deadline = rulesOf(st).autoStart ? now + nextHandDelay(st) : 0;
+    return;
+  }
+  if (st.runVote && !st.paused) {
+    st.deadline = now + RUN_VOTE_MS;
+    return;
+  }
+  const turn = rulesOf(st).turnSecs * 1000;
+  st.deadline = b && !betweenHands(st) && b.toAct && !st.paused && turn > 0 ? now + turn : 0;
+}
+
+// Time a finished hand stays on the table before the next deal: long enough
+// for the 3D runout (an all-in board comes card by card in the dark).
+export function nextHandDelay(st: EngineState): number {
+  const base = rulesOf(st).showdownSecs * 1000;
+  const shown = Object.keys(st.reveals ?? {}).length >= 2;
+  if (!shown) return Math.max(3_000, base - 1_500);
+  const from = st.runoutFrom ?? -1;
+  // The table runs an all-in out slowly (flop turned card by card, a pause,
+  // the turn, the river squeezed open): give the scene time to finish it.
+  if (from >= 0 && from < 5) {
+    const flop = from < 3 ? 5_500 : 0;
+    const turn = from < 4 ? 4_800 : 0;
+    return base + 3_000 + flop + turn + 6_800 + (st.runs.length > 1 ? 4_000 : 0);
+  }
+  return base + 1_000;
+}
+
+// Deals the next hand once the showdown deadline passed. Any client may
+// trigger it (there is no background server): the time check makes it safe
+// and idempotent. With fewer than two funded players the table stops and
+// waits for the owner to deal again. Returns false when nothing was due.
+// Tournament: whoever has no chips left stands up before the next deal (their
+// place is their position in bustedOrder).
+function standUpBusted(st: EngineState, now: number): void {
+  for (const id of Object.keys(st.players)) {
+    if ((st.chips[id] ?? 0) === 0) {
+      if (!st.bustedOrder.includes(id)) st.bustedOrder.push(id);
+      leave(st, id, now);
+    }
+  }
+}
+
+// Tournament over when a single player holds chips: they win them all.
+function finishIfWon(st: EngineState): void {
+  const alive = Object.keys(st.players).filter((id) => (st.chips[id] ?? 0) > 0);
+  if (alive.length !== 1) return;
+  st.tFinished = true;
+  st.autoDeal = false;
+  const out = st.bustedOrder.filter((id) => id !== alive[0]).slice().reverse();
+  st.tRanking = [alive[0], ...out];
+}
+
+export function autoNext(
+  st: EngineState,
+  now: number,
+  deck: string[] = shuffle(makeDeck()).map((c) => c.id),
+): boolean {
+  if (st.phase !== "showdown" || !st.autoDeal || st.paused || !st.deadline || now < st.deadline) return false;
+  syncSeats(st);
+  const funded = st.seatIds.filter((id) => (st.chips[id] ?? 0) > 0);
+  if (funded.length < 2) {
+    st.autoDeal = false;
+    st.deadline = 0;
+    return true;
+  }
+  dealHand(st, now, deck);
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -652,6 +968,7 @@ function maybeAdvance(st: EngineState): void {
   // Everyone else folded: the last player takes the pot, no showdown.
   const live = contenders(b);
   if (live.length === 1) {
+    if (rulesOf(st).rabbit && st.board.length < 5) st.rabbit = st.deck.slice(0, 5 - st.board.length);
     st.winners = [{ id: live[0].id, amount: b.pot }];
     st.deadline = 0;
     b.toAct = "";
@@ -664,13 +981,19 @@ function maybeAdvance(st: EngineState): void {
   // Betting is closed for the rest of the hand: run the board out.
   if (actionable(b).length <= 1) {
     const needed = 5 - st.board.length;
+    st.runoutFrom = st.board.length;
     b.toAct = "";
-    if (st.runItN > 1 && needed > 0 && st.deck.length >= needed * st.runItN) {
-      settleRunItN(st, needed);
-    } else {
-      while (st.board.length < 5) dealNextStreet(st);
-      settleShowdown(st);
+    const rules = rulesOf(st);
+    if (rules.runItMode === "ask" && needed > 0 && st.deck.length >= needed * 2 && live.length >= 2) {
+      // Everyone left is all-in: they choose how many boards to run.
+      st.runVote = { voters: live.map((x) => x.id), votes: {}, needed };
+      if (rules.revealAllIn) {
+        st.reveals = {};
+        for (const x of live) if (st.holes[x.id]) st.reveals[x.id] = st.holes[x.id].slice();
+      }
+      return;
     }
+    runout(st, needed, rules.runItMode === "twice" ? 2 : st.runItN > 1 ? st.runItN : 1);
     return;
   }
 
@@ -813,9 +1136,8 @@ function settleShowdown(st: EngineState): void {
 
 // Runs the rest of the board `runItN` times from disjoint deck slices and
 // splits every side pot evenly across the runs (odd chips to the first run).
-function settleRunItN(st: EngineState, needed: number): void {
+function settleRunItN(st: EngineState, needed: number, n: number): void {
   const b = st.betting!;
-  const n = st.runItN;
   const pots = sidePots(b);
   const all: GameWinner[][] = [];
   st.runs = [];
@@ -854,6 +1176,7 @@ function applyWinnings(st: EngineState): void {
     } else if (st.leaving[s.id]) {
       const info = st.leaving[s.id];
       st.payouts.push({ uid: s.id, amount: final, buyIn: info.buyIn, coins: info.coins });
+      (st.ledger = st.ledger ?? []).push({ id: s.id, name: st.names[s.id] ?? "Jugador", buyIn: info.buyIn, out: final });
       delete st.chips[s.id];
     }
   }
@@ -893,6 +1216,8 @@ export function publicView(st: EngineState): PublicState {
         totalBet: s.totalBet,
         status: s.status,
         hasCards: s.status !== "folded" && s.status !== "out",
+        ...(st.away?.[s.id] ? { away: true } : {}),
+        bank: st.bank?.[s.id] ?? 0,
       };
     });
     if (showdown) {
@@ -921,6 +1246,8 @@ export function publicView(st: EngineState): PublicState {
       bet: 0,
       status: "active",
       hasCards: false,
+      ...(st.away?.[id] ? { away: true } : {}),
+      bank: st.bank?.[id] ?? 0,
     }));
   }
 
@@ -952,6 +1279,26 @@ export function publicView(st: EngineState): PublicState {
     runItN: st.runItN,
     blindLevelSecs: st.blindLevelSecs,
   };
+  if (st.nextBlindsAt) out.nextBlindsAt = st.nextBlindsAt;
+  out.rules = rulesOf(st);
+  if (st.ante) out.ante = st.ante;
+  if (st.level) out.level = st.level;
+  if (st.runVote) out.runVote = { voters: st.runVote.voters.slice(), votes: { ...st.runVote.votes }, deadline: st.deadline || 0 };
+  if (st.rabbit?.length && showdown) out.rabbit = st.rabbit.slice();
+  const reqs = Object.entries(st.requests ?? {}).sort((x, y) => x[1].ts - y[1].ts);
+  if (reqs.length) out.requests = reqs.map(([id, r]) => ({ id, name: r.name }));
+  if (st.usingBank && live && !showdown && b!.toAct === st.usingBank) out.timeBank = true;
+  const book: LedgerLine[] = orderedPlayers(st).map((p) => ({ id: p.id, name: p.name, buyIn: p.buyIn, stack: st.chips[p.id] ?? 0 }));
+  for (const l of st.ledger ?? []) book.push({ id: l.id, name: l.name, buyIn: l.buyIn, stack: l.out, left: true });
+  if (book.length) out.ledger = book;
+  if (st.tournament) {
+    out.tournament = true;
+    if (st.tStarted) out.tStarted = true;
+    if (st.tFinished) {
+      out.tFinished = true;
+      out.ranking = (st.tRanking ?? []).map((id) => ({ id, name: st.names[id] ?? "Jugador" }));
+    }
+  }
   if (st.winners.length) out.winners = st.winners.map((w) => ({ ...w }));
   if (Object.keys(st.reveals).length) out.reveals = { ...st.reveals };
   if (st.runs.length) out.runs = st.runs.map((r) => ({ ...r }));

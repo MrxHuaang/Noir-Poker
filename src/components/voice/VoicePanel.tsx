@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Headphones, Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-react";
-import { Avatar } from "@/components/players/Avatar";
 import { useVoiceRoom, type VoiceParticipant } from "@/hooks/useVoiceRoom";
 import { useAudioLevel } from "@/hooks/useAudioLevel";
 import { useMicDevice } from "@/hooks/useMicDevice";
@@ -118,34 +117,28 @@ export default function VoicePanel({
   }, [enabled]);
 
   if (!enabled) {
-    // Botones pequeños tipo icono, al lado del chat. Mismo lenguaje visual que
-    // ChatPanel/ReactionBar (glass + p-3 rounded-2xl) para que queden discretos.
+    // Two brass plates beside the chat: talk (mic) or just listen.
     return (
       <div className="flex items-center gap-2">
-        {/* Join with microphone — talk + listen */}
         <button
           type="button"
           onClick={() => { setListenOnly(false); setEnabled(true); }}
-          className="p-3 rounded-2xl glass ring-1 ring-line text-secondary hover:bg-bone/[0.07] hover:text-primary transition btn-press shadow-xl"
+          className="btn-brass btn-sm"
           title="Unirme con micrófono"
-          aria-label="Unirme con micrófono"
         >
-          <Mic className="w-5 h-5" />
+          <Mic className="h-4 w-4" aria-hidden /> Hablar
         </button>
-        {/* Join listen-only — audio in, no mic */}
         <button
           type="button"
           onClick={() => { setListenOnly(true); setEnabled(true); }}
-          className="p-3 rounded-2xl glass ring-1 ring-line text-secondary hover:bg-bone/[0.07] transition btn-press shadow-xl"
+          className="btn-brass btn-sm"
           title="Solo escuchar (sin micrófono)"
-          aria-label="Solo escuchar (sin micrófono)"
         >
-          <Headphones className="w-5 h-5" />
+          <Headphones className="h-4 w-4" aria-hidden /> Escuchar
         </button>
       </div>
     );
   }
-
 
   // Lista de peers remotos (todos los participantes menos yo).
   const remotePeers = Object.values(participants).filter((p) => p.uid !== uid);
@@ -160,55 +153,32 @@ export default function VoicePanel({
     : null;
 
   return (
-    <section
-      aria-label="Canal de voz"
-      className="rounded-2xl glass p-3 flex flex-col gap-3"
-    >
+    <section aria-label="Canal de voz" className="plate grid w-64 gap-3 px-4 pt-7 pb-4">
       <header className="flex items-center justify-between gap-2">
-        <div className="eyebrow text-[11px] flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-zinc-300 animate-pulse" />
-          Voz · {Object.keys(participants).length} en sala
-          {listenOnly && (
-            <span className="flex items-center gap-0.5 text-muted">
-              <Headphones className="w-2.5 h-2.5" /> escucha
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={toggleMute}
-            className={`p-2 rounded-full ring-1 transition btn-press ${
-              isMuted
-                ? "bg-rose-500/20 ring-rose-400/40 text-rose-200"
-                : "bg-bone/[0.04] ring-line text-primary hover:bg-bone/[0.07]"
-            }`}
-            title={isMuted ? "Activar micrófono (M)" : "Silenciar micrófono (M)"}
-            aria-label={isMuted ? "Activar micrófono" : "Silenciar micrófono"}
-          >
-            {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          </button>
-          {canLeave ? (
-            <button
-              type="button"
-              onClick={() => setEnabled(false)}
-              className="p-2 rounded-full bg-bone/[0.04] ring-1 ring-line text-secondary hover:bg-rose-500/20 hover:text-rose-300 hover:ring-rose-400/40 transition btn-press"
-              title="Salir del canal de voz"
-              aria-label="Salir del canal de voz"
-            >
-              <PhoneOff className="w-4 h-4" />
-            </button>
-          ) : null}
-        </div>
+        <p className="kick m-0 text-[12px]">
+          Radio · {Object.keys(participants).length} en la línea{listenOnly ? " · escuchas" : ""}
+        </p>
       </header>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={toggleMute}
+          className={`btn-brass btn-sm ${isMuted ? "text-blood-400" : ""}`}
+          title={isMuted ? "Activar micrófono (M)" : "Silenciar micrófono (M)"}
+        >
+          {isMuted ? <MicOff className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
+          {isMuted ? "Callado" : "Hablando"}
+        </button>
+        {canLeave ? (
+          <button type="button" onClick={() => setEnabled(false)} className="btn-brass btn-sm" title="Salir del canal de voz">
+            <PhoneOff className="h-4 w-4" aria-hidden /> Colgar
+          </button>
+        ) : null}
+      </div>
 
-      <ul className="flex flex-col gap-1.5">
+      <ul className="m-0 grid list-none gap-1.5 p-0">
         {localParticipant ? (
-          <ParticipantRow
-            participant={{ ...localParticipant, isMuted }}
-            stream={localStream}
-            isLocal
-          />
+          <ParticipantRow participant={{ ...localParticipant, isMuted }} stream={localStream} isLocal />
         ) : null}
         {remotePeers.map((p) => (
           <ParticipantRow
@@ -217,9 +187,7 @@ export default function VoicePanel({
             stream={remoteStreams[p.uid] ?? null}
             connectionState={peerConnectionStates[p.uid]}
             isMutedByListener={peerMuted[p.uid] ?? false}
-            onToggleListenerMute={() =>
-              setPeerMuted((prev) => ({ ...prev, [p.uid]: !prev[p.uid] }))
-            }
+            onToggleListenerMute={() => setPeerMuted((prev) => ({ ...prev, [p.uid]: !prev[p.uid] }))}
           />
         ))}
       </ul>
@@ -253,47 +221,36 @@ function ParticipantRow({
 }) {
   const level = useAudioLevel(stream);
   const talking = !participant.isMuted && level > 0.12;
-  const ringClass = talking
-    ? "ring-zinc-200/80 shadow-[0_0_12px_-2px_rgba(244,244,245,0.35)]"
-    : "ring-line";
   const connLabel = !isLocal ? describeConnState(connectionState) : null;
 
+  // A line on the radio: the name, a needle that moves with the voice.
   return (
-    <li className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/[0.02] ring-1 ring-line">
-      <span className={`rounded-full ring-2 ${ringClass} transition`}>
-        <Avatar seed={participant.seed} size={28} />
-      </span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm text-primary truncate">
-            {participant.displayName}
-            {isLocal ? (
-              <span className="ml-1 text-[10px] text-muted">(tú)</span>
-            ) : null}
-          </span>
-          {participant.isMuted ? (
-            <MicOff className="w-3 h-3 text-rose-300 flex-shrink-0" />
-          ) : null}
-        </div>
-        {connLabel ? (
-          <p className="text-[10px] text-muted truncate">{connLabel}</p>
+    <li className="grid gap-1">
+      <div className="flex items-center gap-2">
+        <span className={`stencil flex-1 truncate text-[15px] ${talking ? "text-tungsten-400" : "text-paper"}`}>
+          {participant.displayName}
+          {isLocal ? <span className="ml-1 font-pix text-[10px] normal-case text-paper-mute">(tú)</span> : null}
+        </span>
+        {participant.isMuted ? <MicOff className="h-3.5 w-3.5 flex-none text-blood-400" aria-label="Micrófono apagado" /> : null}
+        {!isLocal ? (
+          <button
+            type="button"
+            onClick={onToggleListenerMute}
+            className="text-paper-dim hover:text-paper"
+            title={isMutedByListener ? "Reactivar audio" : "Silenciar para mí"}
+            aria-label={isMutedByListener ? "Reactivar audio" : "Silenciar para mí"}
+          >
+            {isMutedByListener ? <VolumeX className="h-4 w-4 text-blood-400" /> : <Volume2 className="h-4 w-4" />}
+          </button>
         ) : null}
       </div>
-      {!isLocal ? (
-        <button
-          type="button"
-          onClick={onToggleListenerMute}
-          className="p-1.5 rounded-full text-secondary hover:text-primary hover:bg-bone/[0.04] transition"
-          title={isMutedByListener ? "Reactivar audio" : "Silenciar para mí"}
-          aria-label={isMutedByListener ? "Reactivar audio" : "Silenciar para mí"}
-        >
-          {isMutedByListener ? (
-            <VolumeX className="w-3.5 h-3.5 text-rose-300" />
-          ) : (
-            <Volume2 className="w-3.5 h-3.5" />
-          )}
-        </button>
-      ) : null}
+      <i className="block h-[3px] bg-paper/10" aria-hidden>
+        <b
+          className="block h-full origin-left bg-tungsten-400 transition-transform duration-100"
+          style={{ transform: `scaleX(${participant.isMuted ? 0 : Math.min(1, level * 2.2)})` }}
+        />
+      </i>
+      {connLabel ? <p className="m-0 font-pix text-[11px] text-paper-mute">{connLabel}</p> : null}
     </li>
   );
 }

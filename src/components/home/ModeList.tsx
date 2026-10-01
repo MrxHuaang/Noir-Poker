@@ -1,5 +1,5 @@
 "use client";
-// The three ways to sit down, as an editorial list instead of three look-alike
+// The ways to sit down, as an editorial list instead of three look-alike
 // cards: an index numeral, a serif title with its suit, one plain sentence and
 // the facts in small caps. Shared by the home page and the nav's "Crear sala"
 // sheet so both always describe the modes the same way.
@@ -17,15 +17,7 @@ export type GameMode = {
 
 export const GAME_MODES: GameMode[] = [
   {
-    href: "/host",
-    title: "Presencial",
-    suit: "♠",
-    line: "La pantalla grande reparte y cuenta; cada teléfono guarda sus dos cartas.",
-    facts: ["Sin apuestas", "Hasta 9 jugadores", "Run-out múltiple"],
-    cta: "Abrir mesa",
-  },
-  {
-    href: "/play/online",
+    href: "/jugar",
     title: "Online",
     suit: "♥",
     line: "Cash game con las monedas de tu perfil. El servidor baraja y valida cada jugada.",
@@ -33,7 +25,7 @@ export const GAME_MODES: GameMode[] = [
     cta: "Crear mesa",
   },
   {
-    href: "/host/torneo",
+    href: "/jugar",
     title: "Torneo",
     suit: "♦",
     line: "Niveles de ciegas con reloj, eliminaciones y podio. Tú llevas el control.",
