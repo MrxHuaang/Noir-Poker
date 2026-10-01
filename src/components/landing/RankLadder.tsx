@@ -62,17 +62,17 @@ export function RankLadder() {
           </div>
 
           {/* the staircase: all seven, small, each on its own ledge */}
-          <ol className="relative m-0 mr-[clamp(64px,8vw,116px)] h-[clamp(120px,24dvh,230px)] list-none p-0" aria-label="Los siete rangos">
+          <ol className="relative m-0 mr-[clamp(38px,8vw,116px)] h-[clamp(120px,24dvh,230px)] list-none p-0" aria-label="Los siete rangos">
             {TITLES.map((t, i) => (
               <li
                 key={t.name}
-                className="rank-step absolute flex w-[clamp(64px,8vw,116px)] flex-col items-center"
+                className="rank-step absolute flex w-[clamp(38px,8vw,116px)] flex-col items-center"
                 data-i={i}
                 style={{ left: `${(i / (n - 1)) * 100}%`, bottom: `${(i / (n - 1)) * 44}%` } as CSSProperties}
               >
                 <RankEmblem tier={i} className="rank-emblem w-full" />
                 <i className="rank-ledge" />
-                <span className="rank-label font-pix text-[11px] tracking-[.12em] uppercase">{pretty(t.name)}</span>
+                <span className="rank-label font-pix text-[12px] tracking-[.1em] uppercase">{pretty(t.name)}</span>
                 <span className="sr-only">nivel {t.level}</span>
               </li>
             ))}

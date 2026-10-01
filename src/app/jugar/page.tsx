@@ -204,7 +204,7 @@ export default function ClubPage() {
 
       <main className="relative z-10 mx-auto grid max-w-[1320px] grid-cols-1 gap-[clamp(24px,4vw,56px)] px-[clamp(18px,4vw,48px)] pb-16 min-[960px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {/* You, under the lamp */}
-        <section className="relative grid content-start gap-4" aria-label="Tu personaje">
+        <section className="relative grid content-start gap-4 min-[960px]:sticky min-[960px]:top-6 min-[960px]:self-start" aria-label="Tu personaje">
           <div className="relative aspect-[4/5] w-full max-w-[460px] overflow-hidden bg-[#07060a] shadow-[0_0_0_1px_var(--color-brass-700),0_30px_70px_rgb(0_0_0/.55)]">
             <iframe key={me} src={sceneUrl("cameo", { id: me, turn: 0.35 })} title={CAST[me].name} className="absolute inset-0 h-full w-full border-0" />
             <p className="scrap absolute left-4 right-4 top-4 m-0 px-4 py-2.5 text-[14px] leading-snug">
@@ -216,7 +216,10 @@ export default function ClubPage() {
             <span className="kick">{CAST[me].alias}</span>
             <h1 className="stencil text-[clamp(34px,3.6vw,54px)]">{CAST[me].name}</h1>
             <p className="m-0 text-[15px] text-paper-dim">
-              {profile?.nickname || profile?.displayName || "Invitado"} se sienta así en la mesa.
+              {(() => {
+                const own = [profile?.nickname, profile?.displayName].find((n) => n && n !== "Jugador");
+                return own ? `${own} se sienta así en la mesa.` : `Te sientas como ${CAST[me].tag}. Ponte un apodo en tu expediente.`;
+              })()}
             </p>
           </div>
           <button type="button" onClick={() => setPicking(true)} className="btn-brass w-fit">
@@ -286,9 +289,11 @@ export default function ClubPage() {
           {room === "open" && (
             <Pane title="La mesa de siempre">
               {tableOptions(false)}
-              <button type="button" className="tk tk-red w-fit" disabled={busy} onClick={() => void create(false)}>
-                {busy ? "Abriendo…" : "Abrir la mesa"}
-              </button>
+              <div className="sticky bottom-4 z-10 w-fit">
+                <button type="button" className="tk tk-red shadow-[0_10px_24px_rgb(0_0_0/.55)]" disabled={busy} onClick={() => void create(false)}>
+                  {busy ? "Abriendo…" : "Abrir la mesa"}
+                </button>
+              </div>
             </Pane>
           )}
 
@@ -299,9 +304,11 @@ export default function ClubPage() {
                 fichas mira desde la barra. Reparte quien lo abre cuando estén todos.
               </p>
               {tableOptions(true)}
-              <button type="button" className="tk tk-red w-fit" disabled={busy} onClick={() => void create(true)}>
-                {busy ? "Abriendo…" : "Abrir el torneo"}
-              </button>
+              <div className="sticky bottom-4 z-10 w-fit">
+                <button type="button" className="tk tk-red shadow-[0_10px_24px_rgb(0_0_0/.55)]" disabled={busy} onClick={() => void create(true)}>
+                  {busy ? "Abriendo…" : "Abrir el torneo"}
+                </button>
+              </div>
             </Pane>
           )}
 

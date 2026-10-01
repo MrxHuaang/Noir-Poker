@@ -320,9 +320,14 @@ export async function sit(uid: string, code: string): Promise<E.SitResult> {
       debit = { uid, amount: st.startStack };
     }
     const seed = w?.avatarSeed || uid;
-    // Nameless guests sit under their character's name, so "Jugador" never
-    // appears twice at the same table.
-    const name = (w?.nickname || w?.displayName || CAST[castFromSeed(seed)].tag).slice(0, 40);
+    // Nameless guests (profiles start as "Jugador") sit under their
+    // character's name, so two "Jugador" never share a table.
+    const own = [w?.nickname, w?.displayName].find((n) => n && n.trim() && n !== "Jugador");
+    // Two guests with the same character: the second one is "Enzo 2".
+    const base = (own || CAST[castFromSeed(seed)].tag).slice(0, 36);
+    const taken = new Set(Object.entries(st.players).filter(([id]) => id !== uid).map(([, p]) => p.name));
+    let name = base;
+    for (let k = 2; taken.has(name); k++) name = `${base} ${k}`;
     const res = E.sit(st, uid, name, seed, !st.casual);
     if (res === "requested") debit = undefined;
     return { result: res, changed: true, debit, presenceFor: uid };

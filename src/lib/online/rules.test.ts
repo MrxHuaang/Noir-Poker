@@ -117,6 +117,18 @@ describe("run it: the game asks", () => {
     expect(st.runs).toHaveLength(0);
     expect(tableChips(st)).toBe(2000);
   });
+
+  it("does not restart the vote clock when someone votes again", () => {
+    const st = room(2, { runItMode: "ask" });
+    startHand(st, "p1", NOW);
+    allIn(st);
+    const deadline = st.deadline;
+    voteRun(st, "p1", 2, NOW + 5_000);
+    voteRun(st, "p1", 2, NOW + 9_000);
+    expect(st.deadline).toBe(deadline);
+    expect(timeout(st, deadline, () => false)).toBe(true);
+    expect(st.phase).toBe("showdown");
+  });
 });
 
 describe("rabbit hunting", () => {

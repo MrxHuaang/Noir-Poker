@@ -60,7 +60,7 @@ export function KeyholeLogo({ href = "/" }: { href?: string }) {
       <KeyholeMark />
       <span>
         <b className="stencil block text-[27px] leading-[.9] tracking-[.08em]">NOIR</b>
-        <small className="block font-pix text-[10.5px] leading-[1.2] tracking-[.14em] text-brass-200">
+        <small className="block font-pix text-[12px] leading-[1.2] tracking-[.12em] text-brass-200">
           CLUB DE PÓKER · 1929
         </small>
       </span>

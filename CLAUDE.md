@@ -35,6 +35,11 @@ a time. Done: the landing (`/`), the club panel (`/jugar`) and the online table
   ledgers, table plates) goes in the plain sans: wrap it in `.legible`
   (`noir.css`, unlayered so it beats the component classes and `font-*`
   utilities inside it). Stencil/pixel stay for display and printed tags.
+- **Long settings never run down the page.** Group them in index tabs, one
+  row per option (the question on the left, stamps on the right) and a
+  one-line summary on top (`TableRulesForm`, `NoirTableLedger`); the main
+  action stays reachable (sticky). In the club panel the character column is
+  sticky.
 - **Decorative characters never cover information.** Landing cameos
   (`Cameo`, `Walker` in `components/landing/Cameo.tsx`) have no speech
   scraps and sit at `z-[1]` behind the sections (`relative z-[2]`); give them
