@@ -58,6 +58,8 @@ export type SceneSnapshot = {
   paused: boolean;
   /** Bomb pot: everyone antes and the hand starts on the flop. */
   bomb: boolean;
+  /** Run it twice (or more): every board, the first one is `board`. */
+  runs: string[][];
   /** The last table gesture (the scene plays each ts once). */
   reaction: SceneReaction | null;
 };
@@ -128,6 +130,7 @@ export function toSceneSnapshot(
     paused: false,
     bomb: false,
     reaction: null,
+    runs: [],
   };
   if (!state) return empty;
 
@@ -218,6 +221,7 @@ export function toSceneSnapshot(
     allin,
     paused: !!state.paused,
     bomb: live && !!state.bomb,
+    runs: showdown && (state.runs?.length ?? 0) > 1 ? state.runs!.map((r) => r.board.slice()) : [],
     reaction:
       state.reaction && chairOf.has(state.reaction.seatId)
         ? { chair: chairOf.get(state.reaction.seatId)!, kind: state.reaction.kind, ts: state.reaction.ts }

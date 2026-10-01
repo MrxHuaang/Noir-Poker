@@ -1163,7 +1163,7 @@ function schedule() {
   }
 }
 function mixScene() { if (!SND.ctx) return; const on = SND.on ? 1 : 0, t = SND.ctx.currentTime, m = { trastienda: [.55, .22, .35, 1300], jazz: [.12, .7, .15, 5000], muelle: [.85, .08, .12, 900] }[OPT.place];
-  SND.rain.gain.setTargetAtTime(m[0] * .12 * on, t, .4); SND.music.gain.setTargetAtTime(m[1] * on * (SND.musicOn ? 1 : 0) * SND.duck, t, .4); SND.crackle.gain.setTargetAtTime(m[2] * .5 * on, t, .4); SND.radio.frequency.setTargetAtTime(m[3], t, .4); }
+  SND.rain.gain.setTargetAtTime(m[0] * .06 * on, t, .4); SND.music.gain.setTargetAtTime(m[1] * 1.35 * on * (SND.musicOn ? 1 : 0) * SND.duck, t, .4); SND.crackle.gain.setTargetAtTime(m[2] * .14 * on, t, .4); SND.radio.frequency.setTargetAtTime(m[3], t, .4); }
 function sfx(kind) {
   const c = SND.ctx; if (!c || !SND.on) return; const t = c.currentTime, out = SND.master;
   if (kind === "card") hiss(t, .06, .12, 2600, out);
@@ -1455,7 +1455,7 @@ function remoteBoot() {
   addEventListener("message", e => { if (e.origin !== location.origin) return; const m = e.data || {}; if (m.snap) { rsPending = m.snap; pump(); } if (m.cam) { OPT.cam = m.cam; setCamera(); } if (m.four !== undefined) { OPT.four = m.four ? "on" : "off"; [...RS.boardObjs, ...RS.cards.flat()].forEach(o => { if (!o.userData.mats) return; o.userData.mats[0].map = cardTex(o.userData.card); o.userData.mats.forEach(x => x.needsUpdate = true); }); } if (m.say) say(m.say, 2600); if (m.music !== undefined) { SND.musicOn = !!m.music; mixScene(); } if (m.cue) sfx2(m.cue); });
   if (parent !== window) parent.postMessage({ sceneReady: "remote" }, location.origin);
 }
-async function pump() { if (rsBusy) return; rsBusy = true; try { while (rsPending) { const s = rsPending; rsPending = null; try { await Promise.race([applySnap(s), sleep(s.allin ? 30000 : 9000)]); } catch (err) { console.error("snapshot", err); } } } finally { rsBusy = false; } }
+async function pump() { if (rsBusy) return; rsBusy = true; try { while (rsPending) { const s = rsPending; rsPending = null; try { await Promise.race([applySnap(s), sleep(s.allin ? (s.runs && s.runs.length > 1 ? 60000 : 30000) : 9000)]); } catch (err) { console.error("snapshot", err); } } } finally { rsBusy = false; } }
 function holePlace(i, r) { const S = SEATS[i], hero = i === 0, off = hero ? (r ? .3 : -.3) : (r ? .1 : -.1); return { x: hero ? S.hole.x + off : S.hole.x + S.tan.x * off, z: hero ? S.hole.z : S.hole.z + S.tan.y * off, y: FELT_Y + .006 + r * .004, ry: hero ? 0 : Math.atan2(-S.n.x, -S.n.y) + Math.PI + (r ? .12 : -.1) }; }
 function oneCard(i, r, animate) {
   const hero = i === 0, o = makeCard3D(null, false, hero ? 1 : .74), p = holePlace(i, r);
@@ -1510,8 +1510,8 @@ async function squeeze(o) {
 // strength is written next to it, the leader in gold, as the board comes.
 // The win chance (computed by the page from the public hands, keyed by board
 // size) rides on the same scrap until the river makes it moot.
-function runoutLabels(s) {
-  clearLabels(RS.leadLbl); const board = RS.board.map(cardOf).filter(Boolean), len = board.length;
+function runoutLabels(s, ids = RS.board) {
+  clearLabels(RS.leadLbl); const board = ids.map(cardOf).filter(Boolean), len = board.length;
   const ev = []; s.seats.forEach((n, i) => { if (!n || !Array.isArray(n.cards) || n.cards.length !== 2 || n.status === "folded") return; const cs = [...n.cards.map(cardOf), ...board]; if (cs.some(c => !c)) return;
     const eq = len < 5 && n.eq ? n.eq[len] : undefined; if (len < 3 && eq === undefined) return;
     ev.push({ i, txt: len >= 3 ? describe(cs) : "", eq, sc: len >= 3 ? best7(cs).score : 0 }); });
@@ -1538,6 +1538,37 @@ async function runoutBoard(ids, s) {
     runoutLabels(s); await sleep(dur(river ? .9 : 1.6) * 1000);
   }
   await sleep(dur(.4) * 1000);
+}
+// Run it twice: the first board slides up and shrinks, and the second one is
+// dealt under it the same slow way (only the cards that differ; the shared
+// ones stay in the first row).
+async function runoutTwice(s) {
+  const b1 = s.runs[0], b2 = s.runs[1]; let from = 0; while (from < 5 && b1[from] === b2[from]) from++;
+  if (from >= 5) return;
+  // just enough room for two rows between the far hands and yours
+  const SC = .66, UP = -.15, DOWN = .27;
+  await sleep(dur(1.1) * 1000); clearLabels(RS.leadLbl);
+  say("Y otra vez. Segundo tablero.", 2200); sfx("heart");
+  RS.boardObjs.forEach((o, k) => { if (!BOARD[k]) return; gsap.to(o.position, { z: BOARD[k].z + UP, duration: dur(.7), ease: "power2.inOut" }); gsap.to(o.userData.flip.children[0].scale, { x: SC, y: SC, z: SC, duration: dur(.7), ease: "power2.inOut" }); });
+  await sleep(dur(1.2) * 1000);
+  const slide = (id, k, j) => { const o = makeCard3D(cardOf(id), false, SC); o.position.set(DEAL_FROM.x, FELT_Y + .3, DEAL_FROM.z); o.rotation.y = rnd(-.5, .5);
+    gsap.to(o.position, { x: BOARD[k].x, y: BOARD[k].y, z: BOARD[k].z + DOWN, duration: dur(.55), delay: dur(j * .14), ease: "power2.out" }); gsap.to(o.rotation, { y: 0, duration: dur(.55), delay: dur(j * .14) }); RS.boardObjs.push(o); return o; };
+  const shown = b2.slice(0, from); let k = from;
+  if (from < 3) {
+    gesture(-1, "deal"); sfx("card"); const flop = [0, 1, 2].filter(x => x >= from).map((x, j) => slide(b2[x], x, j)); k = 3; await sleep(dur(1.1) * 1000);
+    for (const o of flop) { flipUp(o, 1.5); await sleep(dur(.5) * 1000); }
+    shown.push(...b2.slice(from, 3)); runoutLabels(s, shown); await sleep(dur(1.6) * 1000);
+  }
+  for (; k < 5; k++) {
+    const river = k === 4;
+    say(river ? "El río del segundo. Despacio." : "Cuarta calle, segundo tablero.", 1800);
+    if (river) { sfx("heart"); gsap.to(lamp, { intensity: 9, duration: dur(.08), yoyo: true, repeat: 3 }); }
+    await sleep(dur(river ? 1.5 : 1) * 1000);
+    gesture(-1, "deal"); sfx("card"); const o = slide(b2[k], k, 0); await sleep(dur(.9) * 1000);
+    if (river) await squeeze(o); else { flipUp(o, 2.2); await sleep(dur(1) * 1000); }
+    shown.push(b2[k]); runoutLabels(s, shown); await sleep(dur(river ? .9 : 1.4) * 1000);
+  }
+  await sleep(dur(.6) * 1000);
 }
 function handLabels(s) { clearLabels(RS.leadLbl); clearLabels(RS.handLbl); s.seats.forEach((n, i) => { if (!n || !n.hand) return; const l = document.createElement("div"); l.className = "lbl"; l.textContent = n.hand; hud.appendChild(l); pin(l, lblSpot(i)); RS.handLbl.push(l); }); }
 async function applySnap(s) {
@@ -1578,7 +1609,7 @@ async function applySnap(s) {
   // 7. the board; an all-in runout shows the hands first and deals slowly in the dark
   const known = (n, i) => n && Array.isArray(n.cards) && RS.ids[i] !== n.cards.join(",") && RS.cards[i].length === 2;
   if (streetChanged && s.allin && !RS.dark) { stopTimer(); RS.timerKey = ""; say("Todo al centro. Que nadie respire.", 2600); sfx("heart"); s.seats.forEach((n, i) => { if (known(n, i)) showFaces(i, n.cards, 1.6); }); await sleep(900); darkRoom(true); RS.dark = true; runoutLabels(s); await sleep(1200); }
-  if (streetChanged) { const add = s.board.slice(RS.board.length); if (!RS.dark) say({ 3: "El flop.", 4: "Cuarta calle.", 5: "Y el río." }[s.board.length] || "", 1500); if (RS.dark) await runoutBoard(add, s); else await dealBoardIds(add, false); }
+  if (streetChanged) { const add = s.board.slice(RS.board.length); if (!RS.dark) say({ 3: "El flop.", 4: "Cuarta calle.", 5: "Y el río." }[s.board.length] || "", 1500); if (RS.dark) await runoutBoard(add, s); else await dealBoardIds(add, false); if (RS.dark && s.runs && s.runs.length > 1) await runoutTwice(s); }
   // 8. faces: own cards as soon as they arrive, everyone's at showdown
   if (s.seats.some((n, i) => known(n, i) && !n.me)) sfx2("reveal");
   s.seats.forEach((n, i) => { if (known(n, i)) showFaces(i, n.cards, n.me ? 1 : 1.2); });

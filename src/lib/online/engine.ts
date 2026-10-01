@@ -928,7 +928,9 @@ export function nextHandDelay(st: EngineState): number {
   if (from >= 0 && from < 5) {
     const flop = from < 3 ? 5_500 : 0;
     const turn = from < 4 ? 4_800 : 0;
-    return base + 3_000 + flop + turn + 6_800 + (st.runs.length > 1 ? 4_000 : 0);
+    const once = flop + turn + 6_800;
+    // Run twice: the second board is dealt the same way, under the first.
+    return base + 3_000 + once + (st.runs.length > 1 ? 2_500 + once : 0);
   }
   return base + 1_000;
 }

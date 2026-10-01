@@ -295,7 +295,8 @@ function PlayOnlinePageInner() {
   const hand = state?.handNum ?? 0;
   useEffect(() => {
     if (!showdown) return;
-    const t = setTimeout(() => setShownHand((h) => Math.max(h, hand)), 30_000);
+    // Two boards in the dark take longer than one.
+    const t = setTimeout(() => setShownHand((h) => Math.max(h, hand)), (state?.runs?.length ?? 0) > 1 ? 60_000 : 30_000);
     return () => clearTimeout(t);
   }, [showdown, hand]);
   const resultReady = showdown && shownHand >= hand;
