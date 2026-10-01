@@ -85,6 +85,12 @@ body{font-size:15px;line-height:1.5}
 .lbl{position:absolute;left:0;top:0;transform:translate(-50%,-50%) rotate(-1.5deg);font:800 13px/1.1 var(--f-display);letter-spacing:.04em;text-transform:uppercase;color:#1a1612;background:linear-gradient(170deg,#efe6d3,#d3c29e);padding:4px 10px 5px;white-space:nowrap;z-index:6;clip-path:polygon(0 10%,14% 0,40% 8%,66% 0,100% 6%,97% 55%,100% 100%,62% 92%,30% 100%,0 94%,3% 50%);filter:drop-shadow(0 4px 6px rgba(0,0,0,.6))}
 .lbl.win,.lbl.lead{background:linear-gradient(170deg,#f3d08e,#c9974a)}
 .gain{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font:700 16px var(--f-num);color:var(--turn);z-index:7;white-space:nowrap}
+/* bomb pot: a red rubber stamp slammed on the middle of the room */
+.bomb{position:absolute;left:50%;top:40%;z-index:9;display:grid;justify-items:center;gap:4px;padding:14px 30px 12px;border:6px solid #b3261b;background:rgba(14,8,6,.82);color:#e2402e;font:900 clamp(44px,7vw,92px)/.9 "Big Shoulders Stencil Display",var(--f-display);letter-spacing:.06em;text-transform:uppercase;pointer-events:none;transform:translate(-50%,-50%) rotate(-7deg) scale(2.4);opacity:0;filter:drop-shadow(0 10px 18px rgba(0,0,0,.7));transition:transform .28s cubic-bezier(.2,1.6,.4,1),opacity .18s ease-out}
+.bomb small{font:700 clamp(13px,1.5vw,18px)/1.1 var(--f-display);letter-spacing:.14em;color:#efe6d3}
+.bomb.on{opacity:1;transform:translate(-50%,-50%) rotate(-7deg) scale(1)}
+.bomb.off{opacity:0;transform:translate(-50%,-50%) rotate(-7deg) scale(1);transition:opacity .5s ease-in}
+@media (prefers-reduced-motion:reduce){.bomb{transform:translate(-50%,-50%) rotate(-7deg);transition:opacity .4s ease-out}.bomb.on{transform:translate(-50%,-50%) rotate(-7deg)}}
 
 .dock{flex:none;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;padding:10px 18px;background:linear-gradient(#120e0b,#17130f);border-top:1px solid var(--line-2)}
 .me{display:flex;gap:18px;align-items:baseline;min-width:0;flex-wrap:wrap}
@@ -948,7 +954,7 @@ function crushStub() { if (!cigG.visible) return; puff(cigEmber, .45); cigEmber.
 function startTimer(i, secs = TURN_S, relit = false) {
   stopTimer(); const box = tagEls[i].querySelector(".timer"), bar = box.querySelector("i"); box.classList.remove("late"); gsap.set(bar, { scaleX: 1 });
   timerTw = gsap.to(bar, { scaleX: 0, duration: secs, ease: "none" }); cigState.late = false;
-  lateT = setTimeout(() => { box.classList.add("late"); cigState.late = true; gesture(i, "tap"); tapT = setInterval(() => gesture(i, "tap"), 900); }, Math.max(0, secs - 5) * 1000);
+  lateT = setTimeout(() => { box.classList.add("late"); cigState.late = true; gesture(i, "tap"); tapT = setInterval(() => { gesture(i, "tap"); if (G.players[i] && G.players[i].hero) sfx("tick"); }, 900); if (G.players[i] && G.players[i].hero) sfx("tick"); }, Math.max(0, secs - 5) * 1000);
   cigG.position.copy(cigSpot(i)); cigG.rotation.y = Math.atan2(-SEATS[i].n.x, -SEATS[i].n.y); cigG.visible = true; cigEmber.visible = true; cigStick.scale.set(1, 1, 1); cigStick.rotation.z = .08; setCig(1); const o = { f: 1 }; let ashAt = 1;
   cigTw = gsap.to(o, { f: 0, duration: secs, ease: "none", onUpdate: () => { setCig(o.f); if (ashAt - o.f > .18) { ashAt = o.f; dropAsh(); } }, onComplete: crushStub }); G.turnEnds = performance.now() + secs * 1000;
   if (relit) setTimeout(() => lighter(i), 60);
@@ -1078,7 +1084,7 @@ async function playHand() { if (G.looping) return; G.looping = true; try { if (G
 
 /* ---------------- all-in: lights down, cards one by one ---------------- */
 G.allin = false; G.eq = new Map(); G.bank = 2; G.dark = false;
-function darkRoom(on) { G.dark = on; const d = s2 => dur(s2);
+function darkRoom(on) { G.dark = on; const d = s2 => dur(s2); SND.duck = on ? .2 : 1; mixScene();
   gsap.to(hemi, { intensity: on ? .3 : 1.5, duration: d(1.2) }); gsap.to(fill, { intensity: on ? .06 : .55, duration: d(1.2) }); gsap.to(crownL, { intensity: on ? 2.5 : 7, duration: d(1.2) }); gsap.to(lamp, { intensity: on ? 22 : 15, duration: d(1.2) });
   gsap.to(camera, { zoom: on ? (MODE === "remote" ? 1.12 : 1.3) : 1, duration: d(1.8), ease: "power2.inOut", onUpdate: () => camera.updateProjectionMatrix() }); }
 async function allinReveal() {
@@ -1106,7 +1112,7 @@ async function replayFilm() {
 $("#replayBtn").addEventListener("click", () => { if (!G.lastHand) { $("#replayBtn").textContent = "Aún no hay manos terminadas"; return; } G.wantReplay = true; $("#replayBtn").textContent = "Se proyecta al terminar esta mano"; });
 
 /* ---------------- sound: vinyl, rain, distant jazz, table foley ---------------- */
-const SND = { ctx: null, on: false };
+const SND = { ctx: null, on: false, musicOn: true, duck: 1 };
 function noiseBuf(ctx, secs, fn) { const b = ctx.createBuffer(1, ctx.sampleRate * secs, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = fn(i, d); return b; }
 function sndInit() {
   if (SND.ctx) return; const ctx = SND.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1134,7 +1140,7 @@ function schedule() {
   }
 }
 function mixScene() { if (!SND.ctx) return; const on = SND.on ? 1 : 0, t = SND.ctx.currentTime, m = { trastienda: [.55, .22, .35, 1300], jazz: [.12, .7, .15, 5000], muelle: [.85, .08, .12, 900] }[OPT.place];
-  SND.rain.gain.setTargetAtTime(m[0] * .12 * on, t, .4); SND.music.gain.setTargetAtTime(m[1] * on, t, .4); SND.crackle.gain.setTargetAtTime(m[2] * .5 * on, t, .4); SND.radio.frequency.setTargetAtTime(m[3], t, .4); }
+  SND.rain.gain.setTargetAtTime(m[0] * .12 * on, t, .4); SND.music.gain.setTargetAtTime(m[1] * on * (SND.musicOn ? 1 : 0) * SND.duck, t, .4); SND.crackle.gain.setTargetAtTime(m[2] * .5 * on, t, .4); SND.radio.frequency.setTargetAtTime(m[3], t, .4); }
 function sfx(kind) {
   const c = SND.ctx; if (!c || !SND.on) return; const t = c.currentTime, out = SND.master;
   if (kind === "card") hiss(t, .06, .12, 2600, out);
@@ -1144,6 +1150,41 @@ function sfx(kind) {
   if (kind === "heart") [0, .28, 1.1, 1.38].forEach(o2 => tone(t + o2, 33, .22, .5, "sine", out));
   if (kind === "projector") for (let k = 0; k < 40; k++) hiss(t + k * .09, .03, .06, 1800, out);
   if (kind === "knock") [0, .32, .62].forEach(o2 => { tone(t + o2, 40, .12, .6, "sine", out); hiss(t + o2, .05, .3, 700, out); });
+  // the table's own sounds, one per move
+  if (kind === "check") [0, .13].forEach(o2 => { tone(t + o2, 45, .07, .45, "sine", out); hiss(t + o2, .03, .22, 900, out); });
+  if (kind === "fold") { hiss(t, .16, .16, 2200, out); hiss(t + .08, .12, .1, 1400, out); }
+  if (kind === "call") { hiss(t + .04, .02, .2, 4000, out); hiss(t + .09, .02, .16, 3400, out); }
+  if (kind === "bet") { for (let k = 0; k < 3; k++) hiss(t + k * .045, .02, .22, 3700 + k * 250, out); hiss(t + .16, .14, .08, 1200, out); }
+  if (kind === "allin") { for (let k = 0; k < 9; k++) hiss(t + k * .03 + Math.random() * .02, .02, .2, 3300 + Math.random() * 1200, out); tone(t + .05, 31, .5, .55, "sine", out); }
+  if (kind === "turn") { tone(t, 84, .5, .14, "sine", out); tone(t + .11, 91, .6, .1, "sine", out); }
+  if (kind === "bomb") { tone(t, 26, 1.6, .9, "sine", out); tone(t, 33, .9, .5, "triangle", out); for (let k = 0; k < 24; k++) hiss(t + k * .05, .06, .3 * (1 - k / 24), 220 + Math.random() * 240, out); hiss(t, .4, .45, 3000, out); }
+}
+const ACT_SFX = { check: "check", fold: "fold", call: "call", bet: "bet", raise: "bet", allin: "allin" };
+// More of the room: chairs, the door, the clock, a win, the gestures.
+function sfx2(kind) {
+  const c = SND.ctx; if (!c || !SND.on) return; const t = c.currentTime, out = SND.master;
+  if (kind === "sit") { for (let k = 0; k < 6; k++) hiss(t + k * .03, .05, .12 * (1 - k / 6), 380 + k * 40, out); tone(t + .2, 38, .12, .25, "sine", out); }
+  if (kind === "leave") { for (let k = 0; k < 8; k++) tone(t + k * .05, 52 - k * .6, .08, .05, "sawtooth", out); hiss(t + .45, .12, .3, 500, out); tone(t + .45, 36, .2, .4, "sine", out); }
+  if (kind === "tick") { hiss(t, .012, .35, 5200, out); tone(t, 96, .03, .05, "square", out); }
+  if (kind === "win") [60, 64, 67, 71, 74].forEach((m, k) => tone(t + k * .06, m, 1.4, .07, "triangle", out));
+  if (kind === "lose") [55, 51, 48].forEach((m, k) => tone(t + k * .18, m, .7, .06, "sine", out));
+  if (kind === "level") [84, 79, 84].forEach((m, k) => tone(t + k * .22, m, .9, .09, "sine", out));
+  if (kind === "paper") { hiss(t, .09, .1, 3400, out); hiss(t + .07, .06, .07, 2600, out); }
+  if (kind === "join") { tone(t, 72, .3, .06, "sine", out); tone(t + .1, 79, .4, .05, "sine", out); }
+  if (kind === "hat") hiss(t, .14, .1, 1600, out);
+  if (kind === "puff") { hiss(t, .5, .08, 900, out); hiss(t + .1, .6, .05, 600, out); }
+  if (kind === "laugh") [0, .17, .32, .45].forEach((o2, k) => { tone(t + o2, 50 - k, .12, .12, "sawtooth", out); hiss(t + o2, .08, .08, 1100, out); });
+  if (kind === "glare") { tone(t, 41, 1.1, .12, "sawtooth", out); tone(t, 47, 1.1, .05, "sawtooth", out); }
+  if (kind === "reveal") { hiss(t, .05, .16, 2200, out); hiss(t + .12, .05, .16, 2400, out); }
+}
+const GESTURE_SFX = { hat: "hat", tap: "check", puff: "puff", laugh: "laugh", glare: "glare" };
+// Bomb pot: the stamp slams down in the middle of the room with a boom.
+async function bombStamp() {
+  const el = document.createElement("div"); el.className = "bomb"; el.innerHTML = "Bote bomba<small>Todos adentro · directo al flop</small>"; hud.appendChild(el);
+  sfx("bomb"); gsap.to(lamp, { intensity: 6, duration: dur(.07), yoyo: true, repeat: 5 });
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
+  if (!CALM) { await sleep(300); gsap.fromTo(view, { x: -6 }, { x: 0, duration: .45, ease: "elastic.out(1.2,.25)" }); }
+  await sleep(1700); el.classList.add("off"); setTimeout(() => el.remove(), 600);
 }
 addEventListener("message", e => { const m = e.data || {}; if (m.knock) { knockDoor(); } if (m.sound !== undefined) { OPT.sound = m.sound ? "on" : "off"; applySound(); } if (typeof m.lineup === "number") { LINE.target = m.lineup; LINE.v = m.lineup; } });
 function applySound() { if (OPT.sound === "on") { sndInit(); SND.ctx.resume?.(); SND.on = true; } else SND.on = false; mixScene(); }
@@ -1369,7 +1410,7 @@ function remoteBoot() {
   for (let i = 0; i < 9; i++) { if (figs[i]) { scene.remove(figs[i]); figs[i] = null; } tagEls[i].hidden = true; pillEls[i].hidden = true; }
   G.players = Array.from({ length: 9 }, (_, i) => ({ name: "", hero: false, i, stack: 0, hole: [], cards: [], bet: 0, contrib: 0, folded: false, allin: false, acted: false, actText: "", actKind: "" }));
   G.pos = {}; G.toAct = -1; G.pot = 0; setPot(); dealerBtn.visible = false; potPill.hidden = true; sidePill.hidden = true;
-  addEventListener("message", e => { if (e.origin !== location.origin) return; const m = e.data || {}; if (m.snap) { rsPending = m.snap; pump(); } if (m.cam) { OPT.cam = m.cam; setCamera(); } if (m.four !== undefined) { OPT.four = m.four ? "on" : "off"; [...RS.boardObjs, ...RS.cards.flat()].forEach(o => { if (!o.userData.mats) return; o.userData.mats[0].map = cardTex(o.userData.card); o.userData.mats.forEach(x => x.needsUpdate = true); }); } if (m.say) say(m.say, 2600); });
+  addEventListener("message", e => { if (e.origin !== location.origin) return; const m = e.data || {}; if (m.snap) { rsPending = m.snap; pump(); } if (m.cam) { OPT.cam = m.cam; setCamera(); } if (m.four !== undefined) { OPT.four = m.four ? "on" : "off"; [...RS.boardObjs, ...RS.cards.flat()].forEach(o => { if (!o.userData.mats) return; o.userData.mats[0].map = cardTex(o.userData.card); o.userData.mats.forEach(x => x.needsUpdate = true); }); } if (m.say) say(m.say, 2600); if (m.music !== undefined) { SND.musicOn = !!m.music; mixScene(); } if (m.cue) sfx2(m.cue); });
   if (parent !== window) parent.postMessage({ sceneReady: "remote" }, location.origin);
 }
 async function pump() { if (rsBusy) return; rsBusy = true; try { while (rsPending) { const s = rsPending; rsPending = null; try { await Promise.race([applySnap(s), sleep(s.allin ? 30000 : 9000)]); } catch (err) { console.error("snapshot", err); } } } finally { rsBusy = false; } }
@@ -1455,13 +1496,13 @@ function handLabels(s) { clearLabels(RS.leadLbl); clearLabels(RS.handLbl); s.sea
 async function applySnap(s) {
   // 1. who sits where (figures follow the chosen characters)
   for (let i = 0; i < 9; i++) { const n = s.seats[i], o = RS.seats[i];
-    if (!n) { if (o) { if (figs[i]) { scene.remove(figs[i]); figs[i] = null; } tagEls[i].hidden = true; pillEls[i].hidden = true; RS.cards[i].forEach(c => fadeRemove(c)); RS.cards[i] = []; RS.ids[i] = null; } continue; }
-    if (!o || o.id !== n.id || o.cast !== n.cast || !figs[i]) { seatArch[i] = ARCH.find(a => a.id === n.cast) || ARCH[0]; placeFigure(i); }
+    if (!n) { if (o) { if (RS.booted) sfx2("leave"); if (figs[i]) { scene.remove(figs[i]); figs[i] = null; } tagEls[i].hidden = true; pillEls[i].hidden = true; RS.cards[i].forEach(c => fadeRemove(c)); RS.cards[i] = []; RS.ids[i] = null; } continue; }
+    if (!o || o.id !== n.id || o.cast !== n.cast || !figs[i]) { if (RS.booted && (!o || o.id !== n.id)) sfx2("sit"); seatArch[i] = ARCH.find(a => a.id === n.cast) || ARCH[0]; placeFigure(i); }
     tagEls[i].hidden = false; tagEls[i].classList.toggle("hero", !!n.me); tagEls[i].classList.toggle("away", !!n.away); tagEls[i].querySelector(".name").textContent = n.me ? "Tú" : n.name; }
   // 2. a new hand clears the felt and deals
   const live = s.phase !== "idle", newHand = live && s.hand !== RS.hand;
   if (!live && (RS.board.length || RS.cards.some(c => c.length) || RS.shown)) { await remoteClear(); RS.shown = false; }
-  if (newHand) { if (RS.hand >= 0 || RS.board.length) await remoteClear(); RS.hand = s.hand; RS.shown = false; say(s.bomb ? "Bote bomba. Todos adentro, directo al flop." : Math.random() < .5 ? "Hagan sus apuestas." : "Cartas al aire, caballeros.", s.bomb ? 2600 : undefined); }
+  if (newHand) { if (RS.hand >= 0 || RS.board.length) await remoteClear(); RS.hand = s.hand; RS.shown = false; say(s.bomb ? "Bote bomba. Todos adentro, directo al flop." : Math.random() < .5 ? "Hagan sus apuestas." : "Cartas al aire, caballeros.", s.bomb ? 2600 : undefined); if (s.bomb) await bombStamp(); }
   if (!live) RS.hand = -1;
   if (s.dealer !== RS.dealer) { dealerBtn.visible = s.dealer >= 0; if (s.dealer >= 0) gsap.to(dealerBtn.position, { x: SEATS[s.dealer].btn.x, z: SEATS[s.dealer].btn.z, duration: dur(.5), ease: "power2.inOut" }); RS.dealer = s.dealer; }
   // mirror the public numbers into the seat cards
@@ -1475,13 +1516,14 @@ async function applySnap(s) {
   // 4. folds go to the muck
   s.seats.forEach((n, i) => { if ((!n || !n.cards || n.status === "folded") && RS.cards[i].length) { RS.cards[i].forEach(o => fadeRemove(o, MUCK)); RS.cards[i] = []; RS.ids[i] = null; } });
   // 5. the last action speaks on the seat card
-  if (s.last && s.last.ts !== RS.lastTs) { RS.lastTs = s.last.ts; const p = G.players[s.last.chair]; p.actText = s.last.text; p.actKind = s.last.kind;
+  const freshAct = !!(s.last && s.last.ts !== RS.lastTs);
+  if (s.last && s.last.ts !== RS.lastTs) { RS.lastTs = s.last.ts; const p = G.players[s.last.chair]; p.actText = s.last.text; p.actKind = s.last.kind; if (ACT_SFX[s.last.kind]) sfx(ACT_SFX[s.last.kind]);
     if (s.last.kind === "raise" || s.last.kind === "bet" || s.last.kind === "allin") gesture(s.last.chair, "puff"); else if (s.last.kind === "check") gesture(s.last.chair, "tap"); }
   // 6. chips: bets slide out; a finished street gathers them into the pot
   const streetChanged = s.board.length > RS.board.length;
   const betsGone = !s.seats.some(n => n && n.bet > 0) && RS.bets.some(b => b > 0);
   const handOver = s.phase === "showdown" || (s.allin && streetChanged);
-  if (streetChanged || betsGone || handOver) { await collectBets(); RS.bets.fill(0); G.players.forEach(p => { p.bet = 0; if (streetChanged && !p.folded && !p.allin) { p.actText = ""; p.actKind = ""; } }); }
+  if (streetChanged || betsGone || handOver) { await collectBets(); RS.bets.fill(0); G.players.forEach((p, i) => { p.bet = 0; if (streetChanged && !p.folded && !p.allin && !(freshAct && s.last.chair === i)) { p.actText = ""; p.actKind = ""; } }); }
   if (handOver) { s.seats.forEach((n, i) => { RS.bets[i] = n ? n.bet : 0; G.players[i].bet = 0; }); }
   else { const moves = []; s.seats.forEach((n, i) => { const b = n ? n.bet : 0; G.players[i].bet = b; if (b > RS.bets[i]) moves.push(moveChips(i, b - RS.bets[i])); else if (b !== RS.bets[i]) setBet(i); RS.bets[i] = b; });
     await Promise.all(moves); }
@@ -1491,20 +1533,22 @@ async function applySnap(s) {
   if (streetChanged && s.allin && !RS.dark) { stopTimer(); RS.timerKey = ""; say("Todo al centro. Que nadie respire.", 2600); sfx("heart"); s.seats.forEach((n, i) => { if (known(n, i)) showFaces(i, n.cards, 1.6); }); await sleep(900); darkRoom(true); RS.dark = true; runoutLabels(s); await sleep(1200); }
   if (streetChanged) { const add = s.board.slice(RS.board.length); if (!RS.dark) say({ 3: "El flop.", 4: "Cuarta calle.", 5: "Y el río." }[s.board.length] || "", 1500); if (RS.dark) await runoutBoard(add, s); else await dealBoardIds(add, false); }
   // 8. faces: own cards as soon as they arrive, everyone's at showdown
+  if (s.seats.some((n, i) => known(n, i) && !n.me)) sfx2("reveal");
   s.seats.forEach((n, i) => { if (known(n, i)) showFaces(i, n.cards, n.me ? 1 : 1.2); });
   // a gesture from the table: the figure acts it out, a scrap names it (so it
   // still reads with reduced motion, where figures keep still)
-  const rx = s.reaction; if (rx && rx.ts > (RS.reactTs || 0)) { RS.reactTs = rx.ts; if (Date.now() - rx.ts < 6000 && s.seats[rx.chair]) { gesture(rx.chair, rx.kind); const f = SEATS[rx.chair].fig, l = document.createElement("div"); l.className = "lbl"; l.textContent = { hat: "Se toca el sombrero", tap: "Golpea la mesa", puff: "Echa el humo", laugh: "Se ríe", glare: "Mira fijo" }[rx.kind] || ""; hud.appendChild(l); pin(l, new THREE.Vector3(f.x, SEATS[rx.chair].front ? .55 : 2.05, f.z)); setTimeout(() => { anchors.delete(l); l.remove(); }, 2200); } }
+  const rx = s.reaction; if (rx && rx.ts > (RS.reactTs || 0)) { RS.reactTs = rx.ts; if (Date.now() - rx.ts < 6000 && s.seats[rx.chair]) { gesture(rx.chair, rx.kind); if (GESTURE_SFX[rx.kind]) (rx.kind === "tap" ? sfx : sfx2)(GESTURE_SFX[rx.kind]); const f = SEATS[rx.chair].fig, l = document.createElement("div"); l.className = "lbl"; l.textContent = { hat: "Se toca el sombrero", tap: "Golpea la mesa", puff: "Echa el humo", laugh: "Se ríe", glare: "Mira fijo" }[rx.kind] || ""; hud.appendChild(l); pin(l, new THREE.Vector3(f.x, SEATS[rx.chair].front ? .55 : 2.05, f.z)); setTimeout(() => { anchors.delete(l); l.remove(); }, 2200); } }
   // 9. seat cards, turn and the cigarette clock
   G.toAct = s.turn; for (let i = 0; i < 9; i++) if (s.seats[i]) renderSeat(i);
   const tk = s.turn >= 0 && s.deadline ? s.hand + ":" + s.turn + ":" + s.deadline : "";
-  if (tk !== RS.timerKey) { const same = !!tk && !!RS.timerKey && RS.timerKey.split(":").slice(0, 2).join(":") === tk.split(":").slice(0, 2).join(":") && RS.timerLast === RS.lastTs; RS.timerKey = tk; RS.timerLast = RS.lastTs; if (tk) startTimer(s.turn, Math.max(1, (s.deadline - Date.now()) / 1000), same); else stopTimer(); }
+  if (tk !== RS.timerKey) { const same = !!tk && !!RS.timerKey && RS.timerKey.split(":").slice(0, 2).join(":") === tk.split(":").slice(0, 2).join(":") && RS.timerLast === RS.lastTs; RS.timerKey = tk; RS.timerLast = RS.lastTs; if (tk) startTimer(s.turn, Math.max(1, (s.deadline - Date.now()) / 1000), same); else stopTimer(); if (tk && !same && s.seats[s.turn] && s.seats[s.turn].me) sfx("turn"); }
   // 10. showdown: hands named, winners lit and paid
   if (s.phase === "showdown" && s.winners.length && !RS.shown) { RS.shown = true; stopTimer(); RS.timerKey = ""; await sleep(400); handLabels(s); G.pot = 0; setPot();
     for (const w of s.winners) { spotOn(w.chair); sfx("chips"); const f = SEATS[w.chair].fig; const l = document.createElement("div"); l.className = "gain"; l.textContent = "+" + fmt(w.amount); hud.appendChild(l); pin(l, new THREE.Vector3(f.x, SEATS[w.chair].front ? .5 : 2.25, f.z)); RS.winLbl.push(l); }
+    const heroIn = s.seats[0] && s.seats[0].me && Array.isArray(s.seats[0].cards); if (heroIn) sfx2(s.winners.some(w => w.chair === 0) ? "win" : "lose");
     const w0 = s.seats[s.winners[0].chair]; say(s.winners.length > 1 ? "Bote dividido." : "Bote para " + (w0 && w0.me ? "usted" : (w0 ? w0.name : "la mesa")) + ".", 2600);
     if (parent !== window) parent.postMessage({ shown: s.hand }, location.origin); }
-  RS.seats = s.seats;
+  RS.seats = s.seats; RS.booted = true;
 }
 
 OPT.sound = "off"; if (["cameo", "lineup", "door"].includes(MODE)) Object.assign(OPT, { grade: "humo", px: "2" }); if (MODE === "embed") Object.assign(OPT, { hero: "auto", cam: "iso", place: "muelle", grade: "noche", felt: "noche", rail: "cuero", px: "2" });

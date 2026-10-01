@@ -17,7 +17,7 @@
 // también de forma atómica. Si cierras la pestaña, tu heartbeat caduca y el
 // servidor te levanta y liquida solo.
 import { DesktopOnlyGate } from "@/components/ui/DesktopOnlyGate";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -29,7 +29,7 @@ import { useOnlineHistory } from "@/hooks/useOnlineHistory";
 import { adaptOnlineRuns } from "@/lib/onlineTable";
 import { toSceneSnapshot } from "@/lib/noirScene";
 import { MAX_SEATED, PRESENCE_STALE_MS } from "@/lib/online/protocol";
-import { NoirTable, type SceneCam } from "@/components/noir/NoirTable";
+import { NoirTable, type SceneCam, type SceneCue } from "@/components/noir/NoirTable";
 import { NoirActionRail, type RailMove } from "@/components/noir/NoirActionRail";
 import { KeyholeMark } from "@/components/landing/KeyholeLogo";
 import { NoirMenu } from "@/components/noir/NoirMenu";
@@ -55,13 +55,16 @@ const GESTURES: { kind: string; label: string }[] = [
   { kind: "glare", label: "Mirar fijo" },
 ];
 
-type Prefs = { cam: SceneCam; sound: boolean; four: boolean };
+// v2: the table has a sound for every move, so sound starts on (older saved
+// prefs had it off by default, not by choice).
+type Prefs = { cam: SceneCam; sound: boolean; music: boolean; four: boolean; v?: number };
 
 function readPrefs(): Prefs {
-  const base: Prefs = { cam: "front", sound: false, four: false };
+  const base: Prefs = { cam: "front", sound: true, music: true, four: false, v: 2 };
   if (typeof window === "undefined") return base;
   try {
-    return { ...base, ...(JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") as Partial<Prefs>) };
+    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") as Partial<Prefs>;
+    return { ...base, ...saved, ...(saved.v === 2 ? {} : { sound: true, v: 2 }) };
   } catch {
     return base;
   }
@@ -147,6 +150,11 @@ function PlayOnlinePageInner() {
     });
 
   const [phrasesOpen, setPhrasesOpen] = useState(false);
+  // One-off sounds for what the scene cannot see: a new blind level, a note
+  // from someone else, someone at the door.
+  const [cue, setCue] = useState<SceneCue | null>(null);
+  const ring = (kind: SceneCue["kind"]) => setCue((c) => ({ kind, n: (c?.n ?? 0) + 1 }));
+  const seen = useRef({ level: 0, chat: 0, phrases: "", door: 0 });
   const [gesturesOpen, setGesturesOpen] = useState(false);
   const [closedRunsHand, setClosedRunsHand] = useState(0);
   // The result notes wait until the scene has finished the runout on the felt
@@ -168,6 +176,28 @@ function PlayOnlinePageInner() {
     const t = setTimeout(() => setNotice(null), 5000);
     return () => clearTimeout(t);
   }, [notice]);
+
+  const level = state?.level ?? 0;
+  useEffect(() => {
+    if (level > seen.current.level && seen.current.level > 0) ring("level");
+    seen.current.level = level;
+  }, [level]);
+  const lastChat = chat.reduce((m, c) => (c.uid !== uid && c.ts > m ? c.ts : m), 0);
+  useEffect(() => {
+    if (seen.current.chat && lastChat > seen.current.chat) ring("paper");
+    seen.current.chat = lastChat || seen.current.chat || 1;
+  }, [lastChat]);
+  const othersPhrases = Object.keys(activePhrases).filter((id) => id !== uid).sort().join(",");
+  useEffect(() => {
+    if (othersPhrases && othersPhrases !== seen.current.phrases) ring("paper");
+    seen.current.phrases = othersPhrases;
+  }, [othersPhrases]);
+  const atDoor = (state?.requests?.length ?? 0) + (state?.waiting?.length ?? 0);
+  useEffect(() => {
+    if (atDoor > seen.current.door && state?.owner === uid) ring("join");
+    seen.current.door = atDoor;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atDoor]);
 
   // --- Posición propia ------------------------------------------------------
   const amSeated = !!(uid && state?.seats.some((s) => s.id === uid));
@@ -441,7 +471,7 @@ function PlayOnlinePageInner() {
 
   return (
     <>
-      <NoirTable snapshot={snapshot} cam={prefs.cam} sound={prefs.sound} fourColor={prefs.four} onShown={setShownHand}>
+      <NoirTable snapshot={snapshot} cam={prefs.cam} sound={prefs.sound} music={prefs.music} cue={cue} fourColor={prefs.four} onShown={setShownHand}>
         {/* Top edge: the way out, the password, the room controls */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4">
           <div className="legible pointer-events-auto flex items-center gap-3">
@@ -501,7 +531,8 @@ function PlayOnlinePageInner() {
                   ? [{ label: state.paused ? "Reanudar" : "Pausar", onSelect: () => (state.paused ? game.resume() : game.pause()).then(report) }]
                   : []),
                 { label: prefs.cam === "iso" ? "Vista frontal" : "Vista isométrica", onSelect: () => setPref({ cam: prefs.cam === "iso" ? "front" : "iso" }) },
-                { label: prefs.sound ? "Quitar sonido" : "Poner sonido", onSelect: () => setPref({ sound: !prefs.sound }) },
+                { label: prefs.sound ? "Quitar sonido" : "Poner sonido", hint: prefs.sound ? "todo, también la música" : undefined, onSelect: () => setPref({ sound: !prefs.sound }) },
+                ...(prefs.sound ? [{ label: prefs.music ? "Apagar la radio" : "Encender la radio", hint: prefs.music ? "la música, no los efectos" : "jazz de fondo", onSelect: () => setPref({ music: !prefs.music }) }] : []),
                 { label: prefs.four ? "Baraja de 2 colores" : "Baraja de 4 colores", hint: prefs.four ? undefined : "un color por palo", onSelect: () => setPref({ four: !prefs.four }) },
                 { label: "Copiar el enlace", hint: "para invitar", onSelect: () => void navigator.clipboard?.writeText(joinUrl).then(() => setNotice("Enlace copiado. Pásalo a quien quieras sentar.")).catch(() => {}) },
                 { label: "La mesa", hint: "reglas y jugadores", onSelect: () => setOptionsOpen(true) },

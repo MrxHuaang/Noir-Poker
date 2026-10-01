@@ -142,7 +142,8 @@ export default function ExpedientePage() {
             <div className="relative aspect-[4/5] -rotate-2 overflow-hidden bg-[#07060a] shadow-[0_0_0_10px_#e9e1cf,0_0_0_11px_#8a7f6d,0_30px_60px_rgb(0_0_0/.55)]">
               <iframe key={me} src={sceneUrl("cameo", { id: me, turn: 0.35 })} title={CAST[me].name} className="absolute inset-0 h-full w-full border-0" />
             </div>
-            <span className="stencil pointer-events-none absolute bottom-10 right-2 rotate-[-14deg] border-4 border-blood-400 px-3 py-1 text-3xl tracking-[.12em] text-blood-400 opacity-90 mix-blend-screen">
+            {/* Rubber stamp over the photo's white border: plain ink on top (a screen blend vanished on the white). */}
+            <span className="stencil pointer-events-none absolute bottom-10 right-2 z-[2] rotate-[-14deg] border-4 border-blood-400 bg-[rgb(20_10_8/.55)] px-3 py-1 text-3xl tracking-[.12em] text-blood-400 opacity-95">
               {rank.name}
             </span>
             <span className="absolute -top-3 left-8 h-8 w-4 rounded-[2px] bg-brass-400 shadow-[0_2px_0_#050404]" aria-hidden />

@@ -8,10 +8,15 @@ import type { SceneSnapshot } from "@/lib/noirScene";
 
 export type SceneCam = "front" | "iso";
 
+/** A one-off sound for something the scene cannot see (a new blind level, a note). */
+export type SceneCue = { kind: "level" | "paper" | "join"; n: number };
+
 export function NoirTable({
   snapshot,
   cam,
   sound,
+  music = true,
+  cue,
   fourColor,
   onShown,
   children,
@@ -19,6 +24,9 @@ export function NoirTable({
   snapshot: SceneSnapshot;
   cam: SceneCam;
   sound: boolean;
+  /** The radio in the corner (the effects stay with `sound`). */
+  music?: boolean;
+  cue?: SceneCue | null;
   fourColor: boolean;
   /** The scene finished laying out a hand's result (runout, winners lit). */
   onShown?: (hand: number) => void;
@@ -59,6 +67,12 @@ export function NoirTable({
   useEffect(() => {
     if (ready) post({ four: fourColor });
   }, [ready, fourColor]);
+  useEffect(() => {
+    if (ready) post({ music });
+  }, [ready, music]);
+  useEffect(() => {
+    if (ready && cue) post({ cue: cue.kind });
+  }, [ready, cue]);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07060a] text-paper">
@@ -66,6 +80,8 @@ export function NoirTable({
         ref={frame}
         src={src}
         title="Mesa de póker en la trastienda"
+        // The table's sounds play inside the scene: let the page's clicks unlock its audio.
+        allow="autoplay"
         className="absolute inset-0 h-full w-full border-0"
       />
       {!ready && (
