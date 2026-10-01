@@ -1465,7 +1465,12 @@ function oneCard(i, r, animate) {
 }
 function showFaces(i, ids, slow) {
   const S = SEATS[i];
-  RS.cards[i] = RS.cards[i].map((o, k) => { const n = makeCard3D(cardOf(ids[k]), false, i === 0 ? 1 : .74); n.position.copy(o.position); n.rotation.copy(o.rotation); scene.remove(o); flipUp(n, slow);
+  RS.cards[i] = RS.cards[i].map((o, k) => { const n = makeCard3D(cardOf(ids[k]), false, i === 0 ? 1 : .74); n.position.copy(o.position); n.rotation.copy(o.rotation);
+    // the face-down card may still be flying in from the dealer (a slow or hidden tab lags the deal
+    // tween): stop it and send the face-up one to the card's real place, or it stays wherever the deal was
+    gsap.killTweensOf(o.position); gsap.killTweensOf(o.rotation); scene.remove(o); const home = holePlace(i, k); n.position.y = home.y;
+    if (i === 0) { gsap.to(n.position, { x: home.x, z: home.z, duration: dur(.25), ease: "power2.out" }); gsap.to(n.rotation, { y: home.ry, duration: dur(.25) }); }
+    flipUp(n, slow);
     // face up, the far seats' cards slide in toward the middle: at the hole spot the near rail hides their index
     if (i !== 0) { const c = S.hole.clone().addScaledVector(new THREE.Vector3(S.n.x, 0, S.n.y), S.n.y < -.3 ? -.07 : .04); const lay = n.userData.flip.children[0];
       gsap.to(n.position, { x: c.x + (k ? .15 : -.15), z: c.z, duration: dur(.45), delay: dur(.2), ease: "power2.out" }); gsap.to(n.rotation, { y: 0, duration: dur(.45), delay: dur(.2) }); const sc = RS.seats.filter(Boolean).length > 6 ? .82 : .95; gsap.to(lay.scale, { x: sc, y: sc, z: sc, duration: dur(.45), delay: dur(.2) }); }
