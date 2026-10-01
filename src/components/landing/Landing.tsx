@@ -227,7 +227,7 @@ export function Landing() {
         <Lines lines={["Dos maneras de", "perder la camisa"]} className="col-span-full text-[clamp(44px,min(6vw,8.5dvh),104px)]" />
         <div className="poster-light" data-group>
           <article
-            className="poster relative flex aspect-[3/4] min-[820px]:aspect-auto min-[820px]:h-[min(62dvh,680px)] -rotate-[1.6deg] flex-col overflow-hidden bg-[#e6dcc6] p-[clamp(22px,2.6vw,36px)] text-card-ink shadow-[0_30px_70px_rgb(0_0_0/.6)]"
+            className="poster relative flex aspect-[3/4] min-[820px]:aspect-auto min-[820px]:h-[min(60dvh,680px)] -rotate-[1.6deg] flex-col overflow-hidden bg-[#e6dcc6] p-[clamp(22px,2.6vw,36px)] text-card-ink shadow-[0_30px_70px_rgb(0_0_0/.6)]"
             data-reveal="rise"
           >
             <div className="flex justify-between font-pix text-[13px] tracking-[.1em]">
@@ -251,7 +251,7 @@ export function Landing() {
         </div>
         <div className="poster-dark min-[820px]:translate-y-6" data-group>
           <article
-            className="poster relative flex aspect-[3/4] min-[820px]:aspect-auto min-[820px]:h-[min(62dvh,680px)] rotate-[1.2deg] flex-col overflow-hidden bg-soot-800 p-[clamp(22px,2.6vw,36px)] text-paper shadow-[0_30px_70px_rgb(0_0_0/.6)]"
+            className="poster relative flex aspect-[3/4] min-[820px]:aspect-auto min-[820px]:h-[min(60dvh,680px)] rotate-[1.2deg] flex-col overflow-hidden bg-soot-800 p-[clamp(22px,2.6vw,36px)] text-paper shadow-[0_30px_70px_rgb(0_0_0/.6)]"
             data-reveal="rise"
             style={delay(0.15)}
           >

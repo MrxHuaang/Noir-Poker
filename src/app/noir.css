@@ -492,3 +492,8 @@
   .rank-big { translate: none !important; }
   .rank-step { transition-duration: .3s; }
 }
+/* Narrow screens: seven labels do not fit side by side; only the rank under
+   the light keeps its name (the big name above says it anyway). */
+@media (max-width: 639px) {
+  .rank-step:not([data-state="on"]) .rank-label { visibility: hidden; }
+}

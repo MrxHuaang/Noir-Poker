@@ -83,7 +83,7 @@ function BlindClock({ sb, bb, ante, level, next }: { sb: number; bb: number; ant
   }, [next]);
   const left = Math.max(0, Math.round((next - now) / 1000));
   return (
-    <span className="font-pix text-[13px] tracking-[.1em] text-paper-dim">
+    <span className="text-[14px] tabular-nums tracking-[.02em] text-paper-dim">
       {level > 0 ? <>NIVEL <b className="text-paper">{level}</b> · </> : null}CIEGAS <b className="text-paper">{fmt(sb)}/{fmt(bb)}</b>
       {ante > 0 ? <> · ANTE <b className="text-paper">{fmt(ante)}</b></> : null}
       {next > 0 && (
@@ -278,7 +278,7 @@ function PlayOnlinePageInner() {
   let prompt: ReactNode = null;
   if (!state) {
     prompt = <p className="scrap m-0 px-4 py-2 font-pix text-sm">{game.error ?? "Buscando la mesa…"}</p>;
-  } else if (tourney && tFinished) {
+  } else if (tourney && tFinished && (resultReady || !showdown)) {
     prompt = (
       <Plate>
         <p className="kick">Torneo terminado</p>
@@ -408,7 +408,7 @@ function PlayOnlinePageInner() {
     prompt = iVote && myVote === undefined ? (
       <Plate>
         <p className="kick">Todo al centro</p>
-        <h2 className="stencil m-0 text-4xl">¿Cuántas veces repartimos?</h2>
+        <h2 className="stencil m-0 text-3xl">¿Cuántas veces repartimos?</h2>
         <p className="m-0 text-[14px] text-paper-dim">Dos tableros solo si todos los del all-in aceptan. Si no, uno.</p>
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" className="btn-brass" onClick={() => game.vote(1).then(report)}>
@@ -432,8 +432,8 @@ function PlayOnlinePageInner() {
       <NoirTable snapshot={snapshot} cam={prefs.cam} sound={prefs.sound} fourColor={prefs.four} onShown={setShownHand}>
         {/* Top edge: the way out, the password, the room controls */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4">
-          <div className="pointer-events-auto flex items-center gap-3">
-            <span className="flex items-center gap-2 font-pix text-[13px] tracking-[.18em] text-brass-200">
+          <div className="legible pointer-events-auto flex items-center gap-3">
+            <span className="flex items-center gap-2 text-[14px] font-semibold tracking-[.08em] text-brass-200">
               <KeyholeMark className="h-6 w-auto" /> {tourney ? "TORNEO" : "MESA"} {code}
             </span>
             {state && state.phase !== "idle" && !tFinished && <BlindClock sb={state.sb} bb={state.bb} ante={state.ante ?? 0} level={state.level ?? 0} next={state.nextBlindsAt ?? 0} />}
@@ -492,12 +492,12 @@ function PlayOnlinePageInner() {
 
         {/* Middle of the room: decisions between hands */}
         {prompt && (
-          <div className={`pointer-events-none absolute inset-0 z-10 grid justify-items-center ${vote ? "content-start pt-[9vh]" : "place-items-center"}`}>{prompt}</div>
+          <div className={`pointer-events-none absolute inset-0 z-10 grid ${vote ? "content-start justify-items-start pt-[72px] pl-4 [&>.plate]:max-w-[340px] [&>.plate]:px-6 [&>.plate]:pt-7 [&>.plate]:pb-5" : "place-items-center"}`}>{prompt}</div>
         )}
 
         {/* The result, written on a scrap above the table */}
         {resultReady && state && !tFinished && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-[9%] z-10 flex flex-col items-center gap-3">
+          <div className="pointer-events-none absolute inset-x-0 bottom-[17%] z-10 flex flex-col items-center gap-3">
             {state.rabbit?.length ? (
               <p className="m-0 font-pix text-[13px] text-paper-dim">
                 Habría salido: <b className="text-paper">{state.rabbit.map(prettyCard).join("  ")}</b>

@@ -664,8 +664,12 @@ export function voteRun(st: EngineState, uid: string, n: number, now: number): v
   if (!v) throw new OnlineError("No hay nada que votar");
   if (!v.voters.includes(uid)) throw new OnlineError("Solo votan los que están en el all-in");
   v.votes[uid] = n === 2 ? 2 : 1;
-  if (v.voters.every((id) => v.votes[id] !== undefined)) resolveRunVote(st);
-  armDeadline(st, now);
+  // A vote never restarts the vote clock (a player clicking again, or a
+  // client retrying, must not keep the table waiting forever).
+  if (v.voters.every((id) => v.votes[id] !== undefined)) {
+    resolveRunVote(st);
+    armDeadline(st, now);
+  }
 }
 
 function resolveRunVote(st: EngineState): void {

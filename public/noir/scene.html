@@ -145,7 +145,7 @@ details{border-top:1px solid var(--line);padding-top:10px}
 .say::after{content:none}
 .say.on{opacity:1}
 .say b{display:block;font:700 11px var(--f-pix,monospace);color:#8e2a22;letter-spacing:.08em;text-transform:uppercase}
-.lbl.lead{border-color:var(--turn);color:var(--turn)}
+.lbl.lead{border-color:var(--turn);color:#1a1612}
 .view.film canvas{filter:grayscale(1) sepia(.3) contrast(1.28) brightness(.9)}
 .view.film .hud>*:not(.inter){opacity:0!important}
 .view .grainfx{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:25;background-image:var(--noise);mix-blend-mode:overlay;transition:opacity .4s}
@@ -492,9 +492,9 @@ const SEATS = Array.from({ length: 9 }, (_, i) => {
   // Nine chairs from the front centre both ways, leaving the far side open
   // for the dealer (a gap of ~1.6 chairs) so nobody melts into him.
   const d = P / 9.6, p = perim(i <= 4 ? i * d : P - (9 - i) * d), n = new THREE.Vector2(p.nx, p.nz), at = (d, y = FELT_Y) => new THREE.Vector3(p.x + n.x * d, y, p.z + n.y * d), tan = new THREE.Vector2(-n.y, n.x);
-  const hole = i === 0 ? new THREE.Vector3(0, FELT_Y + .004, .55) : at(-.3, FELT_Y + .004);
+  const hole = i === 0 ? new THREE.Vector3(0, FELT_Y + .004, .68) : at(-.3, FELT_Y + .004);
   const bet = i === 0 ? new THREE.Vector3(.82, FELT_Y, .42) : at(-.76, FELT_Y);
-  const btn = i === 0 ? new THREE.Vector3(-.8, FELT_Y + .02, .5) : new THREE.Vector3(hole.x + tan.x * .42, FELT_Y + .02, hole.z + tan.y * .42);
+  const btn = i === 0 ? new THREE.Vector3(-.98, FELT_Y + .02, .6) : new THREE.Vector3(hole.x + tan.x * .42, FELT_Y + .02, hole.z + tan.y * .42);
   return { p, n, tan, fig: at(i === 0 ? 1.08 : .78, 0), hole, bet, btn, front: p.nz > .5 };
 });
 SEATS[0].btn.set(-.6, FELT_Y + .02, .38);
@@ -1346,7 +1346,8 @@ async function knockDoor() { if (!door) return; sfx("knock"); peep(false); for (
    and animates them. Snapshots are coalesced so a burst never queues up. */
 const RS = { seats: Array(9).fill(null), hand: -1, board: [], boardObjs: [], cards: Array.from({ length: 9 }, () => []), ids: Array(9).fill(null), bets: Array(9).fill(0), dealer: -2, timerKey: "", lastTs: 0, shown: false, dark: false, handLbl: [], winLbl: [], leadLbl: [] };
 const cardOf = id => { if (!id || id.length < 2) return null; const r = "23456789TJQKA".indexOf(id.slice(0, -1)), s = "SHDC".indexOf(id.slice(-1)); return r < 0 || s < 0 ? null : { r, s }; };
-const MUCK = new THREE.Vector3(0, FELT_Y + .01, -.5);
+// folded cards go to the dealer's side, clear of the board
+const MUCK = new THREE.Vector3(.85, FELT_Y + .01, -.82);
 let rsPending = null, rsBusy = false;
 function remoteBoot() {
   for (let i = 0; i < 9; i++) { if (figs[i]) { scene.remove(figs[i]); figs[i] = null; } tagEls[i].hidden = true; pillEls[i].hidden = true; }
@@ -1366,8 +1367,8 @@ function oneCard(i, r, animate) {
 function showFaces(i, ids, slow) {
   const S = SEATS[i];
   RS.cards[i] = RS.cards[i].map((o, k) => { const n = makeCard3D(cardOf(ids[k]), false, i === 0 ? 1 : .74); n.position.copy(o.position); n.rotation.copy(o.rotation); scene.remove(o); flipUp(n, slow);
-    if (i !== 0) { const c = S.hole.clone().addScaledVector(new THREE.Vector3(S.n.x, 0, S.n.y), -.12); const lay = n.userData.flip.children[0];
-      gsap.to(n.position, { x: c.x + (k ? .15 : -.15), z: c.z, duration: dur(.45), delay: dur(.2), ease: "power2.out" }); gsap.to(n.rotation, { y: 0, duration: dur(.45), delay: dur(.2) }); gsap.to(lay.scale, { x: .95, y: .95, z: .95, duration: dur(.45), delay: dur(.2) }); }
+    if (i !== 0) { const c = S.hole.clone().addScaledVector(new THREE.Vector3(S.n.x, 0, S.n.y), .04); const lay = n.userData.flip.children[0];
+      gsap.to(n.position, { x: c.x + (k ? .15 : -.15), z: c.z, duration: dur(.45), delay: dur(.2), ease: "power2.out" }); gsap.to(n.rotation, { y: 0, duration: dur(.45), delay: dur(.2) }); const sc = RS.seats.filter(Boolean).length > 6 ? .82 : .95; gsap.to(lay.scale, { x: sc, y: sc, z: sc, duration: dur(.45), delay: dur(.2) }); }
     return n; });
   RS.ids[i] = ids.join(",");
 }
@@ -1389,7 +1390,7 @@ async function dealBoardIds(ids, slow) {
 }
 // All-in runout, like the big rooms: the flop slides in face down and turns
 // card by card, a pause, the turn, a heartbeat, and the river squeezed open.
-function lblSpot(i) { const h = SEATS[i].hole; if (i === 0) return new THREE.Vector3(h.x, FELT_Y + .02, h.z + .36); const n = SEATS[i].n; return new THREE.Vector3(h.x + n.x * .3, FELT_Y + .3, h.z + n.y * .3); }
+function lblSpot(i) { const h = SEATS[i].hole; if (i === 0) return new THREE.Vector3(h.x + .78, FELT_Y + .02, h.z); const n = SEATS[i].n; return new THREE.Vector3(h.x + n.x * .42, FELT_Y + .03, h.z + n.y * .42); }
 async function squeeze(o) {
   const f = o.userData.flip, y0 = o.position.y; o.userData.up = true; sfx("card");
   gsap.to(o.position, { y: y0 + .1, duration: dur(.3), ease: "sine.out" });

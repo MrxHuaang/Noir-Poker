@@ -1,10 +1,11 @@
 "use client";
 // The house rules of a table, set like a PokerNow room but written on the
-// club's paper: blinds (fixed or climbing, with an editable schedule and
-// antes), time (decision clock, time bank), dealing (auto next hand, showdown
-// pace, what to do in an all-in, rabbit hunting) and chairs (how many, whether
-// the owner lets people in, dealing to players who stepped away).
+// club's paper. Short on purpose: a one-line summary of what is set, the
+// money choice, then four index tabs (blinds, time, dealing, chairs) so only
+// one group is open at a time. Each option is one row: the question on the
+// left, rubber stamps on the right.
 // Pure form: the engine clamps and validates everything again.
+import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import type { BlindLevel, TableRules } from "@/lib/online/protocol";
 
@@ -41,6 +42,34 @@ export function schedule(sb: number, bb: number, mins: number, count = 10): Blin
   return out;
 }
 
+/** The rules in one line, for the top of the form and the table's book. */
+export function rulesSummary(setup: TableSetup, tournament = false): string[] {
+  const r = setup.rules;
+  const first = r.levels[0];
+  return [
+    r.levels.length
+      ? `Ciegas desde ${fmt(first.sb)}/${fmt(first.bb)}, suben cada ${first.mins || "∞"} min`
+      : `Ciegas ${fmt(setup.sb)}/${fmt(setup.bb)}${r.ante ? ` + ante ${fmt(r.ante)}` : ""}`,
+    `${fmt(setup.stack)} fichas`,
+    r.turnSecs ? `${r.turnSecs} s por turno` : "sin reloj",
+    tournament ? "un tablero" : r.runItMode === "ask" ? "all-in: se pregunta" : r.runItMode === "twice" ? "all-in: dos tableros" : "all-in: un tablero",
+    `${r.maxSeats} sillas`,
+  ];
+}
+
+/** One question, one row: the label on the left, the stamps on the right. */
+function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="grid items-start gap-x-4 gap-y-1.5 min-[620px]:grid-cols-[minmax(0,13rem)_minmax(0,1fr)]">
+      <div className="pt-1.5">
+        <span className="block text-[14px] font-semibold leading-snug text-brass-200">{label}</span>
+        {hint && <span className="mt-0.5 block text-[12.5px] leading-snug text-paper-mute">{hint}</span>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
 function Stamps<T extends string | number | boolean>({
   label,
   value,
@@ -57,9 +86,8 @@ function Stamps<T extends string | number | boolean>({
   locked?: boolean;
 }) {
   return (
-    <div className="grid gap-1.5" role="radiogroup" aria-label={label}>
-      <span className="text-[13.5px] font-semibold text-brass-200">{label}</span>
-      <div className="flex flex-wrap gap-2">
+    <Row label={label} hint={hint}>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label}>
         {options.map((o) => (
           <button
             key={String(o.v)}
@@ -74,8 +102,7 @@ function Stamps<T extends string | number | boolean>({
           </button>
         ))}
       </div>
-      {hint && <span className="text-[13px] text-paper-mute">{hint}</span>}
-    </div>
+    </Row>
   );
 }
 
@@ -91,14 +118,13 @@ function Num({ value, onChange, label, w = "w-20" }: { value: number; onChange: 
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <fieldset className="m-0 grid gap-4 border-0 border-t-2 border-dotted border-brass-700/70 p-0 pt-4">
-      <legend className="float-left mb-1 w-full text-lg font-bold tracking-[-.01em] text-paper">{title}</legend>
-      {children}
-    </fieldset>
-  );
-}
+type Tab = "ciegas" | "tiempo" | "reparto" | "sillas";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "ciegas", label: "Ciegas" },
+  { key: "tiempo", label: "Tiempo" },
+  { key: "reparto", label: "Reparto" },
+  { key: "sillas", label: "Sillas" },
+];
 
 export function TableRulesForm({
   value,
@@ -116,6 +142,7 @@ export function TableRulesForm({
   casual?: boolean;
   onCasual?: (casual: boolean) => void;
 }) {
+  const [tab, setTab] = useState<Tab>("ciegas");
   const r = value.rules;
   const set = (p: Partial<TableRules>) => onChange({ ...value, rules: { ...r, ...p } });
   const rising = r.levels.length > 0;
@@ -123,7 +150,17 @@ export function TableRulesForm({
   const setLevel = (i: number, p: Partial<BlindLevel>) => set({ levels: levels.map((l, k) => (k === i ? { ...l, ...p } : l)) });
 
   return (
-    <div className="legible grid gap-5">
+    <div className="legible grid gap-4">
+      {/* What is set, at a glance */}
+      <p className="m-0 flex flex-wrap gap-x-2 gap-y-1 text-[13.5px] text-paper-dim" aria-label="Resumen de las reglas">
+        {rulesSummary(value, tournament).map((s, i) => (
+          <span key={s}>
+            {i > 0 && <span className="mr-2 text-brass-700">·</span>}
+            {s}
+          </span>
+        ))}
+      </p>
+
       {onCasual && (
         <Stamps
           label="Fichas"
@@ -137,207 +174,228 @@ export function TableRulesForm({
         />
       )}
 
-      <Section title="Ciegas">
-        <Stamps
-          label="Las ciegas"
-          value={rising}
-          locked={tournament}
-          onChange={(v) => set({ levels: v ? schedule(value.sb, value.bb, 10) : [] })}
-          options={[
-            { v: false, label: "Fijas", off: tournament },
-            { v: true, label: "Suben con el reloj" },
-          ]}
-        />
-        {!rising ? (
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="grid gap-1 text-[13px] text-paper-mute">
-              Ciega chica
-              <Num label="Ciega chica" value={value.sb} onChange={(sb) => onChange({ ...value, sb, bb: Math.max(value.bb, sb) })} />
-            </label>
-            <label className="grid gap-1 text-[13px] text-paper-mute">
-              Ciega grande
-              <Num label="Ciega grande" value={value.bb} onChange={(bb) => onChange({ ...value, bb })} />
-            </label>
-            <label className="grid gap-1 text-[13px] text-paper-mute">
-              Ante
-              <Num label="Ante" value={r.ante} onChange={(ante) => set({ ante })} />
-            </label>
-          </div>
-        ) : (
-          <div className="grid gap-2">
-            <div className="grid grid-cols-[28px_repeat(4,minmax(0,1fr))_28px] items-center gap-2 text-[12.5px] font-medium text-paper-mute">
-              <span>Nº</span>
-              <span>Chica</span>
-              <span>Grande</span>
-              <span>Ante</span>
-              <span>Minutos</span>
-              <span />
-            </div>
-            {levels.map((l, i) => (
-              <div key={i} className="grid grid-cols-[28px_repeat(4,minmax(0,1fr))_28px] items-center gap-2">
-                <b className="text-sm text-brass-200 tabular-nums">{i + 1}</b>
-                <Num label={`Nivel ${i + 1} ciega chica`} value={l.sb} w="w-full" onChange={(sb) => setLevel(i, { sb })} />
-                <Num label={`Nivel ${i + 1} ciega grande`} value={l.bb} w="w-full" onChange={(bb) => setLevel(i, { bb })} />
-                <Num label={`Nivel ${i + 1} ante`} value={l.ante} w="w-full" onChange={(ante) => setLevel(i, { ante })} />
-                {i === levels.length - 1 ? (
-                  <span className="text-center text-[12.5px] text-paper-mute" title="El último nivel no termina">
-                    sin fin
-                  </span>
-                ) : (
-                  <Num label={`Nivel ${i + 1} minutos`} value={l.mins} w="w-full" onChange={(mins) => setLevel(i, { mins })} />
-                )}
-                <button
-                  type="button"
-                  aria-label={`Quitar nivel ${i + 1}`}
-                  disabled={levels.length <= 1}
-                  onClick={() => set({ levels: levels.filter((_, k) => k !== i).map((x, k, a) => (k === a.length - 1 ? { ...x, mins: 0 } : x)) })}
-                  className="grid h-7 w-7 place-items-center text-paper-dim hover:text-blood-400 disabled:opacity-20"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+      {/* Index tabs: one group open at a time */}
+      <div className="grid gap-4">
+        <div role="tablist" aria-label="Reglas de la mesa" className="flex gap-1 border-b-2 border-brass-700/70">
+          {TABS.map((t) => {
+            const on = t.key === tab;
+            return (
               <button
+                key={t.key}
                 type="button"
-                className="btn-brass btn-sm"
-                onClick={() => {
-                  const last = levels[levels.length - 1] ?? { sb: value.sb, bb: value.bb, ante: 0, mins: 10 };
-                  const prev = levels.map((x, k) => (k === levels.length - 1 ? { ...x, mins: x.mins || 10 } : x));
-                  set({ levels: [...prev, { sb: last.sb * 2, bb: last.bb * 2, ante: last.ante * 2, mins: 0 }] });
-                }}
+                role="tab"
+                aria-selected={on}
+                onClick={() => setTab(t.key)}
+                className={`-mb-0.5 border-2 border-b-0 px-3.5 py-1.5 text-[14px] font-semibold transition-colors [clip-path:polygon(6px_0,calc(100%-6px)_0,100%_100%,0_100%)] ${
+                  on ? "border-brass-700/70 bg-[rgb(0_0_0/.28)] text-tungsten-400" : "border-transparent text-paper-dim hover:text-paper"
+                }`}
               >
-                <Plus className="h-4 w-4" aria-hidden /> Añadir nivel
+                {t.label}
               </button>
-              {[5, 10, 15, 20].map((m) => (
-                <button key={m} type="button" className="stamp" onClick={() => set({ levels: schedule(value.sb, value.bb, m) })}>
-                  Cada {m} min
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <Stamps
-          label={tournament ? "Fichas de salida" : "Fichas al sentarse"}
-          value={value.stack}
-          onChange={(stack) => onChange({ ...value, stack })}
-          options={[500, 1000, 2000, 5000, 10000].map((v) => ({ v, label: fmt(v), off: v < value.bb * 20 }))}
-        />
-      </Section>
+            );
+          })}
+        </div>
 
-      <Section title="Tiempo">
-        <Stamps
-          label="Tiempo para decidir"
-          value={r.turnSecs}
-          onChange={(turnSecs) => set({ turnSecs })}
-          options={[
-            { v: 15, label: "15 s" },
-            { v: 20, label: "20 s" },
-            { v: 30, label: "30 s" },
-            { v: 60, label: "60 s" },
-            { v: 0, label: "Sin límite" },
-          ]}
-        />
-        <Stamps
-          label="Cigarrillo de reserva (banco de tiempo)"
-          value={r.bankSecs}
-          onChange={(bankSecs) => set({ bankSecs })}
-          options={[
-            { v: 0, label: "Ninguno" },
-            { v: 15, label: "15 s" },
-            { v: 30, label: "30 s" },
-            { v: 60, label: "60 s" },
-          ]}
-        />
-        {r.bankSecs > 0 && (
-          <Stamps
-            label="Se repone cada"
-            value={r.bankHands}
-            onChange={(bankHands) => set({ bankHands })}
-            options={[5, 10, 20].map((v) => ({ v, label: `${v} manos` }))}
-          />
-        )}
-      </Section>
+        <div role="tabpanel" className="grid gap-4">
+          {tab === "ciegas" && (
+            <>
+              <Stamps
+                label="Las ciegas"
+                value={rising}
+                locked={tournament}
+                onChange={(v) => set({ levels: v ? schedule(value.sb, value.bb, 10) : [] })}
+                options={[
+                  { v: false, label: "Fijas", off: tournament },
+                  { v: true, label: "Suben con el reloj" },
+                ]}
+              />
+              {!rising ? (
+                <Row label="Chica, grande y ante">
+                  <Num label="Ciega chica" value={value.sb} onChange={(sb) => onChange({ ...value, sb, bb: Math.max(value.bb, sb) })} />
+                  <span className="text-paper-mute">/</span>
+                  <Num label="Ciega grande" value={value.bb} onChange={(bb) => onChange({ ...value, bb })} />
+                  <span className="ml-2 text-[13px] text-paper-mute">ante</span>
+                  <Num label="Ante" value={r.ante} onChange={(ante) => set({ ante })} />
+                </Row>
+              ) : (
+                <>
+                  <Row label="Subir cada" hint="Rehace la tabla desde el primer nivel.">
+                    {[5, 10, 15, 20].map((m) => (
+                      <button key={m} type="button" role="radio" aria-checked={levels[0]?.mins === m} className="stamp" onClick={() => set({ levels: schedule(value.sb, value.bb, m) })}>
+                        {m} min
+                      </button>
+                    ))}
+                  </Row>
+                  <div className="max-h-[232px] overflow-y-auto border border-brass-700/50 bg-[rgb(0_0_0/.18)]">
+                    <div className="sticky top-0 z-[1] grid grid-cols-[28px_repeat(4,minmax(0,1fr))_28px] items-center gap-2 bg-[#21180d] px-2 py-1.5 text-[12.5px] font-medium text-paper-mute">
+                      <span>Nº</span>
+                      <span>Chica</span>
+                      <span>Grande</span>
+                      <span>Ante</span>
+                      <span>Minutos</span>
+                      <span />
+                    </div>
+                    {levels.map((l, i) => (
+                      <div key={i} className="grid grid-cols-[28px_repeat(4,minmax(0,1fr))_28px] items-center gap-2 px-2 py-1">
+                        <b className="text-sm tabular-nums text-brass-200">{i + 1}</b>
+                        <Num label={`Nivel ${i + 1} ciega chica`} value={l.sb} w="w-full" onChange={(sb) => setLevel(i, { sb })} />
+                        <Num label={`Nivel ${i + 1} ciega grande`} value={l.bb} w="w-full" onChange={(bb) => setLevel(i, { bb })} />
+                        <Num label={`Nivel ${i + 1} ante`} value={l.ante} w="w-full" onChange={(ante) => setLevel(i, { ante })} />
+                        {i === levels.length - 1 ? (
+                          <span className="text-center text-[12.5px] text-paper-mute" title="El último nivel no termina">
+                            sin fin
+                          </span>
+                        ) : (
+                          <Num label={`Nivel ${i + 1} minutos`} value={l.mins} w="w-full" onChange={(mins) => setLevel(i, { mins })} />
+                        )}
+                        <button
+                          type="button"
+                          aria-label={`Quitar nivel ${i + 1}`}
+                          disabled={levels.length <= 1}
+                          onClick={() => set({ levels: levels.filter((_, k) => k !== i).map((x, k, a) => (k === a.length - 1 ? { ...x, mins: 0 } : x)) })}
+                          className="grid h-7 w-7 place-items-center text-paper-dim hover:text-blood-400 disabled:opacity-20"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-brass btn-sm w-fit"
+                    onClick={() => {
+                      const last = levels[levels.length - 1] ?? { sb: value.sb, bb: value.bb, ante: 0, mins: 10 };
+                      const prev = levels.map((x, k) => (k === levels.length - 1 ? { ...x, mins: x.mins || 10 } : x));
+                      set({ levels: [...prev, { sb: last.sb * 2, bb: last.bb * 2, ante: last.ante * 2, mins: 0 }] });
+                    }}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden /> Añadir nivel
+                  </button>
+                </>
+              )}
+              <Stamps
+                label={tournament ? "Fichas de salida" : "Fichas al sentarse"}
+                value={value.stack}
+                onChange={(stack) => onChange({ ...value, stack })}
+                options={[500, 1000, 2000, 5000, 10000].map((v) => ({ v, label: fmt(v), off: v < value.bb * 20 }))}
+              />
+            </>
+          )}
 
-      <Section title="Reparto">
-        <Stamps
-          label="La siguiente mano"
-          value={r.autoStart}
-          onChange={(autoStart) => set({ autoStart })}
-          options={[
-            { v: true, label: "Se reparte sola" },
-            { v: false, label: "La reparte el anfitrión" },
-          ]}
-        />
-        <Stamps
-          label="Tiempo para ver cómo acabó la mano"
-          value={r.showdownSecs}
-          onChange={(showdownSecs) => set({ showdownSecs })}
-          options={[
-            { v: 3, label: "Rápido" },
-            { v: 6, label: "Normal" },
-            { v: 9, label: "Lento" },
-          ]}
-        />
-        {!tournament && (
-          <Stamps
-            label="En un all-in"
-            value={r.runItMode}
-            onChange={(runItMode) => set({ runItMode })}
-            options={[
-              { v: "ask", label: "Preguntar a los jugadores" },
-              { v: "once", label: "Siempre un tablero" },
-              { v: "twice", label: "Siempre dos tableros" },
-            ]}
-            hint={r.runItMode === "ask" ? "Se reparte dos veces solo si todos los del all-in aceptan." : undefined}
-          />
-        )}
-        <Stamps
-          label="Enseñar las manos cuando ya nadie puede apostar"
-          value={r.revealAllIn}
-          onChange={(revealAllIn) => set({ revealAllIn })}
-          options={[
-            { v: true, label: "Sí" },
-            { v: false, label: "No" },
-          ]}
-        />
-        <Stamps
-          label="Ver las cartas que habrían salido"
-          value={r.rabbit}
-          onChange={(rabbit) => set({ rabbit })}
-          options={[
-            { v: true, label: "Sí" },
-            { v: false, label: "No" },
-          ]}
-        />
-      </Section>
+          {tab === "tiempo" && (
+            <>
+              <Stamps
+                label="Tiempo para decidir"
+                value={r.turnSecs}
+                onChange={(turnSecs) => set({ turnSecs })}
+                options={[
+                  { v: 15, label: "15 s" },
+                  { v: 20, label: "20 s" },
+                  { v: 30, label: "30 s" },
+                  { v: 60, label: "60 s" },
+                  { v: 0, label: "Sin límite" },
+                ]}
+              />
+              <Stamps
+                label="Cigarrillo de reserva"
+                hint="Tiempo extra cuando se acaba el tuyo."
+                value={r.bankSecs}
+                onChange={(bankSecs) => set({ bankSecs })}
+                options={[
+                  { v: 0, label: "Ninguno" },
+                  { v: 15, label: "15 s" },
+                  { v: 30, label: "30 s" },
+                  { v: 60, label: "60 s" },
+                ]}
+              />
+              {r.bankSecs > 0 && (
+                <Stamps label="Se repone cada" value={r.bankHands} onChange={(bankHands) => set({ bankHands })} options={[5, 10, 20].map((v) => ({ v, label: `${v} manos` }))} />
+              )}
+            </>
+          )}
 
-      <Section title="Sillas">
-        <Stamps
-          label="Jugadores como máximo"
-          value={r.maxSeats}
-          onChange={(maxSeats) => set({ maxSeats })}
-          options={[2, 4, 6, 8, 9].map((v) => ({ v, label: String(v) }))}
-        />
-        <Stamps
-          label="Quién se sienta"
-          value={r.approveSeats}
-          onChange={(approveSeats) => set({ approveSeats })}
-          options={[
-            { v: false, label: "Cualquiera con el enlace" },
-            { v: true, label: "El anfitrión deja pasar" },
-          ]}
-        />
-        <Stamps
-          label="A quien se ausenta"
-          value={r.dealAway}
-          onChange={(dealAway) => set({ dealAway })}
-          options={[
-            { v: false, label: "No se le reparte" },
-            { v: true, label: "Se le reparte igual" },
-          ]}
-        />
-      </Section>
+          {tab === "reparto" && (
+            <>
+              <Stamps
+                label="La siguiente mano"
+                value={r.autoStart}
+                onChange={(autoStart) => set({ autoStart })}
+                options={[
+                  { v: true, label: "Se reparte sola" },
+                  { v: false, label: "La reparte el anfitrión" },
+                ]}
+              />
+              <Stamps
+                label="Pausa al terminar la mano"
+                value={r.showdownSecs}
+                onChange={(showdownSecs) => set({ showdownSecs })}
+                options={[
+                  { v: 3, label: "Corta" },
+                  { v: 6, label: "Normal" },
+                  { v: 9, label: "Larga" },
+                ]}
+              />
+              {!tournament && (
+                <Stamps
+                  label="En un all-in"
+                  hint={r.runItMode === "ask" ? "Dos tableros solo si todos los del all-in aceptan." : undefined}
+                  value={r.runItMode}
+                  onChange={(runItMode) => set({ runItMode })}
+                  options={[
+                    { v: "ask", label: "Preguntar" },
+                    { v: "once", label: "Un tablero" },
+                    { v: "twice", label: "Dos tableros" },
+                  ]}
+                />
+              )}
+              <Stamps
+                label="Enseñar las manos en el all-in"
+                hint="Cuando ya nadie puede apostar."
+                value={r.revealAllIn}
+                onChange={(revealAllIn) => set({ revealAllIn })}
+                options={[
+                  { v: true, label: "Sí" },
+                  { v: false, label: "No" },
+                ]}
+              />
+              <Stamps
+                label="Cartas que habrían salido"
+                hint="Al ganar sin showdown."
+                value={r.rabbit}
+                onChange={(rabbit) => set({ rabbit })}
+                options={[
+                  { v: true, label: "Enseñar" },
+                  { v: false, label: "No" },
+                ]}
+              />
+            </>
+          )}
+
+          {tab === "sillas" && (
+            <>
+              <Stamps label="Jugadores como máximo" value={r.maxSeats} onChange={(maxSeats) => set({ maxSeats })} options={[2, 4, 6, 8, 9].map((v) => ({ v, label: String(v) }))} />
+              <Stamps
+                label="Quién se sienta"
+                value={r.approveSeats}
+                onChange={(approveSeats) => set({ approveSeats })}
+                options={[
+                  { v: false, label: "Cualquiera con el enlace" },
+                  { v: true, label: "El anfitrión deja pasar" },
+                ]}
+              />
+              <Stamps
+                label="A quien se ausenta"
+                value={r.dealAway}
+                onChange={(dealAway) => set({ dealAway })}
+                options={[
+                  { v: false, label: "No se le reparte" },
+                  { v: true, label: "Se le reparte igual" },
+                ]}
+              />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
