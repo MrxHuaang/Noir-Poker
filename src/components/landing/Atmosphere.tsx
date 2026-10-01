@@ -32,20 +32,31 @@ export function Atmosphere() {
     const speed = calm ? 0.35 : 1;
     let W = 0;
     let H = 0;
-    const fit = () => {
-      W = cv.width = window.innerWidth;
-      H = cv.height = window.innerHeight;
-    };
-    fit();
-    window.addEventListener("resize", fit);
-
     const puffs = Array.from({ length: 16 }, () => ({
       x: Math.random(),
       y: Math.random(),
       r: 0.12 + Math.random() * 0.22,
       vx: (Math.random() - 0.5) * 0.00006,
       a: 0.025 + Math.random() * 0.03,
+      R: 0,
+      gr: null as CanvasGradient | null,
     }));
+    // Each puff's gradient is built once per size around the origin and drawn
+    // through a translate, instead of a new gradient per puff per frame.
+    const fit = () => {
+      W = cv.width = window.innerWidth;
+      H = cv.height = window.innerHeight;
+      for (const p of puffs) {
+        p.R = p.r * Math.max(W, H);
+        const gr = g.createRadialGradient(0, 0, 0, 0, 0, p.R);
+        gr.addColorStop(0, `rgba(${NOIR.smokeRgb},${p.a})`);
+        gr.addColorStop(1, `rgba(${NOIR.smokeRgb},0)`);
+        p.gr = gr;
+      }
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    const dust = `rgb(${NOIR.dustRgb})`;
     const motes = Array.from({ length: 70 }, () => ({
       x: Math.random(),
       y: Math.random(),
@@ -68,21 +79,22 @@ export function Atmosphere() {
         if (p.x < -0.3) p.x = 1.3;
         if (p.x > 1.3) p.x = -0.3;
         const y = (((p.y - sy) % 1) + 1) % 1;
-        const R = p.r * Math.max(W, H);
-        const gr = g.createRadialGradient(p.x * W, y * H, 0, p.x * W, y * H, R);
-        gr.addColorStop(0, `rgba(${NOIR.smokeRgb},${p.a})`);
-        gr.addColorStop(1, `rgba(${NOIR.smokeRgb},0)`);
-        g.fillStyle = gr;
-        g.fillRect(p.x * W - R, y * H - R, R * 2, R * 2);
+        const R = p.R;
+        g.setTransform(1, 0, 0, 1, p.x * W, y * H);
+        g.fillStyle = p.gr!;
+        g.fillRect(-R, -R, R * 2, R * 2);
       }
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      // Same colour for every mote; the twinkle rides on globalAlpha.
+      g.fillStyle = dust;
       for (const m of motes) {
         m.y -= m.v * dt;
         if (m.y < -0.02) m.y = 1.02;
         const y = (((m.y - sy * 2) % 1) + 1) % 1;
-        const tw = 0.35 + Math.sin(t / 900 + m.p) * 0.25;
-        g.fillStyle = `rgba(${NOIR.dustRgb},${tw})`;
+        g.globalAlpha = 0.35 + Math.sin(t / 900 + m.p) * 0.25;
         g.fillRect(m.x * W + Math.sin(t / 2000 + m.p) * 8, y * H, m.s, m.s);
       }
+      g.globalAlpha = 1;
     };
     const onVis = () => {
       cancelAnimationFrame(raf);

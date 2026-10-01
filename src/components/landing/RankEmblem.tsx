@@ -45,11 +45,32 @@ function subscribe(fn: Sub) {
 export function RankEmblem({ tier, className }: { tier: number; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const ctx = ref.current?.getContext("2d");
-    if (!ctx) return;
+    const cv = ref.current;
+    const ctx = cv?.getContext("2d");
+    if (!cv || !ctx) return;
     const frames = framesFor(tier);
-    ctx.putImageData(frames[frame], 0, 0);
-    return subscribe((f) => ctx.putImageData(frames[f], 0, 0));
+    const paint = (f: number) => ctx.putImageData(frames[f], 0, 0);
+    paint(frame);
+    // Only on the shared ticker while on screen: the ladder is a long pinned
+    // section and the ticker stops entirely once no emblem is visible.
+    let off: (() => void) | null = null;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting && !off) {
+          paint(frame);
+          off = subscribe(paint);
+        } else if (!e.isIntersecting && off) {
+          off();
+          off = null;
+        }
+      },
+      { rootMargin: "100px" },
+    );
+    io.observe(cv);
+    return () => {
+      io.disconnect();
+      off?.();
+    };
   }, [tier]);
   return (
     <canvas

@@ -1,5 +1,20 @@
+"use client";
+import { useSyncExternalStore } from "react";
 import type { CastId } from "@/lib/noirCast";
 import { sceneUrl } from "@/lib/noirCast";
+
+// Regulars only show from 820px up (max-[820px]:hidden). Below that the
+// iframe is not mounted at all: a display:none iframe still boots a full
+// three.js scene (browsers load hidden iframes eagerly).
+const WIDE = "(min-width: 820px)";
+const subscribeWide = (cb: () => void) => {
+  const mq = window.matchMedia(WIDE);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
+function useWide() {
+  return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false);
+}
 
 /**
  * A regular stepping into the gap between two sections: one animated
@@ -26,6 +41,7 @@ export function Cameo({
   act?: "fall";
 }) {
   const wide = act === "fall";
+  const shown = useWide();
   return (
     <div className={`cameo cameo-${side} pointer-events-none relative z-[1] h-0 max-[820px]:hidden`} data-group>
       <figure
@@ -35,13 +51,15 @@ export function Cameo({
         style={{ top: y }}
       >
         <div className="h-full w-full" data-reveal={side === "r" ? "slide-r" : "slide-l"}>
-          <iframe
-            src={sceneUrl("cameo", { id, turn, ...(act ? { act } : {}) })}
-            title={title}
-            loading="lazy"
-            tabIndex={-1}
-            className="block h-full w-full border-0 bg-transparent"
-          />
+          {shown && (
+            <iframe
+              src={sceneUrl("cameo", { id, turn, ...(act ? { act } : {}) })}
+              title={title}
+              loading="lazy"
+              tabIndex={-1}
+              className="block h-full w-full border-0 bg-transparent"
+            />
+          )}
         </div>
       </figure>
     </div>
@@ -54,10 +72,11 @@ export function Cameo({
  * the hat. Behind the content like the cameos.
  */
 export function Walker({ id, title, className = "" }: { id: CastId; title: string; className?: string }) {
+  const shown = useWide();
   return (
     <div className={`pointer-events-none absolute inset-x-0 z-[1] h-[clamp(150px,15vw,210px)] max-[820px]:hidden ${className}`} aria-hidden data-group>
       <div className="h-full w-full" data-reveal="up">
-        <iframe src={sceneUrl("cameo", { id, act: "walk" })} title={title} loading="lazy" tabIndex={-1} className="block h-full w-full border-0 bg-transparent" />
+        {shown && <iframe src={sceneUrl("cameo", { id, act: "walk" })} title={title} loading="lazy" tabIndex={-1} className="block h-full w-full border-0 bg-transparent" />}
       </div>
     </div>
   );
