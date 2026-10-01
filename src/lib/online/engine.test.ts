@@ -208,7 +208,7 @@ describe("online engine", () => {
     expect(new Set(st.runs.map((r) => r.board.join())).size).toBe(2);
   });
 
-  it("auto-checks or folds on timeout and stands up stale players", () => {
+  it("auto-checks or folds on timeout and skips stale players without standing them up", () => {
     const st = room(3);
     startHand(st, "p1", NOW);
     const first = st.betting!.toAct;
@@ -217,8 +217,11 @@ describe("online engine", () => {
     expect(st.betting!.seats.find((s) => s.id === first)!.status).toBe("folded");
     const second = st.betting!.toAct;
     expect(timeout(st, st.deadline + 1, (id) => id === second)).toBe(true);
-    expect(st.players[second]).toBeUndefined();
-    expect(st.payouts.map((p) => p.uid)).toContain(second);
+    // A dropped connection keeps the seat: the deal stands them up only
+    // after a long absence (markPresence).
+    expect(st.players[second]).toBeDefined();
+    expect(st.gone?.[second]).toBe(true);
+    expect(st.payouts.map((p) => p.uid)).not.toContain(second);
   });
 
   it("leaving mid-hand folds and pays the stack behind", () => {

@@ -115,9 +115,10 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow create, update: if isSignedIn()
           && request.auth.uid == uid
-          && request.resource.data.keys().hasOnly(['uid', 'at'])
+          && request.resource.data.keys().hasOnly(['uid', 'at', 'watch'])
           && request.resource.data.uid == uid
-          && request.resource.data.at == request.time;
+          && request.resource.data.at == request.time
+          && (!('watch' in request.resource.data) || request.resource.data.watch == true);
         allow delete: if isSignedIn() && request.auth.uid == uid;
       }
 
@@ -125,6 +126,13 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow write: if false;
       }
+    }
+
+    // Running stats across online hands, written by the API route only.
+    // Public to signed-in players (shown on profiles).
+    match /playerStats/{uid} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
 
     // Normal + Tournament rooms

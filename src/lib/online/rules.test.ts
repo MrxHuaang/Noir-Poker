@@ -99,7 +99,8 @@ describe("run it: the game asks", () => {
     startHand(st, "p1", NOW);
     allIn(st);
     expect(st.runVote).toBeDefined();
-    expect(Object.keys(publicView(st).reveals ?? {})).toHaveLength(2);
+    // Nobody sees the other hand while the vote is open.
+    expect(Object.keys(publicView(st).reveals ?? {})).toHaveLength(0);
     voteRun(st, "p1", 2, NOW);
     expect(st.phase).not.toBe("showdown");
     voteRun(st, "p2", 2, NOW);

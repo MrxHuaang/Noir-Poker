@@ -97,6 +97,15 @@ export async function POST(req: Request) {
       case "kick":
         await online.kick(uid, code, String(body.target ?? ""));
         return NextResponse.json({ ok: true });
+      case "show":
+        await online.show(uid, code);
+        return NextResponse.json({ ok: true });
+      case "react":
+        await online.react(uid, code, String(body.kind ?? ""));
+        return NextResponse.json({ ok: true });
+      case "back":
+        await online.back(uid, code);
+        return NextResponse.json({ ok: true });
       default:
         return NextResponse.json({ error: "Accion desconocida" }, { status: 400 });
     }

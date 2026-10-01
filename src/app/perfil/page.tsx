@@ -13,6 +13,9 @@ import { DAILY_BONUS, availableCoins, dailyBonusReady, escrowedTotal } from "@/l
 import { CAST, castFromSeed, sceneUrl, seedForCast, type CastId } from "@/lib/noirCast";
 import { NoirRoom } from "@/components/noir/NoirRoom";
 import { CharacterPicker } from "@/components/noir/CharacterPicker";
+import { subscribePlayerStats } from "@/lib/online/client";
+import { statsView, styleOf } from "@/lib/online/stats";
+import type { PlayerStatsDoc } from "@/lib/online/protocol";
 
 const fmt = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
@@ -27,6 +30,12 @@ export default function ExpedientePage() {
   const [claimMsg, setClaimMsg] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [stats, setStats] = useState<PlayerStatsDoc | null>(null);
+
+  useEffect(() => {
+    if (!uid || isGuest) return;
+    return subscribePlayerStats(uid, setStats);
+  }, [uid, isGuest]);
 
   useEffect(() => {
     if (!uid || isGuest) return;
@@ -97,6 +106,18 @@ export default function ExpedientePage() {
       setClaiming(false);
     }
   }
+
+  const sv = statsView(stats);
+  const style = styleOf(sv);
+  const play: { label: string; hint: string; value: string }[] = [
+    { label: "Manos en el registro", hint: "en mesas online", value: fmt(sv.hands) },
+    { label: "Entra al bote", hint: "pone fichas por gusto antes del flop", value: `${sv.vpip}%` },
+    { label: "Sube antes del flop", hint: "", value: `${sv.pfr}%` },
+    { label: "Ve el flop", hint: "", value: `${sv.sawFlop}%` },
+    { label: "Llega al showdown", hint: "de las veces que ve el flop", value: `${sv.wtsd}%` },
+    { label: "Gana en el showdown", hint: "", value: `${sv.wsd}%` },
+    { label: "Botes ganados", hint: "", value: fmt(sv.potsWon) },
+  ];
 
   const tags: { label: string; value: string; note?: string }[] = [
     { label: "Fichas", value: fmt(availableCoins(profile)), note: locked > 0 ? `${fmt(locked)} en la mesa` : "en el monedero" },
@@ -214,6 +235,35 @@ export default function ExpedientePage() {
               {t.note && <p className="m-0 text-[13px] text-[#5a4d3e]">{t.note}</p>}
             </div>
           ))}
+        </section>
+
+        {/* How you play: the house's notes, from every online hand */}
+        <section className="legible grid gap-4" aria-label="Cómo juegas">
+          <h2 className="stencil m-0 text-[clamp(32px,3.4vw,52px)]">Cómo juegas</h2>
+          {sv.hands === 0 ? (
+            <p className="m-0 text-paper-dim">La casa todavía no te ha visto jugar en una mesa online. Las notas empiezan con la primera mano.</p>
+          ) : (
+            <div className="grid max-w-[860px] gap-3 bg-[linear-gradient(170deg,#ece3cf,#d6c7a8)] p-5 text-card-ink shadow-[0_20px_40px_rgb(0_0_0/.45)]">
+              {style && (
+                <p className="m-0 text-[17px] font-semibold">
+                  Nota de la casa: <span className="text-blood-500">{style}.</span>
+                </p>
+              )}
+              <dl className="m-0 grid gap-x-8 gap-y-1.5 min-[640px]:grid-cols-2">
+                {play.map((r) => (
+                  <div key={r.label} className="flex items-baseline gap-3">
+                    <dt className="flex-none text-[15px]">
+                      {r.label}
+                      {r.hint && <span className="ml-1.5 text-[12.5px] text-[#5a4d3e]">{r.hint}</span>}
+                    </dt>
+                    <span className="flex-1 -translate-y-1 border-b-2 border-dotted border-[#8a7f6d]" aria-hidden />
+                    <dd className="m-0 flex-none text-[15px] font-semibold tabular-nums">{r.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {sv.hands < 30 && <p className="m-0 text-[13px] text-[#5a4d3e]">Con pocas manos los números todavía se mueven mucho.</p>}
+            </div>
+          )}
         </section>
 
         {/* Rank ladder */}

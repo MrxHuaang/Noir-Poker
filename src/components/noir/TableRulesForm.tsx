@@ -25,6 +25,9 @@ export const CLUB_RULES: TableRules = {
   maxSeats: 9,
   approveSeats: false,
   dealAway: false,
+  straddle: false,
+  bombEvery: 0,
+  bombBB: 2,
 };
 
 const fmt = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -53,6 +56,8 @@ export function rulesSummary(setup: TableSetup, tournament = false): string[] {
     `${fmt(setup.stack)} fichas`,
     r.turnSecs ? `${r.turnSecs} s por turno` : "sin reloj",
     tournament ? "un tablero" : r.runItMode === "ask" ? "all-in: se pregunta" : r.runItMode === "twice" ? "all-in: dos tableros" : "all-in: un tablero",
+    ...(r.straddle ? ["straddle"] : []),
+    ...(r.bombEvery ? [`bote bomba cada ${r.bombEvery} manos`] : []),
     `${r.maxSeats} sillas`,
   ];
 }
@@ -272,6 +277,36 @@ export function TableRulesForm({
                     <Plus className="h-4 w-4" aria-hidden /> Añadir nivel
                   </button>
                 </>
+              )}
+              <Stamps
+                label="Straddle"
+                hint="El que va después de la grande pone dos grandes y habla último antes del flop. Con 3 o más."
+                value={r.straddle}
+                onChange={(straddle) => set({ straddle })}
+                options={[
+                  { v: false, label: "No" },
+                  { v: true, label: "Siempre" },
+                ]}
+              />
+              <Stamps
+                label="Bote bomba"
+                hint="Todos ponen lo mismo y la mano empieza en el flop."
+                value={r.bombEvery}
+                onChange={(bombEvery) => set({ bombEvery })}
+                options={[
+                  { v: 0, label: "Nunca" },
+                  { v: 5, label: "Cada 5 manos" },
+                  { v: 10, label: "Cada 10" },
+                  { v: 20, label: "Cada 20" },
+                ]}
+              />
+              {r.bombEvery > 0 && (
+                <Stamps
+                  label="Cada uno pone"
+                  value={r.bombBB}
+                  onChange={(bombBB) => set({ bombBB })}
+                  options={[1, 2, 3, 5].map((v) => ({ v, label: `${v} ${v === 1 ? "grande" : "grandes"}` }))}
+                />
               )}
               <Stamps
                 label={tournament ? "Fichas de salida" : "Fichas al sentarse"}

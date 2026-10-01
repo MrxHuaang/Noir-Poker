@@ -18,6 +18,7 @@ import type {
   OnlineHandDoc,
   OnlineHoleDoc,
   OnlineRoomDoc,
+  PlayerStatsDoc,
 } from "./protocol";
 
 export class OnlineApiError extends Error {
@@ -51,14 +52,17 @@ export async function callOnline<T = Record<string, unknown>>(
   return data;
 }
 
+// `live` is false while the snapshot comes from the local cache only (the
+// connection dropped): the table shows it is reconnecting.
 export function subscribeOnlineRoom(
   code: string,
-  cb: (room: OnlineRoomDoc | null) => void,
+  cb: (room: OnlineRoomDoc | null, live: boolean) => void,
   onError: (err: Error) => void,
 ): () => void {
   return onSnapshot(
     doc(getDb(), "onlineRooms", code),
-    (snap) => cb(snap.exists() ? (snap.data() as OnlineRoomDoc) : null),
+    { includeMetadataChanges: true },
+    (snap) => cb(snap.exists() ? (snap.data() as OnlineRoomDoc) : null, !snap.metadata.fromCache),
     (err) => onError(err),
   );
 }
@@ -75,29 +79,35 @@ export function subscribeOnlineHole(
   );
 }
 
-export async function writeOnlinePresence(code: string, uid: string): Promise<void> {
+// `watch` marks an observer (not seated): counted as an onlooker, never dealt in.
+export async function writeOnlinePresence(code: string, uid: string, watch = false): Promise<void> {
   await setDoc(doc(getDb(), "onlineRooms", code, "presence", uid), {
     uid,
     at: serverTimestamp(),
+    ...(watch ? { watch: true } : {}),
   });
 }
 
-// Heartbeat timestamps of everyone in the room (ms since epoch; 0 if pending).
+// Heartbeat timestamps of everyone in the room (ms since epoch; 0 if pending),
+// and which of them are only watching.
 export function subscribeOnlinePresence(
   code: string,
-  cb: (at: Record<string, number>) => void,
+  cb: (at: Record<string, number>, watchers: Set<string>) => void,
 ): () => void {
   return onSnapshot(
     collection(getDb(), "onlineRooms", code, "presence"),
     (snap) => {
       const out: Record<string, number> = {};
+      const watchers = new Set<string>();
       snap.forEach((d) => {
-        const at = d.data().at as { toMillis?: () => number } | null;
+        const data = d.data();
+        const at = data.at as { toMillis?: () => number } | null;
         out[d.id] = at && typeof at.toMillis === "function" ? at.toMillis() : Date.now();
+        if (data.watch === true) watchers.add(d.id);
       });
-      cb(out);
+      cb(out, watchers);
     },
-    () => cb({}),
+    () => cb({}, new Set()),
   );
 }
 
@@ -109,6 +119,15 @@ export function subscribeOnlineHands(
     query(collection(getDb(), "onlineRooms", code, "hands"), orderBy("handNum", "desc"), limit(50)),
     (snap) => cb(snap.docs.map((d) => d.data() as OnlineHandDoc)),
     () => cb([]),
+  );
+}
+
+// Running stats of a player across online hands (written by the server).
+export function subscribePlayerStats(uid: string, cb: (stats: PlayerStatsDoc | null) => void): () => void {
+  return onSnapshot(
+    doc(getDb(), "playerStats", uid),
+    (snap) => cb(snap.exists() ? (snap.data() as PlayerStatsDoc) : null),
+    () => cb(null),
   );
 }
 

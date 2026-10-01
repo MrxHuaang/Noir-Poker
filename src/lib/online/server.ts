@@ -10,6 +10,7 @@
 //   onlineRooms/{code}/holes/{uid}     that player's hole cards (owner only)
 //   onlineRooms/{code}/presence/{uid}  heartbeats written by the clients
 //   onlineRooms/{code}/hands/{n}       authoritative hand records (XP source)
+//   playerStats/{uid}                  running stats across online hands
 //   roomLedgers/online-{code}          zero-sum ledger of the room's coins
 //
 // The coin economy is settled inside the same transaction as the game move:
@@ -24,10 +25,13 @@ import { cappedCredit } from "../economy";
 import * as E from "./engine";
 import { OnlineError, type EngineState, type Payout } from "./engine";
 import {
+  PRESENCE_GONE_MS,
   PRESENCE_STALE_MS,
   type OnlineConfigInput,
+  type OnlineHandDoc,
   type OnlineRoomDoc,
 } from "./protocol";
+import { statDeltas } from "./stats";
 
 const ROOMS = "onlineRooms";
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -140,7 +144,9 @@ async function runRoom<R>(
 ): Promise<{ result: R; payouts: Payout[]; state: EngineState }> {
   const r = refs(code);
   const now = Date.now();
-  return adminDb().runTransaction(async (tx) => {
+  let hand: OnlineHandDoc | null = null;
+  const res = await adminDb().runTransaction(async (tx) => {
+    hand = null;
     const snap = await tx.get(r.engine);
     if (!snap.exists) throw new OnlineError("La sala no existe", 404);
     const st = JSON.parse(String(snap.data()!.json)) as EngineState;
@@ -205,6 +211,7 @@ async function runRoom<R>(
     if (settled) {
       const rec = E.handRecord(st, now);
       if (rec) tx.set(r.hands.doc(String(st.handNum)), plain(rec));
+      hand = rec;
     }
     if (needLedger) {
       tx.set(
@@ -231,6 +238,56 @@ async function runRoom<R>(
     }
     return { result: out.result, payouts, state: st };
   });
+  if (hand) await recordStats(hand).catch(() => {});
+  return res;
+}
+
+// Player stats from the hand that just settled. Best-effort, outside the
+// game transaction: a lost increment never blocks the table.
+async function recordStats(rec: OnlineHandDoc): Promise<void> {
+  const db = adminDb();
+  const deltas = statDeltas(rec);
+  const batch = db.batch();
+  const now = Date.now();
+  for (const [uid, d] of Object.entries(deltas)) {
+    const inc: Record<string, unknown> = { updatedAt: now };
+    for (const [k, v] of Object.entries(d)) if (v) inc[k] = FieldValue.increment(v);
+    batch.set(db.collection("playerStats").doc(uid), inc, { merge: true });
+  }
+  await batch.commit();
+  // The biggest pot is a maximum, not a sum: read and compare per winner.
+  await Promise.all(
+    Object.entries(deltas)
+      .filter(([, d]) => d.chipsWon > 0)
+      .map(([uid, d]) =>
+        db.runTransaction(async (tx) => {
+          const ref = db.collection("playerStats").doc(uid);
+          const snap = await tx.get(ref);
+          const best = Math.floor(Number(snap.data()?.biggestPot ?? 0)) || 0;
+          if (d.chipsWon > best) tx.set(ref, { biggestPot: d.chipsWon }, { merge: true });
+        }),
+      ),
+  );
+}
+
+// How long ago each player's last heartbeat was (Infinity when missing).
+async function presenceAges(
+  tx: Transaction,
+  code: string,
+  st: EngineState,
+  now: number,
+  only?: string[],
+): Promise<Map<string, number>> {
+  const ids = only ?? Object.keys(st.players);
+  const r = refs(code);
+  const snaps = await Promise.all(ids.map((id) => tx.get(r.presence.doc(id))));
+  const ages = new Map<string, number>();
+  snaps.forEach((s, i) => {
+    const at = s.exists ? (s.data()!.at as { toMillis?: () => number } | undefined) : undefined;
+    const ms = at && typeof at.toMillis === "function" ? at.toMillis() : 0;
+    ages.set(ids[i], ms ? now - ms : Number.POSITIVE_INFINITY);
+  });
+  return ages;
 }
 
 // Uids whose heartbeat is missing or older than PRESENCE_STALE_MS.
@@ -241,16 +298,16 @@ async function stalePlayers(
   now: number,
   only?: string[],
 ): Promise<Set<string>> {
-  const ids = only ?? Object.keys(st.players);
-  const r = refs(code);
-  const snaps = await Promise.all(ids.map((id) => tx.get(r.presence.doc(id))));
-  const stale = new Set<string>();
-  snaps.forEach((s, i) => {
-    const at = s.exists ? (s.data()!.at as { toMillis?: () => number } | undefined) : undefined;
-    const ms = at && typeof at.toMillis === "function" ? at.toMillis() : 0;
-    if (now - ms > PRESENCE_STALE_MS) stale.add(ids[i]);
-  });
-  return stale;
+  const ages = await presenceAges(tx, code, st, now, only);
+  return new Set([...ages].filter(([, a]) => a > PRESENCE_STALE_MS).map(([id]) => id));
+}
+
+// Before a deal: the long gone stand up, the recently gone are skipped, the
+// returned are dealt in again. `here` is the caller (obviously connected).
+async function checkPresence(tx: Transaction, code: string, st: EngineState, now: number, here?: string): Promise<boolean> {
+  const ages = await presenceAges(tx, code, st, now);
+  if (here) ages.set(here, 0);
+  return E.markPresence(st, (id) => ages.get(id) ?? Number.POSITIVE_INFINITY, PRESENCE_STALE_MS, PRESENCE_GONE_MS, now);
 }
 
 // XP + history for players whose coin stack just left a table. Best-effort,
@@ -346,11 +403,9 @@ export async function leave(uid: string, code: string): Promise<void> {
 
 export async function start(uid: string, code: string): Promise<void> {
   const { payouts } = await runRoom(code, async (st, { tx, now }) => {
-    // Stand up everyone whose heartbeat went stale (closed tab, crash) before
-    // dealing. The caller is obviously here.
-    const stale = await stalePlayers(tx, code, st, now);
-    stale.delete(uid);
-    for (const id of stale) E.leave(st, id, now);
+    // Skip (or after a long absence stand up) everyone whose heartbeat went
+    // stale (closed tab, crash) before dealing.
+    await checkPresence(tx, code, st, now, uid);
     E.startHand(st, uid, now);
     return { result: null, changed: true };
   });
@@ -380,10 +435,9 @@ export async function tick(code: string): Promise<{ applied: boolean; retryInMs:
       if (!st.deadline || now < st.deadline) {
         return { result: { applied: false, retryInMs: st.deadline ? Math.max(0, st.deadline - now) : 0 }, changed: false };
       }
-      const stale = await stalePlayers(tx, code, st, now);
-      for (const id of stale) E.leave(st, id, now);
+      const marked = await checkPresence(tx, code, st, now);
       const applied = E.autoNext(st, now);
-      return { result: { applied, retryInMs: 0 }, changed: applied || stale.size > 0 };
+      return { result: { applied, retryInMs: 0 }, changed: applied || marked };
     }
     // All-in vote: when its clock runs out the missing votes count as "once".
     if (st.runVote) {
@@ -414,6 +468,28 @@ export async function vote(uid: string, code: string, n: number): Promise<void> 
     return { result: null, changed: true };
   });
   await recordPayoutSessions(code, payouts);
+}
+
+// Turns your cards face up after the hand.
+export async function show(uid: string, code: string): Promise<void> {
+  await runRoom(code, async (st) => {
+    E.show(st, uid);
+    return { result: null, changed: true };
+  });
+}
+
+// A gesture at the table.
+export async function react(uid: string, code: string, kind: string): Promise<void> {
+  await runRoom(code, async (st, { now }) => {
+    E.react(st, uid, kind, now);
+    return { result: null, changed: true };
+  });
+}
+
+// Back after a dropped connection: dealt in again from the next hand (the
+// client also wrote a fresh heartbeat).
+export async function back(uid: string, code: string): Promise<void> {
+  await runRoom(code, async (st) => ({ result: null, changed: E.back(st, uid), presenceFor: uid }));
 }
 
 // Steps away from the table (or comes back).

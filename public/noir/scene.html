@@ -772,6 +772,8 @@ function gesture(i, kind) {
   const f = figs[i]; if (!f || RM) return; const u = f.userData;
   if (kind === "hat") gsap.to(u.hat.rotation, { x: -.55, duration: .22, yoyo: true, repeat: 1, ease: "power2.out" });
   if (kind === "tap") { const h = u.hands[1]; gsap.to(h.position, { y: h.position.y - .07, duration: .09, yoyo: true, repeat: 3, ease: "power1.inOut" }); }
+  if (kind === "laugh") { gsap.to(u.top.rotation, { x: -.1, duration: .09, yoyo: true, repeat: 7, ease: "sine.inOut" }); gsap.to(u.hat.rotation, { x: -.25, duration: .18, yoyo: true, repeat: 3 }); }
+  if (kind === "glare") { gsap.to(u.top.rotation, { x: .22, duration: .35, yoyo: true, repeat: 1, repeatDelay: .9, ease: "power2.out" }); u.eyes.forEach(e => gsap.to(e.scale, { y: .35, duration: .2, yoyo: true, repeat: 1, repeatDelay: .9 })); }
   if (kind === "puff") { gsap.to(u.top.rotation, { x: -.15, duration: .4, yoyo: true, repeat: 1 }); if (u.ember) { gsap.to(u.ember.scale, { x: 2, y: 2, z: 2, duration: .3, yoyo: true, repeat: 1 }); setTimeout(() => { for (let k = 0; k < 7; k++) setTimeout(() => puff(u.ember, .5), k * 60); }, 600); } }
 }
 
@@ -1170,8 +1172,20 @@ function idleTic(u, t) {
 function puff(ember, op = .35) { const w = new THREE.Vector3(); ember.getWorldPosition(w); const m = new THREE.Mesh(smokeGeo, new THREE.MeshBasicMaterial({ color: 0x806b56, transparent: true, opacity: op, depthWrite: false })); m.position.copy(w); m.userData.life = 0; m.userData.op = op; scene.add(m); smoke.push(m); }
 let lightningAt = performance.now() + 6000, flashUntil = 0;
 let readySent = false;
+// The loop sleeps while nobody can see the scene: the tab is hidden, or this
+// iframe is scrolled out of the page's viewport (the observer's implicit root
+// is the top-level viewport). The landing stacks several scenes; only the
+// ones on screen draw. Clocks are absolute or clamped, so waking is seamless.
+let rafId = 0, onScreen = true;
+const awake = () => onScreen && !document.hidden;
+function wake() { if (!rafId && readySent && awake()) rafId = requestAnimationFrame(frame); }
+document.addEventListener("visibilitychange", wake);
+if (parent !== window && "IntersectionObserver" in window) new IntersectionObserver(es => { onScreen = es[es.length - 1].isIntersecting; wake(); }, { rootMargin: "160px" }).observe(view);
+let frameT = 0; const tickFig = f => { if (!f) return; const u = f.userData; if (u.orbit) u.orbit.rotation.y += .025; if (u.crystal) u.crystal.material.opacity = .6 + Math.sin(frameT / 300) * .25; idleTic(u, frameT); };
 function frame(t) {
-  requestAnimationFrame(frame);
+  rafId = 0;
+  if (readySent && !awake()) return;
+  rafId = requestAnimationFrame(frame);
   if (!readySent) { readySent = true; requestAnimationFrame(() => { if (parent !== window) parent.postMessage({ sceneReady: MODE }, location.origin); }); }
   const amb = OPT.ambient === "on" && !RM;
   lampPivot.rotation.z = amb ? Math.sin(t / 1150) * .035 : 0; lampPivot.rotation.x = amb ? Math.cos(t / 1700) * .02 : 0;
@@ -1185,9 +1199,9 @@ function frame(t) {
   if (amb) figs.forEach(f => { if (!f) return; const u = f.userData; if (u.ember && f.visible && Math.random() < .012) puff(u.ember, .2); if (u.eyes.length && Math.random() < .004) { u.eyes.forEach(e => e.scale.y = .1); setTimeout(() => u.eyes.forEach(e => e.scale.y = 1), 130); } if (Math.random() < .0006) gesture(figs.indexOf(f), ["hat", "tap", "puff"][Math.floor(Math.random() * 3)]); });
   if (CAMEO_ACT) stageCameo(t);
   if (cameoFig && !RM) { const u = cameoFig.userData; if (u.ember && Math.random() < .015) puff(u.ember, .2); u.torso.scale.y = 1 + Math.sin(t / 900) * .012; }
-  [...figs, ...lineFigs, ...(cameoFig ? [cameoFig] : [])].forEach(f => { if (!f || RM) return; const u = f.userData; if (u.orbit) u.orbit.rotation.y += .025; if (u.crystal) u.crystal.material.opacity = .6 + Math.sin(t / 300) * .25; idleTic(u, t); });
-  for (let k = smoke.length - 1; k >= 0; k--) { const m = smoke[k]; m.userData.life += 16; m.position.y += .004; m.position.x += Math.sin((m.userData.life + k * 90) / 500) * .002; m.scale.setScalar(1 + m.userData.life / 900); m.material.opacity = Math.max(0, m.userData.op - m.userData.life / 5200); if (m.material.opacity <= 0) { scene.remove(m); smoke.splice(k, 1); } }
-  if (pvFig) { pvFig.rotation.y = RM ? .5 : Math.sin(t / 1600) * .9; pvR.render(pvScene, pvCam); }
+  if (!RM) { frameT = t; figs.forEach(tickFig); lineFigs.forEach(tickFig); tickFig(cameoFig); }
+  for (let k = smoke.length - 1; k >= 0; k--) { const m = smoke[k]; m.userData.life += 16; m.position.y += .004; m.position.x += Math.sin((m.userData.life + k * 90) / 500) * .002; m.scale.setScalar(1 + m.userData.life / 900); m.material.opacity = Math.max(0, m.userData.op - m.userData.life / 5200); if (m.material.opacity <= 0) { scene.remove(m); m.material.dispose(); smoke.splice(k, 1); } }
+  if (pvFig && pvR) { pvFig.rotation.y = RM ? .5 : Math.sin(t / 1600) * .9; pvR.render(pvScene, pvCam); }
   if (!rt) return;
   renderer.setRenderTarget(rt); renderer.setClearColor(BG, 1); renderer.render(scene, camera);
   scene.background = null; camera.layers.set(CARD_LAYER); renderer.setRenderTarget(cardRT); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, camera); camera.layers.set(0); scene.background = BG;
@@ -1196,12 +1210,14 @@ function frame(t) {
 }
 
 /* ================================================================== preview + options */
-const pvR = new THREE.WebGLRenderer({ canvas: $("#preview"), antialias: false }); pvR.setPixelRatio(1); pvR.setSize(59, 74, false);
+// The preview lives in the side panel, which is hidden in every mode: only open
+// a second WebGL context for it when it is actually on screen.
+const pvR = $("#preview").getClientRects().length ? new THREE.WebGLRenderer({ canvas: $("#preview"), antialias: false }) : null; if (pvR) { pvR.setPixelRatio(1); pvR.setSize(59, 74, false); }
 const pvScene = new THREE.Scene(); pvScene.background = new THREE.Color(0x0b0908); pvScene.add(new THREE.HemisphereLight(0x4a5266, 0x160f0b, 1.6));
 const pvKey = new THREE.SpotLight(0xffd9a8, 18, 8, .7, .6, 1.2); pvKey.position.set(.4, 3, 1.4); pvKey.target.position.set(0, 1, 0); pvScene.add(pvKey, pvKey.target);
 const pvCam = new THREE.PerspectiveCamera(32, 59 / 74, .1, 20); pvCam.position.set(0, 1.25, 3.1); pvCam.lookAt(0, .95, 0);
 let pvFig = null;
-function buildPreview() { if (pvFig) pvScene.remove(pvFig); const a = ARCH.find(x => x.id === OPT.me) || ARCH[0]; pvFig = makeFigure(a, .5, a.pose); pvScene.add(pvFig); $("#pvName").textContent = a.name; $("#pvDesc").textContent = a.alias; }
+function buildPreview() { if (pvFig) pvScene.remove(pvFig); const a = ARCH.find(x => x.id === OPT.me) || ARCH[0]; if (pvR) { pvFig = makeFigure(a, .5, a.pose); pvScene.add(pvFig); } $("#pvName").textContent = a.name; $("#pvDesc").textContent = a.alias; }
 $("#chars").innerHTML = `<button type="button" id="reselect" style="grid-column:1/-1">Cambiar de personaje</button>`;
 $("#chars").addEventListener("click", e => { if (e.target.closest("#reselect")) G.wantSelect = true; $("#reselect").textContent = "Se abre al terminar esta mano"; });
 function applyPlace() { Object.entries(places).forEach(([k, g]) => g.visible = k === OPT.place); const u = places[OPT.place].userData; floorMat.map = u.floor; floorMat.needsUpdate = true; $("#tname").textContent = u.name; if (u.moon) moon.position.set(...u.moon);
@@ -1367,7 +1383,8 @@ function oneCard(i, r, animate) {
 function showFaces(i, ids, slow) {
   const S = SEATS[i];
   RS.cards[i] = RS.cards[i].map((o, k) => { const n = makeCard3D(cardOf(ids[k]), false, i === 0 ? 1 : .74); n.position.copy(o.position); n.rotation.copy(o.rotation); scene.remove(o); flipUp(n, slow);
-    if (i !== 0) { const c = S.hole.clone().addScaledVector(new THREE.Vector3(S.n.x, 0, S.n.y), .04); const lay = n.userData.flip.children[0];
+    // face up, the far seats' cards slide in toward the middle: at the hole spot the near rail hides their index
+    if (i !== 0) { const c = S.hole.clone().addScaledVector(new THREE.Vector3(S.n.x, 0, S.n.y), S.n.y < -.3 ? -.07 : .04); const lay = n.userData.flip.children[0];
       gsap.to(n.position, { x: c.x + (k ? .15 : -.15), z: c.z, duration: dur(.45), delay: dur(.2), ease: "power2.out" }); gsap.to(n.rotation, { y: 0, duration: dur(.45), delay: dur(.2) }); const sc = RS.seats.filter(Boolean).length > 6 ? .82 : .95; gsap.to(lay.scale, { x: sc, y: sc, z: sc, duration: dur(.45), delay: dur(.2) }); }
     return n; });
   RS.ids[i] = ids.join(",");
@@ -1403,11 +1420,15 @@ async function squeeze(o) {
 }
 // During a public all-in runout (every hand is face up) each hand's current
 // strength is written next to it, the leader in gold, as the board comes.
+// The win chance (computed by the page from the public hands, keyed by board
+// size) rides on the same scrap until the river makes it moot.
 function runoutLabels(s) {
-  clearLabels(RS.leadLbl); const board = RS.board.map(cardOf).filter(Boolean); if (board.length < 3) return;
-  const ev = []; s.seats.forEach((n, i) => { if (!n || !Array.isArray(n.cards) || n.cards.length !== 2 || n.status === "folded") return; const cs = [...n.cards.map(cardOf), ...board]; if (cs.some(c => !c)) return; ev.push({ i, txt: describe(cs), sc: best7(cs).score }); });
-  if (ev.length < 2) return; const top = Math.max(...ev.map(e => e.sc));
-  ev.forEach(e => { const h = SEATS[e.i].hole, l = document.createElement("div"); l.className = "lbl" + (e.sc === top ? " lead" : ""); l.textContent = e.txt; hud.appendChild(l); pin(l, lblSpot(e.i)); RS.leadLbl.push(l); });
+  clearLabels(RS.leadLbl); const board = RS.board.map(cardOf).filter(Boolean), len = board.length;
+  const ev = []; s.seats.forEach((n, i) => { if (!n || !Array.isArray(n.cards) || n.cards.length !== 2 || n.status === "folded") return; const cs = [...n.cards.map(cardOf), ...board]; if (cs.some(c => !c)) return;
+    const eq = len < 5 && n.eq ? n.eq[len] : undefined; if (len < 3 && eq === undefined) return;
+    ev.push({ i, txt: len >= 3 ? describe(cs) : "", eq, sc: len >= 3 ? best7(cs).score : 0 }); });
+  if (ev.length < 2) return; const has = ev.every(e => e.eq !== undefined), key = e => has ? e.eq : e.sc, top = Math.max(...ev.map(key));
+  ev.forEach(e => { const l = document.createElement("div"); l.className = "lbl" + (key(e) === top ? " lead" : ""); l.textContent = e.eq !== undefined ? (e.txt ? e.txt + " · " : "") + e.eq + "%" : e.txt; hud.appendChild(l); pin(l, lblSpot(e.i)); RS.leadLbl.push(l); });
 }
 async function runoutBoard(ids, s) {
   const slide = (id, k) => { const idx = RS.board.length; RS.board.push(id); const o = makeCard3D(cardOf(id), false); o.position.set(DEAL_FROM.x, FELT_Y + .3, DEAL_FROM.z); o.rotation.y = rnd(-.5, .5);
@@ -1440,7 +1461,7 @@ async function applySnap(s) {
   // 2. a new hand clears the felt and deals
   const live = s.phase !== "idle", newHand = live && s.hand !== RS.hand;
   if (!live && (RS.board.length || RS.cards.some(c => c.length) || RS.shown)) { await remoteClear(); RS.shown = false; }
-  if (newHand) { if (RS.hand >= 0 || RS.board.length) await remoteClear(); RS.hand = s.hand; RS.shown = false; say(Math.random() < .5 ? "Hagan sus apuestas." : "Cartas al aire, caballeros."); }
+  if (newHand) { if (RS.hand >= 0 || RS.board.length) await remoteClear(); RS.hand = s.hand; RS.shown = false; say(s.bomb ? "Bote bomba. Todos adentro, directo al flop." : Math.random() < .5 ? "Hagan sus apuestas." : "Cartas al aire, caballeros.", s.bomb ? 2600 : undefined); }
   if (!live) RS.hand = -1;
   if (s.dealer !== RS.dealer) { dealerBtn.visible = s.dealer >= 0; if (s.dealer >= 0) gsap.to(dealerBtn.position, { x: SEATS[s.dealer].btn.x, z: SEATS[s.dealer].btn.z, duration: dur(.5), ease: "power2.inOut" }); RS.dealer = s.dealer; }
   // mirror the public numbers into the seat cards
@@ -1467,10 +1488,13 @@ async function applySnap(s) {
   G.pot = s.pot; setPot();
   // 7. the board; an all-in runout shows the hands first and deals slowly in the dark
   const known = (n, i) => n && Array.isArray(n.cards) && RS.ids[i] !== n.cards.join(",") && RS.cards[i].length === 2;
-  if (streetChanged && s.allin && !RS.dark) { stopTimer(); RS.timerKey = ""; say("Todo al centro. Que nadie respire.", 2600); sfx("heart"); s.seats.forEach((n, i) => { if (known(n, i)) showFaces(i, n.cards, 1.6); }); await sleep(900); darkRoom(true); RS.dark = true; await sleep(1200); }
+  if (streetChanged && s.allin && !RS.dark) { stopTimer(); RS.timerKey = ""; say("Todo al centro. Que nadie respire.", 2600); sfx("heart"); s.seats.forEach((n, i) => { if (known(n, i)) showFaces(i, n.cards, 1.6); }); await sleep(900); darkRoom(true); RS.dark = true; runoutLabels(s); await sleep(1200); }
   if (streetChanged) { const add = s.board.slice(RS.board.length); if (!RS.dark) say({ 3: "El flop.", 4: "Cuarta calle.", 5: "Y el río." }[s.board.length] || "", 1500); if (RS.dark) await runoutBoard(add, s); else await dealBoardIds(add, false); }
   // 8. faces: own cards as soon as they arrive, everyone's at showdown
   s.seats.forEach((n, i) => { if (known(n, i)) showFaces(i, n.cards, n.me ? 1 : 1.2); });
+  // a gesture from the table: the figure acts it out, a scrap names it (so it
+  // still reads with reduced motion, where figures keep still)
+  const rx = s.reaction; if (rx && rx.ts > (RS.reactTs || 0)) { RS.reactTs = rx.ts; if (Date.now() - rx.ts < 6000 && s.seats[rx.chair]) { gesture(rx.chair, rx.kind); const f = SEATS[rx.chair].fig, l = document.createElement("div"); l.className = "lbl"; l.textContent = { hat: "Se toca el sombrero", tap: "Golpea la mesa", puff: "Echa el humo", laugh: "Se ríe", glare: "Mira fijo" }[rx.kind] || ""; hud.appendChild(l); pin(l, new THREE.Vector3(f.x, SEATS[rx.chair].front ? .55 : 2.05, f.z)); setTimeout(() => { anchors.delete(l); l.remove(); }, 2200); } }
   // 9. seat cards, turn and the cigarette clock
   G.toAct = s.turn; for (let i = 0; i < 9; i++) if (s.seats[i]) renderSeat(i);
   const tk = s.turn >= 0 && s.deadline ? s.hand + ":" + s.turn + ":" + s.deadline : "";
@@ -1489,7 +1513,7 @@ applyAll(); resize(); setDock(false); dealerBtn.position.copy(SEATS[G.dealer].bt
 (async () => { try { await Promise.all([document.fonts.load('700 16px "Pixelify Sans"'), document.fonts.load('600 14px "Geist"'), document.fonts.load('32px "Limelight"')]); } catch (e) {}
   $("#loading").remove();
   if (MODE === "lineup") buildLineup(); else if (MODE === "door") buildDoor(); else if (MODE === "cameo") buildCameo();
-  requestAnimationFrame(frame);
+  if (!rafId) rafId = requestAnimationFrame(frame);
   if (MODE === "select") { openSelect(); return; }
   if (MODE === "remote") { remoteBoot(); return; }
   if (MODE === "table" || MODE === "embed") playHand(); })();

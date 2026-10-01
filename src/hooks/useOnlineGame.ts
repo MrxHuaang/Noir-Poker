@@ -16,6 +16,7 @@ import {
 } from "@/lib/online/client";
 import {
   PRESENCE_HEARTBEAT_MS,
+  PRESENCE_STALE_MS,
   type OnlineAction,
   type OnlineConfigInput,
   type OnlineHoleDoc,
@@ -30,6 +31,10 @@ export type OnlineGame = {
   state: PublicState | null;
   hole: string[] | null;
   presence: Record<string, number>;
+  /** Signed-in people watching without a seat (fresh heartbeat). */
+  watchers: number;
+  /** False while the connection to the room is down (cached state only). */
+  online: boolean;
   busy: OnlineAction | null;
   // Every action resolves to an error message (Spanish, from the server) or null.
   sit: () => Promise<string | null>;
@@ -45,6 +50,8 @@ export type OnlineGame = {
   approve: (target: string) => Promise<string | null>;
   deny: (target: string) => Promise<string | null>;
   kick: (target: string) => Promise<string | null>;
+  show: () => Promise<string | null>;
+  react: (kind: string) => Promise<string | null>;
 };
 
 // Deferred stand-up on unmount, keyed by room. React Strict Mode unmounts and
@@ -58,6 +65,9 @@ export function useOnlineGame(code: string | null): OnlineGame {
   const [error, setError] = useState<string | null>(null);
   const [holeDoc, setHoleDoc] = useState<OnlineHoleDoc | null>(null);
   const [presence, setPresence] = useState<Record<string, number>>({});
+  const [watchSet, setWatchSet] = useState<Set<string>>(() => new Set());
+  const [live, setLive] = useState(true);
+  const [netUp, setNetUp] = useState(true);
   const [busy, setBusy] = useState<OnlineAction | null>(null);
 
   // Public state. Waits for auth: the rules require a signed-in reader.
@@ -66,7 +76,10 @@ export function useOnlineGame(code: string | null): OnlineGame {
     setStatus("loading");
     return subscribeOnlineRoom(
       code,
-      (doc) => {
+      (doc, fresh) => {
+        setLive(fresh);
+        // A cache-only miss right after a drop is not "the room is gone".
+        if (!doc && !fresh) return;
         setRoom(doc ? { state: doc.state } : null);
         setStatus(doc ? "ready" : "missing");
       },
@@ -88,8 +101,24 @@ export function useOnlineGame(code: string | null): OnlineGame {
 
   useEffect(() => {
     if (!code || !user) return;
-    return subscribeOnlinePresence(code, setPresence);
+    return subscribeOnlinePresence(code, (at, w) => {
+      setPresence(at);
+      setWatchSet(w);
+    });
   }, [code, user]);
+
+  // The browser's own idea of the network, for an instant "reconnecting".
+  useEffect(() => {
+    const up = () => setNetUp(true);
+    const down = () => setNetUp(false);
+    setNetUp(typeof navigator === "undefined" ? true : navigator.onLine);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
 
   const state = room?.state ?? null;
   const hole =
@@ -110,11 +139,13 @@ export function useOnlineGame(code: string | null): OnlineGame {
     presentRef.current = present;
   }, [present]);
 
-  // Heartbeat while we hold a seat (or a place in the queue).
+  // Heartbeat while we hold a seat (or a place in the queue); observers beat
+  // too, marked as watchers, so the table knows who is looking on. A beat
+  // also goes out the moment the tab comes back or the network returns.
   useEffect(() => {
-    if (!code || !uid || !present) return;
+    if (!code || !uid || !user) return;
     const beat = () => {
-      writeOnlinePresence(code, uid).catch(() => {});
+      writeOnlinePresence(code, uid, !present).catch(() => {});
     };
     beat();
     const id = setInterval(beat, PRESENCE_HEARTBEAT_MS);
@@ -122,11 +153,13 @@ export function useOnlineGame(code: string | null): OnlineGame {
       if (document.visibilityState === "visible") beat();
     };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", beat);
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", beat);
     };
-  }, [code, uid, present]);
+  }, [code, uid, user, present]);
 
   const call = useCallback(
     async (action: OnlineAction, params: Record<string, unknown> = {}) => {
@@ -145,6 +178,32 @@ export function useOnlineGame(code: string | null): OnlineGame {
     },
     [code, getToken],
   );
+
+  // Back from a dropped connection: the server kept the seat but skips us
+  // until we say we are here again.
+  const gone = !!(uid && state?.seats.some((s) => s.id === uid && s.gone));
+  const connected = live && netUp;
+  useEffect(() => {
+    if (!gone || !connected || !code || !uid) return;
+    let cancelled = false;
+    (async () => {
+      await writeOnlinePresence(code, uid).catch(() => {});
+      const token = await getToken();
+      if (token && !cancelled) callOnline(token, "back", { code }).catch(() => {});
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gone, connected, code, uid, getToken]);
+
+  // Onlookers with a fresh heartbeat (re-counted when presence changes).
+  const watchers = useMemo(() => {
+    const seated = new Set(state?.seats.map((s) => s.id) ?? []);
+    const now = Date.now();
+    let n = 0;
+    for (const id of watchSet) if (!seated.has(id) && now - (presence[id] ?? 0) < PRESENCE_STALE_MS) n++;
+    return n;
+  }, [watchSet, presence, state?.seats]);
 
   // Turn timer: once the deadline passes, ask the server to apply the
   // auto-action. The player on the clock fires first; everyone else backs off
@@ -220,9 +279,11 @@ export function useOnlineGame(code: string | null): OnlineGame {
       approve: (target: string) => call("approve", { target }),
       deny: (target: string) => call("deny", { target }),
       kick: (target: string) => call("kick", { target }),
+      show: () => call("show"),
+      react: (kind: string) => call("react", { kind }),
     }),
     [call],
   );
 
-  return { status, error, state, hole, presence, busy, ...actions };
+  return { status, error, state, hole, presence, watchers, online: connected, busy, ...actions };
 }

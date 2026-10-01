@@ -19,8 +19,12 @@ import { cardFromId, makeDeck, shuffle, type Card } from "../poker";
 import {
   DEFAULT_RULES,
   MAX_SEATED,
+  REACTIONS,
+  REACTION_GAP_MS,
   RUN_VOTE_MS,
   type BlindLevel,
+  type Reaction,
+  type ReactionKind,
   type GameWinner,
   type LedgerLine,
   type TableRules,
@@ -142,16 +146,25 @@ export type EngineState = {
   runVote?: { voters: string[]; votes: Record<string, number>; needed: number };
   rabbit?: string[];
   ledger?: { id: string; name: string; buyIn: number; out: number }[]; // players who left
+  // Lost connection (heartbeat stale): kept seated but skipped, never dealt in.
+  gone?: Record<string, boolean>;
+  straddler?: string; // posted the straddle this hand
+  bomb?: boolean; // this hand is a bomb pot
+  // Per-hand stats inputs, copied into the hand record.
+  hs?: { vpip: string[]; pfr: string[]; sawFlop: string[] };
+  reaction?: Reaction;
+  reactAt?: Record<string, number>;
 };
 
 /** Effective rules of a room (old rooms predate them). */
 export function rulesOf(st: EngineState): TableRules {
-  return st.rules ?? DEFAULT_RULES;
+  // Rooms older than a rule get its default.
+  return st.rules ? { ...DEFAULT_RULES, ...st.rules } : DEFAULT_RULES;
 }
 
 // Clamps whatever the client sent into sane rules, starting from the current ones.
 export function normalizeRules(input: Partial<TableRules> | undefined, prev: TableRules = DEFAULT_RULES): TableRules {
-  const r: TableRules = { ...prev, levels: prev.levels.map((l) => ({ ...l })) };
+  const r: TableRules = { ...DEFAULT_RULES, ...prev, levels: prev.levels.map((l) => ({ ...l })) };
   if (!input || typeof input !== "object") return r;
   const num = (v: unknown, lo: number, hi: number, fb: number) => {
     const n = Math.floor(Number(v));
@@ -176,6 +189,9 @@ export function normalizeRules(input: Partial<TableRules> | undefined, prev: Tab
   if (input.maxSeats !== undefined) r.maxSeats = num(input.maxSeats, 2, MAX_SEATED, r.maxSeats);
   if (input.approveSeats !== undefined) r.approveSeats = input.approveSeats === true;
   if (input.dealAway !== undefined) r.dealAway = input.dealAway === true;
+  if (input.straddle !== undefined) r.straddle = input.straddle === true;
+  if (input.bombEvery !== undefined) r.bombEvery = num(input.bombEvery, 0, 50, r.bombEvery ?? 0);
+  if (input.bombBB !== undefined) r.bombBB = num(input.bombBB, 1, 20, r.bombBB ?? 2);
   return r;
 }
 
@@ -185,6 +201,7 @@ export const DEFAULT_STACK = 1000;
 const MAX_STACK = 1_000_000;
 const MAX_BLIND = 100_000;
 const BLIND_CAP_SB = 800; // escalation stops doubling past 800/1600
+const GONE_TURN_MS = 3_000;
 
 function int(v: unknown): number {
   const n = Math.floor(Number(v));
@@ -418,6 +435,7 @@ export function leave(st: EngineState, uid: string, now: number): void {
   st.payouts.push({ uid, amount: behind, buyIn: p.buyIn, coins: p.coins });
   (st.ledger = st.ledger ?? []).push({ id: uid, name: p.name, buyIn: p.buyIn, out: behind });
   if (st.away) delete st.away[uid];
+  if (st.gone) delete st.gone[uid];
   if (b && seat && seat.status === "active") {
     seat.status = "folded";
     if (!b.acted.includes(uid)) b.acted.push(uid);
@@ -503,6 +521,13 @@ export function startHand(
   dealHand(st, now, deck);
 }
 
+// Players a new hand would deal in: chips, not stepped away (unless the table
+// deals to them) and not disconnected.
+function dealable(st: EngineState): string[] {
+  const rules = rulesOf(st);
+  return st.seatIds.filter((id) => (st.chips[id] ?? 0) > 0 && (rules.dealAway || !st.away?.[id]) && !st.gone?.[id]);
+}
+
 // Deals a hand; the caller checked who may deal. From here on the table keeps
 // dealing by itself (autoDeal) until it runs out of funded players or pauses.
 function dealHand(st: EngineState, now: number, deck: string[]): void {
@@ -520,7 +545,7 @@ function dealHand(st: EngineState, now: number, deck: string[]): void {
   syncSeats(st);
   const rules = rulesOf(st);
   // Players who stepped away sit this one out unless the table deals to them.
-  const funded = st.seatIds.filter((id) => (st.chips[id] ?? 0) > 0 && (rules.dealAway || !st.away?.[id]));
+  const funded = dealable(st);
   if (funded.length < 2) throw new OnlineError("Se necesitan al menos 2 jugadores con fichas");
 
   const blinds = blindsAt(st, now);
@@ -563,6 +588,10 @@ function dealHand(st: EngineState, now: number, deck: string[]): void {
   st.holes = {};
   st.leaving = {};
   st.phase = "preflop";
+  st.straddler = undefined;
+  st.hs = { vpip: [], pfr: [], sawFlop: [] };
+  // Bomb pot: every N-th hand everyone antes and the hand starts on the flop.
+  st.bomb = (rules.bombEvery ?? 0) > 0 && st.handNum % rules.bombEvery === 0;
 
   const seats: BetSeat[] = funded.map((id) => ({
     id,
@@ -612,18 +641,44 @@ function dealHand(st: EngineState, now: number, deck: string[]): void {
     if (s.chips === 0) s.status = "all-in";
   };
   // Antes are dead money: into the pot, not part of anyone's bet.
-  if (st.ante > 0) {
+  const dead = (amt: number) => {
     for (const s of seats) {
-      const put = Math.min(st.ante, s.chips);
+      const put = Math.min(amt, s.chips);
       s.chips -= put;
       s.totalBet += put;
       b.pot += put;
       if (s.chips === 0) s.status = "all-in";
     }
+  };
+  if (st.bomb) {
+    // Everyone puts the same in and nobody bets preflop: straight to the flop.
+    dead(st.bb * (rules.bombBB ?? 2));
+    st.betting = b;
+    b.currentBet = 0;
+    advanceStreet(st);
+    if (roundComplete(b)) {
+      b.toAct = "";
+      maybeAdvance(st);
+    }
+    armDeadline(st, now);
+    return;
   }
+  if (st.ante > 0) dead(st.ante);
   post(sbPos, st.sb);
   post(bbPos, st.bb);
   st.betting = b;
+  // Blind straddle: the seat after the big blind posts two big blinds, the
+  // action starts after them and they keep the last word preflop.
+  if (rules.straddle && n >= 3) {
+    const stPos = (bbPos + 1) % n;
+    if (seats[stPos].status === "active") {
+      post(stPos, st.bb * 2);
+      st.straddler = seats[stPos].id;
+      b.currentBet = Math.max(st.bb, seats[stPos].bet);
+      b.minRaise = st.bb * 2;
+      utgPos = (stPos + 1) % n;
+    }
+  }
 
   // First to act: UTG, or the next seat that can still act (a blind may be
   // all-in from posting).
@@ -651,7 +706,18 @@ export function act(
   const b = st.betting;
   if (!b || betweenHands(st)) throw new OnlineError("No hay apuestas en curso");
   if (!Number.isFinite(amount) || amount < 0) throw new OnlineError("Monto invalido");
+  const phase = st.phase;
+  const seat = b.seats.find((x) => x.id === uid);
+  const before = b.currentBet;
+  const toCall = seat ? before - seat.bet : 0;
   applyBet(b, uid, action, Math.floor(amount));
+  if (phase === "preflop" && !st.bomb && seat) {
+    // VPIP: money in by choice (a call of something, a bet, a raise); PFR: a raise.
+    const hs = (st.hs = st.hs ?? { vpip: [], pfr: [], sawFlop: [] });
+    const raised = b.currentBet > before;
+    if ((raised || (action === "call" && toCall > 0) || action === "all-in") && !hs.vpip.includes(uid)) hs.vpip.push(uid);
+    if (raised && !hs.pfr.includes(uid)) hs.pfr.push(uid);
+  }
   st.lastAction = { seatId: uid, action, ...(amount > 0 ? { amount: Math.floor(amount) } : {}), ts: now };
   st.usingBank = "";
   maybeAdvance(st);
@@ -677,6 +743,10 @@ function resolveRunVote(st: EngineState): void {
   if (!v) return;
   const n = v.voters.every((id) => v.votes[id] === 2) ? 2 : 1;
   st.runVote = undefined;
+  if (rulesOf(st).revealAllIn && st.betting) {
+    st.reveals = {};
+    for (const x of contenders(st.betting)) if (st.holes[x.id]) st.reveals[x.id] = st.holes[x.id].slice();
+  }
   runout(st, v.needed, n);
 }
 
@@ -697,6 +767,57 @@ export function setAway(st: EngineState, uid: string, away: boolean): void {
   st.away = st.away ?? {};
   if (away) st.away[uid] = true;
   else delete st.away[uid];
+}
+
+// Connection check before a deal: whoever has been gone longer than
+// `goneMs` stands up (stack cashed out), the recently gone are kept but
+// skipped, and anyone whose heartbeat is fresh again is back.
+export function markPresence(st: EngineState, ageOf: (uid: string) => number, staleMs: number, goneMs: number, now: number): boolean {
+  let changed = false;
+  for (const id of Object.keys(st.players)) {
+    const age = ageOf(id);
+    if (age > goneMs) {
+      leave(st, id, now);
+      changed = true;
+    } else if (age > staleMs) {
+      if (!st.gone?.[id]) {
+        (st.gone = st.gone ?? {})[id] = true;
+        changed = true;
+      }
+    } else if (st.gone?.[id]) {
+      delete st.gone[id];
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+// The player is back (their client says so right after reconnecting).
+export function back(st: EngineState, uid: string): boolean {
+  if (!st.gone?.[uid]) return false;
+  delete st.gone[uid];
+  return true;
+}
+
+// After a hand, a player still holding cards may turn them face up (the
+// winner of a pot nobody called, or a hand that was not shown).
+export function show(st: EngineState, uid: string): void {
+  if (st.phase !== "showdown") throw new OnlineError("Solo al terminar la mano");
+  const h = st.holes[uid];
+  const seat = st.betting?.seats.find((s) => s.id === uid);
+  if (!h || h.length !== 2 || !seat || seat.status === "folded") throw new OnlineError("No tienes cartas en esta mano");
+  if (st.reveals[uid]) return;
+  st.reveals = { ...st.reveals, [uid]: h.slice() };
+}
+
+// A gesture at the table: seated players only, one every REACTION_GAP_MS.
+export function react(st: EngineState, uid: string, kind: string, now: number): void {
+  if (!st.players[uid]) throw new OnlineError("Solo los sentados hacen gestos");
+  if (!(REACTIONS as readonly string[]).includes(kind)) throw new OnlineError("Gesto desconocido");
+  const last = st.reactAt?.[uid] ?? 0;
+  if (now - last < REACTION_GAP_MS) throw new OnlineError("Con calma", 429);
+  (st.reactAt = st.reactAt ?? {})[uid] = now;
+  st.reaction = { seatId: uid, kind: kind as ReactionKind, ts: now };
 }
 
 function ownerOnly(st: EngineState, uid: string): void {
@@ -742,8 +863,24 @@ export function timeout(
   if (!b || betweenHands(st) || st.paused || !b.toAct || !st.deadline) return false;
   if (now < st.deadline) return false;
   const id = b.toAct;
-  if (isStale(id)) {
-    leave(st, id, now);
+  const stale = isStale(id);
+  if (st.gone?.[id] && !stale) {
+    // Back from a dropped connection: the normal clock again.
+    delete st.gone[id];
+    armDeadline(st, now);
+    return true;
+  }
+  if (stale) {
+    // Lost connection: keep the seat, act for them (check or fold) without
+    // burning their time bank. They are skipped until they come back.
+    (st.gone = st.gone ?? {})[id] = true;
+    st.usingBank = "";
+    const s = b.seats.find((x) => x.id === id);
+    const check = !!s && s.bet >= b.currentBet;
+    applyBet(b, id, check ? "check" : "fold", 0);
+    st.lastAction = { seatId: id, action: check ? "check" : "fold", ts: now };
+    maybeAdvance(st);
+    armDeadline(st, now);
     return true;
   }
   // The clock ran out: light another cigarette if there is time in the bank.
@@ -774,6 +911,11 @@ function armDeadline(st: EngineState, now: number): void {
   }
   if (st.runVote && !st.paused) {
     st.deadline = now + RUN_VOTE_MS;
+    return;
+  }
+  // A disconnected player is acted for after a short beat, not a full clock.
+  if (b && !betweenHands(st) && b.toAct && !st.paused && st.gone?.[b.toAct]) {
+    st.deadline = now + GONE_TURN_MS;
     return;
   }
   const turn = rulesOf(st).turnSecs * 1000;
@@ -829,8 +971,7 @@ export function autoNext(
 ): boolean {
   if (st.phase !== "showdown" || !st.autoDeal || st.paused || !st.deadline || now < st.deadline) return false;
   syncSeats(st);
-  const funded = st.seatIds.filter((id) => (st.chips[id] ?? 0) > 0);
-  if (funded.length < 2) {
+  if (dealable(st).length < 2) {
     st.autoDeal = false;
     st.deadline = 0;
     return true;
@@ -989,12 +1130,10 @@ function maybeAdvance(st: EngineState): void {
     b.toAct = "";
     const rules = rulesOf(st);
     if (rules.runItMode === "ask" && needed > 0 && st.deck.length >= needed * 2 && live.length >= 2) {
-      // Everyone left is all-in: they choose how many boards to run.
+      // Everyone left is all-in: they choose how many boards to run. The
+      // hands stay hidden until the vote closes: a player who could see the
+      // other hand would only say "twice" when behind.
       st.runVote = { voters: live.map((x) => x.id), votes: {}, needed };
-      if (rules.revealAllIn) {
-        st.reveals = {};
-        for (const x of live) if (st.holes[x.id]) st.reveals[x.id] = st.holes[x.id].slice();
-      }
       return;
     }
     runout(st, needed, rules.runItMode === "twice" ? 2 : st.runItN > 1 ? st.runItN : 1);
@@ -1012,6 +1151,7 @@ function dealNextStreet(st: EngineState): void {
   if (st.board.length === 0) {
     st.board.push(...st.deck.slice(0, 3));
     st.deck = st.deck.slice(3);
+    if (st.betting) (st.hs = st.hs ?? { vpip: [], pfr: [], sawFlop: [] }).sawFlop = contenders(st.betting).map((x) => x.id);
   } else if (st.board.length < 5) {
     st.board.push(st.deck[0]);
     st.deck = st.deck.slice(1);
@@ -1221,6 +1361,8 @@ export function publicView(st: EngineState): PublicState {
         status: s.status,
         hasCards: s.status !== "folded" && s.status !== "out",
         ...(st.away?.[s.id] ? { away: true } : {}),
+        ...(st.gone?.[s.id] ? { gone: true } : {}),
+        ...(st.straddler === s.id ? { straddle: true } : {}),
         bank: st.bank?.[s.id] ?? 0,
       };
     });
@@ -1251,6 +1393,7 @@ export function publicView(st: EngineState): PublicState {
       status: "active",
       hasCards: false,
       ...(st.away?.[id] ? { away: true } : {}),
+      ...(st.gone?.[id] ? { gone: true } : {}),
       bank: st.bank?.[id] ?? 0,
     }));
   }
@@ -1311,6 +1454,8 @@ export function publicView(st: EngineState): PublicState {
   if (st.waiting.length) out.waiting = st.waiting.slice();
   if (joining.length) out.joining = joining;
   if (Object.keys(st.handCategories).length) out.handCategories = { ...st.handCategories };
+  if (st.bomb && live) out.bomb = true;
+  if (st.reaction) out.reaction = { ...st.reaction };
   return out;
 }
 
@@ -1330,6 +1475,10 @@ export function handRecord(st: EngineState, now: number): OnlineHandDoc | null {
     dealtIds: b.seats.map((s) => s.id),
     seatNames,
     runs: st.runs.map((r) => ({ ...r })),
+    vpip: (st.hs?.vpip ?? []).slice(),
+    pfr: (st.hs?.pfr ?? []).slice(),
+    sawFlop: (st.hs?.sawFlop ?? []).slice(),
+    ...(st.bomb ? { bomb: true } : {}),
   };
 }
 

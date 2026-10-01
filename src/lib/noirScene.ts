@@ -9,6 +9,7 @@
 // table in engine order, so a 4-handed table does not bunch up on one side.
 import { cardFromId } from "./poker";
 import { describeHand } from "./handLabel";
+import { cachedEquity } from "./equity";
 import { castFromSeed, type CastId } from "./noirCast";
 import type { PublicState } from "./online/protocol";
 
@@ -28,9 +29,17 @@ export type SceneSeat = {
   away: boolean;
   /** Spanish hand description, only for cards that are face up at showdown. */
   hand?: string;
+  /**
+   * All-in runout with every hand face up: win chance (0..100) keyed by how
+   * many board cards are out (0, 3, 4), so the scene can show the number
+   * that matches the card it just turned.
+   */
+  eq?: Record<number, number>;
 };
 
 export type SceneAction = { chair: number; text: string; kind: string; ts: number };
+
+export type SceneReaction = { chair: number; kind: string; ts: number };
 
 export type SceneSnapshot = {
   hand: number;
@@ -47,6 +56,10 @@ export type SceneSnapshot = {
   /** Everyone left is all-in: the runout is dealt slowly with the hands face up. */
   allin: boolean;
   paused: boolean;
+  /** Bomb pot: everyone antes and the hand starts on the flop. */
+  bomb: boolean;
+  /** The last table gesture (the scene plays each ts once). */
+  reaction: SceneReaction | null;
 };
 
 const POS_AFTER_BB = ["UTG", "UTG+1", "MP", "LJ", "HJ", "CO"];
@@ -113,6 +126,8 @@ export function toSceneSnapshot(
     last: null,
     allin: false,
     paused: false,
+    bomb: false,
+    reaction: null,
   };
   if (!state) return empty;
 
@@ -148,9 +163,9 @@ export function toSceneSnapshot(
       bet: s.bet,
       status,
       cards,
-      pos: pos[k],
+      pos: s.straddle ? "STR" : pos[k],
       me,
-      away: presence[s.id] === false || !!s.away,
+      away: presence[s.id] === false || !!s.away || !!s.gone,
       hand: showdown && Array.isArray(cards) && reveal ? describe(cards, state.board) : undefined,
     };
   });
@@ -160,6 +175,26 @@ export function toSceneSnapshot(
   const holding = seats.filter((s) => s.hasCards && s.status !== "folded");
   const canBet = holding.filter((s) => s.status === "active");
   const allin = live && holding.length >= 2 && canBet.length <= 1 && (showdown ? state.board.length > 0 : true);
+
+  // Win chances, only once every hand still in is public: the whole table
+  // sees the same number, so it reveals nothing the cards do not.
+  if (allin) {
+    const hands: Record<string, string[]> = {};
+    for (const s of holding) {
+      const r = state.reveals?.[s.id];
+      if (r && r.length === 2) hands[s.id] = r;
+    }
+    if (Object.keys(hands).length === holding.length) {
+      const stages = [0, 3, 4].filter((k) => k <= state.board.length);
+      for (const k of stages) {
+        const eq = cachedEquity(hands, state.board.slice(0, k));
+        for (const id of Object.keys(eq)) {
+          const seat = out[chairOf.get(id)!];
+          if (seat) seat.eq = { ...seat.eq, [k]: eq[id] };
+        }
+      }
+    }
+  }
 
   const la = state.lastAction;
   const last =
@@ -182,5 +217,10 @@ export function toSceneSnapshot(
     last,
     allin,
     paused: !!state.paused,
+    bomb: live && !!state.bomb,
+    reaction:
+      state.reaction && chairOf.has(state.reaction.seatId)
+        ? { chair: chairOf.get(state.reaction.seatId)!, kind: state.reaction.kind, ts: state.reaction.ts }
+        : null,
   };
 }

@@ -24,6 +24,9 @@ export type TableRules = {
   maxSeats: number; // 2..9
   approveSeats: boolean; // the owner lets people in
   dealAway: boolean; // deal cards to players who stepped away
+  straddle: boolean; // the player after the big blind posts a blind straddle (2 BB), 3+ players
+  bombEvery: number; // every N hands everyone antes and the hand starts on the flop; 0 = never
+  bombBB: number; // what each player puts in a bomb pot, in big blinds
 };
 
 // Engine defaults keep the behaviour of rooms created before the rules existed;
@@ -42,6 +45,9 @@ export const DEFAULT_RULES: TableRules = {
   maxSeats: 9,
   approveSeats: false,
   dealAway: false,
+  straddle: false,
+  bombEvery: 0,
+  bombBB: 2,
 };
 
 export type RunVote = { voters: string[]; votes: Record<string, number>; deadline: number };
@@ -59,6 +65,8 @@ export type PublicSeat = {
   hasCards: boolean;
   away?: boolean; // stepped away from the table (not dealt in unless dealAway)
   bank?: number; // seconds left in the time bank
+  gone?: boolean; // lost connection: skipped (checked or folded) until they come back
+  straddle?: boolean; // posted the straddle this hand
 };
 
 export type GameWinner = { id: string; amount: number };
@@ -120,7 +128,16 @@ export type PublicState = {
   requests?: { id: string; name: string }[]; // waiting for the owner to let them sit
   timeBank?: boolean; // the player on the clock is using their time bank
   ledger?: LedgerLine[]; // session book: buy-ins and stacks
+  bomb?: boolean; // this hand is a bomb pot (everyone in, starts on the flop)
+  reaction?: Reaction; // the last table gesture
 };
+
+// A gesture a seated player makes at the table (the figure acts it out).
+export const REACTIONS = ["hat", "tap", "puff", "laugh", "glare"] as const;
+export type ReactionKind = (typeof REACTIONS)[number];
+export type Reaction = { seatId: string; kind: ReactionKind; ts: number };
+// One gesture per player every this many ms (each one is a room write).
+export const REACTION_GAP_MS = 2_500;
 
 // Document shapes in Firestore.
 export type OnlineRoomDoc = {
@@ -150,6 +167,26 @@ export type OnlineHandDoc = {
   dealtIds: string[];
   seatNames: Record<string, string>;
   runs: RunResult[];
+  // Stats inputs (server-side player stats): who put money in voluntarily
+  // preflop, who raised preflop, who saw the flop. Missing on old records.
+  vpip?: string[];
+  pfr?: string[];
+  sawFlop?: string[];
+  bomb?: boolean;
+};
+
+// playerStats/{uid}: running totals across online hands (server writes only).
+export type PlayerStatsDoc = {
+  hands: number;
+  vpip: number;
+  pfr: number;
+  sawFlop: number;
+  showdowns: number;
+  showdownsWon: number;
+  potsWon: number;
+  chipsWon: number;
+  biggestPot: number;
+  updatedAt: number;
 };
 
 export type OnlineConfigInput = {
@@ -178,13 +215,19 @@ export type OnlineAction =
   | "away"
   | "approve"
   | "deny"
-  | "kick";
+  | "kick"
+  | "show"
+  | "react"
+  | "back";
 
 // Presence heartbeat cadence. A seated player whose heartbeat is older than
 // PRESENCE_STALE_MS is considered gone: the server stands them up (cashing out
 // their stack) at the next deal or when their turn times out.
 export const PRESENCE_HEARTBEAT_MS = 25_000;
 export const PRESENCE_STALE_MS = 75_000;
+// A player who lost their connection keeps the seat (skipped, never dealt in)
+// for this long before the table stands them up and cashes them out.
+export const PRESENCE_GONE_MS = 5 * 60_000;
 export const TURN_MS = 30_000;
 // How long the players in an all-in have to choose how many boards to run.
 export const RUN_VOTE_MS = 12_000;

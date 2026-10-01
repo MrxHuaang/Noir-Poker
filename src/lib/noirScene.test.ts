@@ -88,6 +88,27 @@ describe("toSceneSnapshot", () => {
       "a",
     );
     expect(snap.allin).toBe(true);
+    expect(snap.seats.some((s) => s?.eq)).toBe(false);
+  });
+
+  it("gives win chances per board stage once every all-in hand is public", () => {
+    const snap = toSceneSnapshot(
+      base({
+        phase: "showdown",
+        toAct: "",
+        board: ["AH", "7C", "2S", "9H", "3D"],
+        reveals: { a: ["AC", "AD"], b: ["KS", "KH"] },
+        seats: [seat("a", { status: "all-in", chips: 0 }), seat("b", { status: "all-in", chips: 0 }), seat("c", { status: "folded", hasCards: false })],
+        winners: [{ id: "a", amount: 2000 }],
+      }),
+      ["AC", "AD"],
+      "a",
+    );
+    const a = snap.seats.find((s) => s?.id === "a")!;
+    const b = snap.seats.find((s) => s?.id === "b")!;
+    expect(a.eq![0]).toBeGreaterThan(75);
+    expect(a.eq![3] + b.eq![3]).toBe(100);
+    expect(b.eq![4]).toBe(0);
   });
 
   it("empties the table between hands", () => {

@@ -46,6 +46,15 @@ const prettyCard = (id: string) => `${id.slice(0, -1).replace("T", "10")} de ${S
 const fmt = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 const PREFS_KEY = "noir:table";
 
+// Table gestures: the figure acts them out in the scene.
+const GESTURES: { kind: string; label: string }[] = [
+  { kind: "hat", label: "Tocarse el sombrero" },
+  { kind: "tap", label: "Golpear la mesa" },
+  { kind: "puff", label: "Echar el humo" },
+  { kind: "laugh", label: "Reírse" },
+  { kind: "glare", label: "Mirar fijo" },
+];
+
 type Prefs = { cam: SceneCam; sound: boolean; four: boolean };
 
 function readPrefs(): Prefs {
@@ -138,6 +147,7 @@ function PlayOnlinePageInner() {
     });
 
   const [phrasesOpen, setPhrasesOpen] = useState(false);
+  const [gesturesOpen, setGesturesOpen] = useState(false);
   const [closedRunsHand, setClosedRunsHand] = useState(0);
   // The result notes wait until the scene has finished the runout on the felt
   // (it reports the hand), so a slow all-in is not spoiled by a note on top.
@@ -244,6 +254,8 @@ function PlayOnlinePageInner() {
   const bustIdx = uid && state?.bustedOrder ? state.bustedOrder.indexOf(uid) : -1;
   const myPlace = bustIdx >= 0 && state ? state.seats.length + state.bustedOrder!.length - bustIdx : 0;
   const iWon = !!(uid && state?.winners?.length && state.winners.every((w) => w.id === uid));
+  // After the hand, a player still holding unshown cards may turn them up.
+  const canShow = !!(showdown && me && me.hasCards && me.status !== "folded" && hole && !state?.reveals?.[uid ?? ""]);
 
   const joinUrl = typeof window !== "undefined" && code ? `${window.location.origin}/m/${code}` : "";
 
@@ -437,8 +449,14 @@ function PlayOnlinePageInner() {
               <KeyholeMark className="h-6 w-auto" /> {tourney ? "TORNEO" : "MESA"} {code}
             </span>
             {state && state.phase !== "idle" && !tFinished && <BlindClock sb={state.sb} bb={state.bb} ante={state.ante ?? 0} level={state.level ?? 0} next={state.nextBlindsAt ?? 0} />}
+            {state?.bomb && <span className="text-[14px] font-semibold tracking-[.08em] text-blood-400">BOTE BOMBA</span>}
           </div>
           <div className="flex flex-col items-center gap-2">
+            {!game.online && state && (
+              <p role="status" className="scrap m-0 px-3 py-1 font-pix text-sm text-blood-500">
+                Se cortó la línea. Reconectando…
+              </p>
+            )}
             {state?.paused && <p className="scrap m-0 px-3 py-1 font-pix text-sm">Partida en pausa</p>}
             {notice && (
               <p role="status" className="scrap m-0 px-3 py-1 font-pix text-sm text-blood-500">
@@ -464,6 +482,11 @@ function PlayOnlinePageInner() {
             )}
             {(state?.waiting?.length ?? 0) > 0 && (
               <p className="m-0 font-pix text-[13px] text-paper-dim">{state!.waiting!.length} en la barra esperando silla</p>
+            )}
+            {game.watchers > 0 && (
+              <p className="m-0 font-pix text-[13px] text-paper-mute">
+                {game.watchers === 1 ? "1 mira desde la barra" : `${game.watchers} miran desde la barra`}
+              </p>
             )}
             {Object.entries(activePhrases).map(([senderUid, phrase]) => (
               <p key={senderUid} className="scrap m-0 px-3 py-1 text-sm">
@@ -508,6 +531,11 @@ function PlayOnlinePageInner() {
                 ? "Te llevas el bote"
                 : (state.winners ?? []).map((w) => `${w.id === uid ? "Tú" : seatName(w.id)} +${fmt(w.amount)}`).join("   ")}
             </p>
+            {canShow && (
+              <button type="button" onClick={() => void game.show().then(report)} disabled={busy === "show"} className="btn-brass btn-sm pointer-events-auto">
+                Enseñar mis cartas
+              </button>
+            )}
             {busted && !tourney ? (
               <button type="button" onClick={rebuy} disabled={busy === "rebuy"} className="tk tk-sm tk-red pointer-events-auto">
                 Recomprar
@@ -528,7 +556,15 @@ function PlayOnlinePageInner() {
           <NoirChat code={code} uid={uid} name={name} seed={seed} messages={chat} />
           {amSeated && (
             <div className="relative">
-              <button type="button" onClick={() => setPhrasesOpen((v) => !v)} className="btn-brass btn-sm" aria-expanded={phrasesOpen}>
+              <button
+                type="button"
+                onClick={() => {
+                  setPhrasesOpen((v) => !v);
+                  setGesturesOpen(false);
+                }}
+                className="btn-brass btn-sm"
+                aria-expanded={phrasesOpen}
+              >
                 Decir
               </button>
               {phrasesOpen && (
@@ -544,6 +580,38 @@ function PlayOnlinePageInner() {
                       className="scrap px-3 py-1 text-left text-sm hover:brightness-110"
                     >
                       {p}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {amSeated && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setGesturesOpen((v) => !v);
+                  setPhrasesOpen(false);
+                }}
+                className="btn-brass btn-sm"
+                aria-expanded={gesturesOpen}
+              >
+                Gesto
+              </button>
+              {gesturesOpen && (
+                <div className="absolute bottom-12 left-0 flex w-56 flex-col items-start gap-1.5">
+                  {GESTURES.map((g) => (
+                    <button
+                      key={g.kind}
+                      type="button"
+                      onClick={() => {
+                        void game.react(g.kind).then(report);
+                        setGesturesOpen(false);
+                      }}
+                      className="scrap px-3 py-1 text-left text-sm hover:brightness-110"
+                    >
+                      {g.label}
                     </button>
                   ))}
                 </div>
