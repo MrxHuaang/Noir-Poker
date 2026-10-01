@@ -6,7 +6,7 @@ Project-specific guidance for working in this codebase. Read alongside the globa
 
 Texas Hold'em club to play with friends, each from their own device: open tables (cash game, with or without coins) and sit-and-go tournaments, on a pixel-art 3D table. The old presencial mode (TV table + phones, no betting) was removed; the legacy host-run normal/tournament rooms still exist.
 
-**Stack**: Next.js 16 (App Router, Turbopack), TS, Tailwind v4, GSAP 3, Firebase Firestore + Anonymous Auth, Web Worker for equity. **Rust→WASM** equity engine (`engine/`, powers the host equity panel). **Serverless authoritative online backend in TypeScript** (`src/lib/online/` + `/api/online`, Firestore transactions). There is no separate game server: the old Go/Render server was removed.
+**Stack**: Next.js 16 (App Router, Turbopack), TS, Tailwind v4, GSAP 3, Firebase Firestore + Auth (Google / anonymous). **Serverless authoritative online backend in TypeScript** (`src/lib/online/` + `/api/online`, Firestore transactions). There is no separate game server: the old Go/Render server was removed.
 
 ## Noir 1929 redesign (the direction for every new screen)
 
@@ -153,7 +153,6 @@ borders, gradient washes or `uppercase tracking-[...]` micro-labels.
 | `src/lib/rooms.ts`                            | Firestore room CRUD, lobby subcollection, hole subcollection  |
 | `src/lib/firebase.ts`                         | Lazy app/auth/firestore singletons (client-only)              |
 | `src/lib/brand.ts`                            | Canonical accent palette for JS/canvas/inline styles. Mirrors the `accent-*` scale in `globals.css`. |
-| `src/workers/equity.worker.ts`                | Exact + MC equity, multi-run dealer                           |
 | `src/components/table/RoundPokerTable.tsx`    | Betting-mode table. Seats use 10 fixed positions. Rotation via `rotationOffset` state. |
 | `src/components/cards/PlayingCard.tsx`        | 3D flip card. Mount-only deal tween + flip tween on `faceUp`. |
 | `src/lib/online/engine.ts`                    | Pure authoritative online engine (betting, streets, side pots, run-it-N, queue, owner). Serializable JSON state. Tests in `engine.test.ts` (incl. chip-conservation fuzz). |
@@ -169,7 +168,6 @@ borders, gradient washes or `uppercase tracking-[...]` micro-labels.
 | `src/hooks/useAuth.tsx`                       | Single app-wide `AuthProvider` (mounted in the root layout); `useAuth()` reads context. |
 | `src/components/landing/` + `src/app/noir.css` | Noir 1929 landing (title stage over the live scene, CSS entrances) and the redesign material components/tokens. |
 | `public/noir/scene.html`                      | Pixel-art three.js scene (door, live table, cameos, character select). Embedded via `sceneUrl()`. |
-| `engine/`                                     | Rust→WASM equity engine; built in CI, bundled in `src/lib/engine/`, used by `useEquity`. |
 
 ## Animation rules
 
@@ -197,13 +195,6 @@ rooms/{code}/holes/{seatId} private hole cards, ownerUid scoped
 ```
 
 `firestore.rules` in repo root holds the production policy. Test mode (open for 30 days) is fine for dev.
-
-## Equity worker
-
-- One worker per `useEquity` lifetime.
-- Two message types: `equity` and `run`. Both reuse `bestHand` + `compareScore` from `handEval.ts`.
-- Preflop uses 4000 Monte Carlo trials. Tune the constant in `useEquity.ts` if needed.
-- Disable computation by passing `null` to `useEquity` (e.g. during run playback) to avoid useless work.
 
 ## Build & verify
 

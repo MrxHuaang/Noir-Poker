@@ -12,10 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Generated WASM engine bindings (Rust -> wasm-bindgen output). Not authored
-    // here; linting them only produces noise. (QA 2)
-    "src/lib/engine/**",
-    "engine/pkg/**",
   ]),
   {
     // React Compiler rules (eslint-plugin-react-hooks v6, pulled in by

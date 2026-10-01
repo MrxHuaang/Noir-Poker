@@ -2,7 +2,7 @@
 import { Crown, X } from "lucide-react";
 import type { Player } from "@/lib/poker";
 import { CATEGORY_LABEL, type Category } from "@/lib/handEval";
-import type { RunOne } from "@/hooks/useEquity";
+import type { RunOne } from "@/lib/poker";
 import { PlayingCard } from "@/components/cards/PlayingCard";
 import { Avatar } from "@/components/players/Avatar";
 

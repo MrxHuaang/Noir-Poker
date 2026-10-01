@@ -125,3 +125,10 @@ export function suitColor(s: Suit): "red" | "black" {
 export function rankLabel(r: Rank): string {
   return r === "T" ? "10" : r;
 }
+
+/** One dealt runout of a run-it-N all-in: the final board and who won it. */
+export type RunOne = {
+  community: Card[];
+  winners: string[];
+  category: number;
+};

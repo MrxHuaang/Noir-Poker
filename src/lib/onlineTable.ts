@@ -8,7 +8,7 @@ import type { Card } from "./poker";
 import { cardFromId } from "./poker";
 import { bestHand, categoryFor } from "./handEval";
 import type { PublicState, RunResult } from "./online/protocol";
-import type { RunOne } from "@/hooks/useEquity";
+import type { RunOne } from "@/lib/poker";
 
 const SEAT_STATUS: Record<string, SeatStatus> = {
   active: "active",

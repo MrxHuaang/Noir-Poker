@@ -60,7 +60,6 @@ Detrás hay un backend autoritativo **serverless** en TypeScript: cada jugada es
 | Realtime | Firebase Auth (Google / anónimo), Firestore | Estado público, cartas privadas, presencia, historial, economía |
 | Juego online | Next.js API routes + Firestore transactions | Motor puro (`src/lib/online/engine.ts`): mazo, apuestas, side pots, run-it-N, torneos, reglas de la casa |
 | Voz | Supabase Realtime, WebRTC, TURN opcional | Señalización P2P, mute, niveles de audio |
-| Equity | Rust a WASM, Web Worker | Cálculo exacto y Monte Carlo para el panel del host |
 | Calidad | ESLint 9, Vitest | Lint y pruebas del motor (incluye fuzz de conservación de fichas) |
 
 ## Funcionamiento
@@ -88,7 +87,7 @@ flowchart LR
 
 - El mazo y las cartas ajenas viven en `onlineRooms/{code}/private/engine`, cerrado a los clientes por `firestore.rules`.
 - Las hole cards nunca van al documento público; cada jugador lee solo `holes/{uid}`.
-- Equity, outs y fuerza de mano son solo para el panel del host; nunca sobre una silla.
+- La mesa no muestra equity, outs ni fuerza de mano: solo lo que un jugador vería sentado.
 - La economía es atómica y está limitada por el libro de la mesa (`roomLedgers/online-{code}`); las mesas con monedas exigen cuenta no anónima.
 - `next.config.ts` cierra el framing (`frame-ancestors 'none'`) salvo `/noir/*`, que la propia app embebe.
 
@@ -99,7 +98,6 @@ flowchart LR
 - Node.js 21 o superior.
 - Proyecto Firebase con Firestore y Auth (Google + anónimo).
 - Opcional para desarrollo local sin tocar producción: Java 11+ y `firebase-tools` (Emulator Suite).
-- Rust + `wasm-pack` solo si vas a recompilar el motor de equity.
 
 ### Instalación
 
@@ -138,10 +136,6 @@ npm run dev:emu
 npm run lint
 npm test
 npm run test:watch
-
-# Motor Rust/WASM
-cd engine
-wasm-pack build --target web --out-dir pkg
 ```
 
 ### Verificacion rapida
@@ -187,14 +181,12 @@ poker-sim/
       landing/           Portada Noir: escena, carteles, carta, rangos, puerta
       noir/              NoirTable, NoirActionRail, NoirMenu, CharacterPicker
       voice/             Panel y audio de voz WebRTC
-    hooks/               Auth, mesa online, presencia, voz, equity
+    hooks/               Auth, mesa online, presencia, voz
     lib/
       online/            Motor puro, protocolo, servidor y cliente del modo online
       noirScene.ts       Adaptador estado -> snapshot de la escena
       noirCast.ts        Personajes y URLs de la escena
-    workers/             Equity worker
   public/noir/           Escena three.js pixel art (scene.html)
-  engine/                Motor Rust/WASM de equity
   docs/                  Arquitectura, auth, voz, seguridad y capturas
   firestore.rules        Reglas de seguridad Firestore
 ```

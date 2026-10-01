@@ -4,7 +4,7 @@
 import { Club, Diamond, Heart, Spade } from "lucide-react";
 import type { Card } from "@/lib/poker";
 import { CATEGORY_LABEL, type Category } from "@/lib/handEval";
-import type { RunOne } from "@/hooks/useEquity";
+import type { RunOne } from "@/lib/poker";
 
 const SUIT = { S: Spade, H: Heart, D: Diamond, C: Club } as const;
 const RANK: Record<string, string> = { T: "10" };

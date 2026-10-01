@@ -50,8 +50,7 @@ The product is not a marketing site. Most screens are operational surfaces used 
 - Tailwind CSS v4 tokens in `src/app/globals.css`; no `tailwind.config.js`.
 - Firestore powers legacy rooms, lobby, private card docs, history, economy, and presence.
 - Supabase Realtime + WebRTC powers voice signaling.
-- Go WebSocket server powers the newer server-authoritative online mode.
-- Rust/WASM + Web Worker powers equity computation.
+- Next.js API routes + Firestore transactions power the serverless authoritative online mode (`src/lib/online/`).
 
 ## Known Product Gaps
 
