@@ -303,15 +303,21 @@ const view = $("#view"), hud = $("#hud");
 const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: MODE === "cameo", powerPreference: "high-performance" });
 renderer.setPixelRatio(1); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 view.insertBefore(renderer.domElement, hud);
-const scene = new THREE.Scene(); const BG = new THREE.Color(0x07060a); scene.background = BG; scene.fog = new THREE.Fog(0x07060a, 11, 22);
+renderer.shadowMap.autoUpdate = false; // see markShadows()
+const scene = new THREE.Scene(); scene.matrixWorldAutoUpdate = false; const BG = new THREE.Color(0x07060a); scene.background = BG; scene.fog = new THREE.Fog(0x07060a, 11, 22);
 const camera = new THREE.OrthographicCamera(-4, 4, 2.5, -2.5, 0.1, 40);
 const CARD_LAYER = 1;
-let rt, cardRT, W = 0, H = 0, camYaw = 0;
-const post = new THREE.ShaderMaterial({
-  uniforms: { tColor: { value: null }, tDepth: { value: null }, tCard: { value: null }, tCardDepth: { value: null }, cutout: { value: MODE === "cameo" ? 1 : 0 }, res: { value: new THREE.Vector2(1, 1) }, full: { value: new THREE.Vector2(1, 1) }, quant: { value: 1 }, pal: { value: GRADES.humo } },
+let rt, cardRT, gradeRT, W = 0, H = 0, camYaw = 0;
+// Two passes. The grade (tone map, ink edges, dithered palette) is the same for
+// every screen pixel of a pixel-art cell, so it runs once per cell into gradeRT
+// (the low-res size); the full-res pass only reads it back and lays the crisp
+// cards on top. Same output, without the palette search per screen pixel.
+const POST_U = { tColor: { value: null }, tDepth: { value: null }, tGrade: { value: null }, tCard: { value: null }, tCardDepth: { value: null }, cutout: { value: MODE === "cameo" ? 1 : 0 }, res: { value: new THREE.Vector2(1, 1) }, full: { value: new THREE.Vector2(1, 1) }, quant: { value: 1 }, pal: { value: GRADES.humo } };
+const grade = new THREE.ShaderMaterial({
+  uniforms: POST_U,
   vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }",
   fragmentShader: `
-    uniform sampler2D tColor, tDepth, tCard, tCardDepth; uniform vec2 res, full; uniform float quant, cutout; uniform vec3 pal[32]; varying vec2 vUv;
+    uniform sampler2D tColor, tDepth; uniform vec2 res; uniform float quant, cutout; uniform vec3 pal[32]; varying vec2 vUv;
     vec3 aces(vec3 x){ return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.); }
     float bayer(vec2 p){ int i=int(mod(p.x,4.))+int(mod(p.y,4.))*4; float m[16]; m[0]=0.;m[1]=8.;m[2]=2.;m[3]=10.;m[4]=12.;m[5]=4.;m[6]=14.;m[7]=6.;m[8]=3.;m[9]=11.;m[10]=1.;m[11]=9.;m[12]=15.;m[13]=7.;m[14]=13.;m[15]=5.;
       for(int k=0;k<16;k++){ if(k==i) return m[k]/16.; } return 0.; }
@@ -319,23 +325,38 @@ const post = new THREE.ShaderMaterial({
       vec2 px = 1./res; vec2 cell = floor(vUv*res); vec2 uv = (cell+.5)*px;
       vec3 c = texture2D(tColor, uv).rgb; float d = texture2D(tDepth, uv).r; float e = 0.; float alpha = 1.;
       if (cutout > .5 && d > .99999) alpha = smoothstep(.0, .22, max(c.r, max(c.g, c.b)));
-      e = max(e, texture2D(tDepth, uv+vec2(px.x,0.)).r - d); e = max(e, texture2D(tDepth, uv-vec2(px.x,0.)).r - d);
-      e = max(e, texture2D(tDepth, uv+vec2(0.,px.y)).r - d); e = max(e, texture2D(tDepth, uv-vec2(0.,px.y)).r - d);
+      float dR = texture2D(tDepth, uv+vec2(px.x,0.)).r, dL = texture2D(tDepth, uv-vec2(px.x,0.)).r, dU = texture2D(tDepth, uv+vec2(0.,px.y)).r, dD = texture2D(tDepth, uv-vec2(0.,px.y)).r;
+      e = max(max(e, max(dR - d, dL - d)), max(dU - d, dD - d));
       c = pow(aces(c), vec3(1./2.2));
       if (e > .0035) c *= .42;
       if (quant > .5) { vec3 q = c + (bayer(cell) - .5) * .055; float best = 1e9; vec3 bc = c;
         for (int k=0;k<32;k++){ vec3 dd = q-pal[k]; float dist = dot(dd, dd); if (dist < best){ best = dist; bc = pal[k]; } } c = bc; }
+      gl_FragColor = vec4(c, alpha);
+    }`, depthTest: false, depthWrite: false });
+const post = new THREE.ShaderMaterial({
+  uniforms: POST_U,
+  vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }",
+  fragmentShader: `
+    uniform sampler2D tGrade, tDepth, tCard, tCardDepth; uniform vec2 res, full; uniform float cutout; varying vec2 vUv;
+    void main(){
+      vec2 px = 1./res; vec2 cell = floor(vUv*res); vec2 uv = (cell+.5)*px;
+      vec4 g = texture2D(tGrade, uv); vec3 c = g.rgb; float alpha = g.a; float d = texture2D(tDepth, uv).r;
+      float dR = texture2D(tDepth, uv+vec2(px.x,0.)).r, dL = texture2D(tDepth, uv-vec2(px.x,0.)).r, dU = texture2D(tDepth, uv+vec2(0.,px.y)).r, dD = texture2D(tDepth, uv-vec2(0.,px.y)).r;
+      // cards are depth-tested at full res against the room's depth at the cell centre: on a sloped
+      // surface (the felt) that drifts by up to half a cell, so allow one cell of the local slope
+      // (min of both sides, so an edge does not count) or big cells stripe the cards
+      float slope = max(min(abs(dR - d), abs(d - dL)), min(abs(dU - d), abs(d - dD))) + .00002;
       // cards: crisp pixel-art pass, depth-tested against the room and dropping a small shadow
       vec2 fp = 1./full;
       vec4 sh = texture2D(tCard, vUv + vec2(-2.,3.)*fp); float shd = texture2D(tCardDepth, vUv + vec2(-2.,3.)*fp).r;
-      if (sh.a > .5 && shd <= d + .00002) c *= .55;
+      if (sh.a > .5 && shd <= d + slope) c *= .55;
       vec4 k = texture2D(tCard, vUv); float kd = texture2D(tCardDepth, vUv).r;
-      if (k.a > .01 && kd <= d + .00002) { vec3 kc = pow(k.rgb / max(k.a, .001), vec3(1./2.2)); c = mix(c, kc, k.a); }
+      if (k.a > .01 && kd <= d + slope) { vec3 kc = pow(k.rgb / max(k.a, .001), vec3(1./2.2)); c = mix(c, kc, k.a); }
       if (cutout > .5 && alpha < .02) { gl_FragColor = vec4(0.); return; }
       gl_FragColor = vec4(c * alpha, alpha);
     }`, depthTest: false, depthWrite: false });
 const postScene = new THREE.Scene(), postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post));
+const gradeScene = new THREE.Scene(); postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post)); gradeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), grade));
 function makeRT(w, h, nearest) {
   const t = new THREE.WebGLRenderTarget(w, h, { minFilter: nearest ? THREE.NearestFilter : THREE.LinearFilter, magFilter: THREE.NearestFilter, type: THREE.HalfFloatType });
   t.depthTexture = new THREE.DepthTexture(w, h); t.depthTexture.minFilter = t.depthTexture.magFilter = THREE.NearestFilter; return t;
@@ -344,8 +365,9 @@ function resize() {
   const r = view.getBoundingClientRect(); W = Math.max(2, Math.round(r.width)); H = Math.max(2, Math.round(r.height));
   renderer.setSize(W, H, false);
   const px = Number(OPT.px) || 2, w = Math.max(2, Math.floor(W / px)), h = Math.max(2, Math.floor(H / px));
-  if (rt) rt.dispose(); if (cardRT) cardRT.dispose();
+  if (rt) rt.dispose(); if (cardRT) cardRT.dispose(); if (gradeRT) gradeRT.dispose();
   rt = makeRT(w, h, true); cardRT = makeRT(W, H, true);
+  gradeRT = new THREE.WebGLRenderTarget(w, h, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, type: THREE.HalfFloatType, depthBuffer: false }); post.uniforms.tGrade.value = gradeRT.texture;
   Object.assign(post.uniforms, {}); post.uniforms.tColor.value = rt.texture; post.uniforms.tDepth.value = rt.depthTexture; post.uniforms.tCard.value = cardRT.texture; post.uniforms.tCardDepth.value = cardRT.depthTexture;
   post.uniforms.res.value.set(w, h); post.uniforms.full.value.set(W, H);
   setCamera();
@@ -863,7 +885,8 @@ SEATS.forEach((S, i) => { const f = S.fig; pin(tagEls[i], S.front ? new THREE.Ve
 const sayEl = document.createElement("div"); sayEl.className = "say"; hud.appendChild(sayEl);
 let sayT = null; pin(sayEl, new THREE.Vector3(0, 2.0, -R - .52));
 function say(text, ms = 2400) { sayEl.innerHTML = `<b>Horacio</b>${text}`; sayEl.classList.add("on"); clearTimeout(sayT); sayT = setTimeout(() => sayEl.classList.remove("on"), ms); }
-function projectHud() { for (const [el, v] of anchors) { if (el.hidden) continue; const [x, y] = toScreen(v); el.style.left = x + "px"; el.style.top = y + "px"; } }
+// written only when a label actually moves: an unchanged write still dirties style every frame
+function projectHud() { for (const [el, v] of anchors) { if (el.hidden) continue; const [x, y] = toScreen(v); if (el._hx !== x) { el._hx = x; el.style.left = x + "px"; } if (el._hy !== y) { el._hy = y; el.style.top = y + "px"; } } }
 
 /* ================================================================== poker */
 function newDeck() { const d = []; for (let s = 0; s < 4; s++) for (let r = 0; r < 13; r++) d.push({ r, s }); return shuffle(d); }
@@ -1211,7 +1234,7 @@ function idleTic(u, t) {
   else if (u.idle === "glint" && u.hat) u.hat.rotation.x = rest(u.hat, "rx", u.hat.rotation.x) + (Math.sin(k * .35) > .97 ? -.12 : 0);
 }
 function puff(ember, op = .35) { const w = new THREE.Vector3(); ember.getWorldPosition(w); const m = new THREE.Mesh(smokeGeo, new THREE.MeshBasicMaterial({ color: 0x806b56, transparent: true, opacity: op, depthWrite: false })); m.position.copy(w); m.userData.life = 0; m.userData.op = op; scene.add(m); smoke.push(m); }
-let lightningAt = performance.now() + 6000, flashUntil = 0;
+let lightningAt = performance.now() + 6000, flashUntil = 0, rainFlash = false;
 let readySent = false;
 // The loop sleeps while nobody can see the scene: the tab is hidden, or this
 // iframe is scrolled out of the page's viewport (the observer's implicit root
@@ -1222,6 +1245,18 @@ const awake = () => onScreen && !document.hidden;
 function wake() { if (!rafId && readySent && awake()) rafId = requestAnimationFrame(frame); }
 document.addEventListener("visibilitychange", wake);
 if (parent !== window && "IntersectionObserver" in window) new IntersectionObserver(es => { onScreen = es[es.length - 1].isIntersecting; wake(); }, { rootMargin: "160px" }).observe(view);
+// Shadow maps redraw only when a caster or a shadowed light moved (a
+// signature of their world matrices), never for the card pass.
+function markShadows() {
+  let h = 0, n = 0; const lights = [];
+  const sum = e => { n++; for (let k = 0; k < 16; k++) h += e[k] * (k + 1) * n; };
+  scene.traverseVisible(o => { if (!o.castShadow) return; if (o.isLight) lights.push(o); else sum(o.matrixWorld.elements); });
+  let any = false;
+  for (const l of lights) { const casters = h, m = l.matrixWorld.elements, tg = l.target ? l.target.matrixWorld.elements : m; let s = casters;
+    for (let k = 0; k < 16; k++) s += m[k] * (k + 3) * 7.31 + tg[k] * (k + 5) * 3.17;
+    l.shadow.autoUpdate = false; if (s !== l.userData.shSig || !l.shadow.map) { l.userData.shSig = s; l.shadow.needsUpdate = true; any = true; } }
+  renderer.shadowMap.needsUpdate = any;
+}
 let frameT = 0; const tickFig = f => { if (!f) return; const u = f.userData; if (u.orbit) u.orbit.rotation.y += .025; if (u.crystal) u.crystal.material.opacity = .6 + Math.sin(frameT / 300) * .25; idleTic(u, frameT); };
 function frame(t) {
   rafId = 0;
@@ -1230,9 +1265,11 @@ function frame(t) {
   if (!readySent) { readySent = true; requestAnimationFrame(() => { if (parent !== window) parent.postMessage({ sceneReady: MODE }, location.origin); }); }
   const amb = OPT.ambient === "on" && !RM;
   lampPivot.rotation.z = amb ? Math.sin(t / 1150) * .035 : 0; lampPivot.rotation.x = amb ? Math.cos(t / 1700) * .02 : 0;
-  if (amb) for (const d of drops) { d.y += 1.1; d.x -= .25; if (d.y > 42) { d.y = -3; d.x = Math.random() * 52; } }
+  // the rain canvas is re-uploaded only while a rainy window is on screen and changing
+  const rainOn = places[OPT.place].visible && !!places[OPT.place].userData.moon;
+  if (amb && rainOn) for (const d of drops) { d.y += 1.1; d.x -= .25; if (d.y > 42) { d.y = -3; d.x = Math.random() * 52; } }
   if (amb && t > lightningAt && places[OPT.place].userData.moon) { flashUntil = t + 140; lightningAt = t + rnd(7000, 13000); }
-  const flash = t < flashUntil; drawRain(flash); moon.intensity = places[OPT.place].userData.moon ? (flash ? 160 : 40) : 0;
+  const flash = t < flashUntil; if (rainOn && (amb || flash !== rainFlash)) drawRain(flash); rainFlash = flash; moon.intensity = places[OPT.place].userData.moon ? (flash ? 160 : 40) : 0;
   SPOTS.forEach(sp => { if (sp.on) sp.dust.rotation.y += .0025; });
   if (cigG.visible) { cigEmber.material.color.setHex(cigState.late && Math.random() < .5 ? 0xff3a1c : 0xff7a3c); if (amb && Math.random() < .015) puff(cigEmber, .16); }
   if (STAGE === "lineup" || STAGE === "select") stageLineup(t); if (STAGE === "door") stageDoor(t);
@@ -1244,8 +1281,13 @@ function frame(t) {
   for (let k = smoke.length - 1; k >= 0; k--) { const m = smoke[k]; m.userData.life += 16; m.position.y += .004; m.position.x += Math.sin((m.userData.life + k * 90) / 500) * .002; m.scale.setScalar(1 + m.userData.life / 900); m.material.opacity = Math.max(0, m.userData.op - m.userData.life / 5200); if (m.material.opacity <= 0) { scene.remove(m); m.material.dispose(); smoke.splice(k, 1); } }
   if (pvFig && pvR) { pvFig.rotation.y = RM ? .5 : Math.sin(t / 1600) * .9; pvR.render(pvScene, pvCam); }
   if (!rt) return;
+  // One world-matrix pass per frame instead of one per scene pass, skipping
+  // hidden subtrees (the other places, the room under a cameo or the door).
+  for (const c of scene.children) if (c.visible) c.updateMatrixWorld();
+  markShadows();
   renderer.setRenderTarget(rt); renderer.setClearColor(BG, 1); renderer.render(scene, camera);
   scene.background = null; camera.layers.set(CARD_LAYER); renderer.setRenderTarget(cardRT); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, camera); camera.layers.set(0); scene.background = BG;
+  renderer.setRenderTarget(gradeRT); renderer.render(gradeScene, postCam);
   renderer.setRenderTarget(null); if (MODE === "cameo") { renderer.setClearColor(0x000000, 0); renderer.clear(); } renderer.render(postScene, postCam);
   projectHud();
 }

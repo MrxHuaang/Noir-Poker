@@ -81,6 +81,18 @@ export default function PlayOnlinePage() {
 }
 
 /** A riveted plate in the middle of the room for decisions between hands. */
+/** Which seats (and the owner) count as present at time t, as one comparable string. */
+function freshnessKey(
+  f: { seats?: { id: string }[]; owner?: string | null; presence: Record<string, number> },
+  t: number,
+): string {
+  const fresh = (id: string) => {
+    const beat = f.presence[id];
+    return beat === undefined || t - beat <= PRESENCE_STALE_MS ? 1 : 0;
+  };
+  return `${(f.seats ?? []).map((s) => fresh(s.id)).join("")}|${f.owner ? fresh(f.owner) : ""}`;
+}
+
 function Plate({ children }: { children: ReactNode }) {
   return <div className="plate legible pointer-events-auto grid max-w-[420px] justify-items-center gap-3 px-8 pt-8 pb-7 text-center">{children}</div>;
 }
@@ -164,10 +176,17 @@ function PlayOnlinePageInner() {
   const [showLoginCta, setShowLoginCta] = useState(false);
   const [seatOverlayDismissed, setSeatOverlayDismissed] = useState(false);
 
-  // Reloj grueso para detectar anfitriones con heartbeat caducado.
+  // Reloj grueso para detectar anfitriones con heartbeat caducado. It checks
+  // every 5 s but only re-renders the page (and re-sends the scene snapshot)
+  // when someone's freshness actually flips.
   const [now, setNow] = useState(() => Date.now());
+  const freshIn = useRef({ seats: state?.seats, owner: state?.owner, presence });
+  freshIn.current = { seats: state?.seats, owner: state?.owner, presence };
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 5000);
+    const id = setInterval(() => {
+      const t = Date.now();
+      setNow((prev) => (freshnessKey(freshIn.current, prev) === freshnessKey(freshIn.current, t) ? prev : t));
+    }, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -238,14 +257,22 @@ function PlayOnlinePageInner() {
   }
 
   // --- Vista ----------------------------------------------------------------
+  // Keyed by the flags, not the heartbeat times: a heartbeat that changes
+  // nobody's freshness keeps the same map, so the scene snapshot is not rebuilt.
+  const presenceFlags = (state?.seats ?? [])
+    .map((s) => {
+      const beat = presence[s.id];
+      return `${s.id}:${beat === undefined || now - beat <= PRESENCE_STALE_MS ? 1 : 0}`;
+    })
+    .join(",");
   const presenceMap = useMemo(() => {
     const out: Record<string, boolean> = {};
-    for (const s of state?.seats ?? []) {
-      const beat = presence[s.id];
-      out[s.id] = beat === undefined || now - beat <= PRESENCE_STALE_MS;
+    for (const pair of presenceFlags ? presenceFlags.split(",") : []) {
+      const i = pair.lastIndexOf(":");
+      out[pair.slice(0, i)] = pair.slice(i + 1) === "1";
     }
     return out;
-  }, [state?.seats, presence, now]);
+  }, [presenceFlags]);
   const snapshot = useMemo(() => toSceneSnapshot(state, hole, uid, presenceMap), [state, hole, uid, presenceMap]);
 
   const me = state?.seats.find((s) => s.id === uid) ?? null;
