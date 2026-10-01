@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/logo.png" alt="Noir Poker" width="88" />
+<img src="docs/brand/logo.svg" alt="Noir Poker" width="72" />
 
 # Contribuir a Noir Poker
 
