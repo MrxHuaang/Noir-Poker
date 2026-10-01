@@ -11,7 +11,6 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
-  where,
   writeBatch,
 } from "firebase/firestore";
 import { getDb } from "./firebase";
@@ -25,8 +24,17 @@ import type {
 import type { TournamentState } from "./tournament";
 import type { Showdown } from "./handEval";
 import type { RunItRun } from "./runIt";
-import { generateCode } from "./rooms";
 import { encryptCardsTo } from "./holeCrypto";
+
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function generateCode(len = 5): string {
+  const buf = new Uint32Array(len);
+  crypto.getRandomValues(buf);
+  let out = "";
+  for (let i = 0; i < len; i++) out += CODE_ALPHABET[buf[i] % CODE_ALPHABET.length];
+  return out;
+}
 
 export type PendingAction = {
   seatId: string;
@@ -100,39 +108,12 @@ export type NormalRoomDoc = {
   playerCount?: number;
 };
 
-// Compact projection of a live room for the lobby list.
-export type OpenRoomSummary = {
-  code: string;
-  roomName: string;
-  mode: "normal" | "torneo";
-  economy: "coins" | "casual";
-  isPublic: boolean;
-  locked: boolean;
-  playerCount: number;
-  maxPlayers: number;
-  smallBlind: number;
-  bigBlind: number;
-  status: "waiting" | "playing" | "full";
-  hostHeartbeat: number;
-};
-
-// A room is considered live this long after its last heartbeat.
-export const ROOM_LIVE_WINDOW_MS = 35_000;
-
 export async function setNormalRoomCardBack(
   code: string,
   cardBack: string,
 ): Promise<void> {
   const db = getDb();
   await updateDoc(doc(db, "normalRooms", code), { cardBack });
-}
-
-export async function setNormalRoomCardFace(
-  code: string,
-  cardFace: string,
-): Promise<void> {
-  const db = getDb();
-  await updateDoc(doc(db, "normalRooms", code), { cardFace });
 }
 
 export async function setNormalRoomBg(
@@ -221,51 +202,6 @@ export function subscribeNormalRoom(
   );
 }
 
-// Lobby: public rooms. The `allow read` rule covers collection `list` for any
-// signed-in user. Projects to a compact summary and keeps `hostHeartbeat` so the
-// consumer can gate liveness on a timer (rooms are only "live" while the host
-// tab is open). Rooms with no heartbeat field are dropped here.
-export function subscribeOpenRooms(
-  cb: (rooms: OpenRoomSummary[]) => void,
-): () => void {
-  const db = getDb();
-  const q = query(collection(db, "normalRooms"), where("isPublic", "==", true));
-  return onSnapshot(
-    q,
-    (snap) => {
-      const rooms = snap.docs
-        .map((d) => d.data() as NormalRoomDoc)
-        .filter((r) => typeof r.hostHeartbeat === "number")
-        .map((r) => {
-          const maxPlayers = r.maxPlayers ?? 9;
-          const playerCount = r.playerCount ?? r.state?.seats?.length ?? 0;
-          const phase = r.state?.phase;
-          const inHand =
-            !!r.state && phase !== "lobby" && phase !== "between-hands";
-          const status: OpenRoomSummary["status"] =
-            playerCount >= maxPlayers ? "full" : inHand ? "playing" : "waiting";
-          return {
-            code: r.code,
-            roomName: r.roomName ?? `Mesa ${r.code}`,
-            mode: r.mode,
-            economy: r.economy ?? "coins",
-            isPublic: r.isPublic ?? true,
-            locked: r.locked ?? false,
-            playerCount,
-            maxPlayers,
-            smallBlind: r.config?.smallBlind ?? 0,
-            bigBlind: r.config?.bigBlind ?? 0,
-            status,
-            hostHeartbeat: r.hostHeartbeat as number,
-          };
-        })
-        .sort((a, b) => b.hostHeartbeat - a.hostHeartbeat);
-      cb(rooms);
-    },
-    () => cb([]),
-  );
-}
-
 // Host-only: refresh the room's liveness marker so the lobby keeps listing it.
 export async function setHostHeartbeat(code: string): Promise<void> {
   const db = getDb();
@@ -337,18 +273,6 @@ export async function joinSpectators(
 export async function leaveSpectators(code: string, uid: string): Promise<void> {
   const db = getDb();
   await deleteDoc(doc(db, "normalRooms", code, "spectators", uid));
-}
-
-export function subscribeSpectators(
-  code: string,
-  cb: (specs: SpectatorEntry[]) => void,
-): () => void {
-  const db = getDb();
-  return onSnapshot(
-    collection(db, "normalRooms", code, "spectators"),
-    (snap) => cb(snap.docs.map((d) => d.data() as SpectatorEntry)),
-    () => cb([]),
-  );
 }
 
 export function subscribeNormalLobby(
@@ -494,16 +418,6 @@ export async function setTableLocked(
   await updateDoc(doc(db, "normalRooms", code), { locked });
 }
 
-// Legacy — kept for presencial mode compatibility
-export async function joinNormalLobby(
-  code: string,
-  uid: string,
-  name: string,
-  seed: string,
-): Promise<void> {
-  await approveJoin(code, uid, name, seed, 0);
-}
-
 export function subscribeNormalHole(
   code: string,
   seatId: string,
@@ -642,16 +556,6 @@ export async function setNormalRoomTheme(
 ): Promise<void> {
   const db = getDb();
   await updateDoc(doc(db, "normalRooms", code), { theme });
-}
-
-export async function setNormalRoomName(
-  code: string,
-  roomName: string,
-): Promise<void> {
-  const db = getDb();
-  await updateDoc(doc(db, "normalRooms", code), {
-    roomName: roomName.trim().slice(0, 32) || `Mesa ${code}`,
-  });
 }
 
 export async function setNormalRoomMaxPlayers(

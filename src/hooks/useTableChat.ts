@@ -19,8 +19,6 @@ export const CANNED_PHRASES = [
   "Uf...",
 ] as const;
 
-export type CannedPhrase = (typeof CANNED_PHRASES)[number];
-
 export interface TableChatHook {
   /** Send a phrase as the current user. Echoed locally immediately. */
   send: (phrase: string) => void;

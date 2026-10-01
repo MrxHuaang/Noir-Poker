@@ -21,7 +21,6 @@ import {
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import { getDb, getFirebaseAuth } from "./firebase";
-import { levelFromXp, titleForLevel } from "./progression";
 
 export type AuthProvider = "google" | "github" | "anonymous";
 
@@ -212,10 +211,4 @@ export async function recordSession(
   },
 ): Promise<void> {
   await callEconomy("record-session", { session: data }, uid);
-}
-
-// Mantiene level/title consistentes si se migra xp manualmente (util/testing).
-export function reconcileLevel(profile: UserProfile): UserProfile {
-  const level = levelFromXp(profile.xp);
-  return { ...profile, level, title: titleForLevel(level) };
 }

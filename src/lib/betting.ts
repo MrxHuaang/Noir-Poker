@@ -93,17 +93,6 @@ export type NormalGameState = {
   };
 };
 
-export type PotResult = {
-  pot: SidePot;
-  winnerIds: string[];
-  amount: number;
-};
-
-export type HandResult = {
-  potResults: PotResult[];
-  winnerIds: string[];
-};
-
 export type RoomConfig = {
   mode: "normal" | "torneo";
   startingStack: number;
@@ -680,33 +669,4 @@ export function formatChips(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
   return String(n);
-}
-
-// Split a pot across N board run-outs with zero chip leakage.
-// Per-run pots sum to exactly totalPot (the last run absorbs the remainder),
-// and within each run the leftover from an uneven split goes to the first
-// winner — mirroring the single-showdown distribution in resolveShowdown.
-export function distributeRunPot(
-  totalPot: number,
-  runs: { winners: string[] }[],
-): { winningsByPlayer: Record<string, number>; perRunPot: number[] } {
-  const winningsByPlayer: Record<string, number> = {};
-  const perRunPot: number[] = [];
-  const n = runs.length;
-  if (n === 0) return { winningsByPlayer, perRunPot };
-
-  const runShare = Math.floor(totalPot / n);
-  for (let r = 0; r < n; r++) {
-    const runPot = r === n - 1 ? totalPot - runShare * (n - 1) : runShare;
-    perRunPot.push(runPot);
-    const winners = runs[r].winners;
-    if (winners.length === 0) continue;
-    const share = Math.floor(runPot / winners.length);
-    const remainder = runPot - share * winners.length;
-    winners.forEach((w, i) => {
-      winningsByPlayer[w] =
-        (winningsByPlayer[w] ?? 0) + share + (i === 0 ? remainder : 0);
-    });
-  }
-  return { winningsByPlayer, perRunPot };
 }

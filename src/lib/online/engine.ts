@@ -353,12 +353,6 @@ function syncSeats(st: EngineState): void {
   }
 }
 
-export function inLiveHand(st: EngineState, uid: string): boolean {
-  if (betweenHands(st) || !st.betting) return false;
-  const s = st.betting.seats.find((x) => x.id === uid);
-  return !!s && (s.status === "active" || s.status === "all-in");
-}
-
 // ---------------------------------------------------------------------------
 // Seating
 // ---------------------------------------------------------------------------

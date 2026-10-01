@@ -92,15 +92,6 @@ export function startTournament(state: TournamentState): TournamentState {
   };
 }
 
-export function shouldAdvanceLevel(
-  state: TournamentState,
-  config: RoomConfig,
-  now = Date.now(),
-): boolean {
-  if (state.paused) return false;
-  return levelTimeRemaining(state, config, now) === 0;
-}
-
 export function advanceLevel(state: TournamentState): TournamentState {
   return {
     ...state,

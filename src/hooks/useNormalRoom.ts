@@ -5,12 +5,9 @@ import {
   subscribeNormalLobby,
   subscribeNormalLobbyState,
   subscribeNormalHole,
-  subscribeOpenRooms,
   subscribeQueue,
-  ROOM_LIVE_WINDOW_MS,
   type NormalRoomDoc,
   type NormalLobbyPlayer,
-  type OpenRoomSummary,
   type QueueEntry,
 } from "@/lib/normalRooms";
 import {
@@ -139,34 +136,6 @@ export function useNormalLobbyState(
 
   if (!code || state.code !== code) return { players: NO_PLAYERS, ready: false };
   return { players: state.players, ready: state.ready };
-}
-
-// Lobby: live public rooms. `ready` is false until the first snapshot arrives
-// so the UI can distinguish "loading" from a genuinely empty lobby. Liveness is
-// gated here on a timer so a host that closed its tab drops off within the live
-// window even though Firestore fires no new snapshot for it.
-export function useOpenRooms(
-  enabled = true,
-): { rooms: OpenRoomSummary[]; ready: boolean } {
-  const [all, setAll] = useState<OpenRoomSummary[]>([]);
-  const [ready, setReady] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    // The collection query requires a signed-in user; wait until enabled so the
-    // listener doesn't attach before anonymous auth resolves (permission error).
-    if (!enabled) return;
-    const unsub = subscribeOpenRooms((r) => {
-      setAll(r);
-      setReady(true);
-    });
-    const tick = setInterval(() => setNow(Date.now()), 10_000);
-    return () => {
-      unsub();
-      clearInterval(tick);
-    };
-  }, [enabled]);
-  const rooms = all.filter((r) => now - r.hostHeartbeat < ROOM_LIVE_WINDOW_MS);
-  return { rooms, ready };
 }
 
 // Wait queue for a room. `position` is the caller's 1-based spot, or 0 if not

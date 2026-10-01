@@ -4,7 +4,6 @@ import {
   handleAction,
   getValidActions,
   computeSidePots,
-  distributeRunPot,
   DEFAULT_CONFIG,
   type NormalSeat,
   type BettingRound,
@@ -269,56 +268,6 @@ describe("handleAction — call/check and round completion", () => {
     expect(afterA.street).toBe("flop"); // still b to act
     const afterB = handleAction(afterA, "b", "check");
     expect(afterB.street).toBe("turn"); // round complete -> advance
-  });
-});
-
-describe("distributeRunPot — conserves the pot (bug 1a regression)", () => {
-  it("gives the whole pot to a single run/winner", () => {
-    const { winningsByPlayer, perRunPot } = distributeRunPot(100, [
-      { winners: ["a"] },
-    ]);
-    expect(perRunPot).toEqual([100]);
-    expect(winningsByPlayer).toEqual({ a: 100 });
-  });
-
-  it("splits an odd pot across 2 runs with no chip leak", () => {
-    const total = 101;
-    const { winningsByPlayer, perRunPot } = distributeRunPot(total, [
-      { winners: ["a"] },
-      { winners: ["b"] },
-    ]);
-    expect(perRunPot.reduce((x, y) => x + y, 0)).toBe(total);
-    const paid = Object.values(winningsByPlayer).reduce((x, y) => x + y, 0);
-    expect(paid).toBe(total);
-  });
-
-  it("sends the in-run remainder to the first winner", () => {
-    const { winningsByPlayer } = distributeRunPot(100, [
-      { winners: ["a", "b", "c"] },
-    ]);
-    expect(winningsByPlayer.a).toBe(34);
-    expect(winningsByPlayer.b).toBe(33);
-    expect(winningsByPlayer.c).toBe(33);
-  });
-
-  it("returns empty maps for 0 runs", () => {
-    const { winningsByPlayer, perRunPot } = distributeRunPot(500, []);
-    expect(winningsByPlayer).toEqual({});
-    expect(perRunPot).toEqual([]);
-  });
-
-  it("conserves the pot for many totals, run counts and winner counts", () => {
-    for (const total of [7, 101, 333, 1000]) {
-      for (const n of [1, 2, 3, 4]) {
-        const runs = Array.from({ length: n }, (_, i) => ({
-          winners: i % 2 === 0 ? ["a"] : ["a", "b"],
-        }));
-        const { winningsByPlayer, perRunPot } = distributeRunPot(total, runs);
-        expect(perRunPot.reduce((x, y) => x + y, 0)).toBe(total);
-        const paid = Object.values(winningsByPlayer).reduce((x, y) => x + y, 0);
-        expect(paid).toBe(total);
-      }
-    }
   });
 });
 

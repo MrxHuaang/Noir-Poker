@@ -76,7 +76,6 @@ a time. Done: the landing (`/`), the club panel (`/jugar`) and the online table
   - Messages: `{knock}`, `{snap}`, `{cam}`, `{sound}` go to the scene; `{sceneReady: mode}`, `{chosen: castId}` (select mode) come back. Always post and check `location.origin`.
   - The player's character is stored in the profile `avatarSeed` as `cast:<id>` (`seedForCast` / `castFromSeed` in `noirCast.ts`); old seeds map to a stable character.
   - Same-origin framing is allowed only for `/noir/*` (`next.config.ts` headers). Everything else stays `frame-ancestors 'none'`.
-  - `prototypes/` is the archived prototype source; edit `public/noir/` now.
   - Cast ids in `noirCast.ts` are stable (stored in profiles); names may change.
 - **Motion:**
   - Entrances are CSS transitions (`[data-group]` + `[data-reveal]`, armed by an IntersectionObserver).
@@ -114,7 +113,7 @@ a time. Done: the landing (`/`), the club panel (`/jugar`) and the online table
 - File paths in code/edits should use absolute imports via `@/`.
 - Components colocated by feature: `components/table/*`, `components/players/*`, `components/cards/*`.
 - Hooks live under `src/hooks/`.
-- Firestore helpers in `src/lib/rooms.ts`. Don't sprinkle direct `getFirestore()` calls in components.
+- Firestore helpers in `src/lib/normalRooms.ts` (legacy rooms) and `src/lib/online/client.ts` (online). Don't sprinkle direct `getFirestore()` calls in components.
 
 ## Color system (brand accent)
 
@@ -155,7 +154,7 @@ borders, gradient washes or `uppercase tracking-[...]` micro-labels.
 | `src/lib/poker.ts`                            | Deck, shuffle (Fisher-Yates + `crypto.getRandomValues`), deal, advance, types |
 | `src/lib/handEval.ts`                         | 7-card best hand, category labels, ties                       |
 | `src/lib/handLabel.ts`                        | Spanish hand descriptions (e.g. "Par de ases", "Escalera al rey") |
-| `src/lib/rooms.ts`                            | Firestore room CRUD, lobby subcollection, hole subcollection  |
+| `src/lib/normalRooms.ts`                      | Legacy host-run room CRUD, lobby, queue, encrypted holes      |
 | `src/lib/firebase.ts`                         | Lazy app/auth/firestore singletons (client-only)              |
 | `src/lib/brand.ts`                            | Canonical accent palette for JS/canvas/inline styles. Mirrors the `accent-*` scale in `globals.css`. |
 | `src/components/table/RoundPokerTable.tsx`    | Betting-mode table. Seats use 10 fixed positions. Rotation via `rotationOffset` state. |
@@ -184,19 +183,19 @@ borders, gradient washes or `uppercase tracking-[...]` micro-labels.
 ## Privacy invariants
 
 - Equity, hand strength, outs, and other derived info must NEVER render on a seat directly. Always in a sidebar panel labelled as host-only.
-- Hole cards live in `rooms/{code}/holes/{seatId}`. The seat owner UID is set at deal time. Phones subscribe to their own hole doc only.
+- Hole cards live in `onlineRooms/{code}/holes/{uid}` (online) and `normalRooms/{code}/holes/{seatId}` (legacy). Each player subscribes to their own hole doc only.
 - When adding a new field that could leak information, decide explicitly: host-only sidebar, or no display.
 
 ## Firestore data model
 
 ```
-rooms/{code}
-  code, hostUid, createdAt
-  state: RoomState | null
-  result, playback, runHighlight
-
-rooms/{code}/lobby/{uid}    public seat list with name + seed (before deal)
-rooms/{code}/holes/{seatId} private hole cards, ownerUid scoped
+onlineRooms/{code}                 public state (PublicState), read by signed-in clients
+onlineRooms/{code}/private/engine  full engine state incl. deck (server only)
+onlineRooms/{code}/holes/{uid}     own hole cards (owner only)
+onlineRooms/{code}/presence/{uid}  heartbeats (players; observers with watch: true)
+onlineRooms/{code}/hands/{n}       hand records (XP and stats source)
+playerStats/{uid}                  running online stats (server writes only)
+normalRooms/{code}/...             legacy host-run rooms
 ```
 
 `firestore.rules` in repo root holds the production policy. Test mode (open for 30 days) is fine for dev.
@@ -253,7 +252,6 @@ Setup completo: `docs/voice-setup.md`.
 - Don't run `next dev` from two terminals at the same port. The second one will hang trying to scaffold.
 - Don't render hole cards as `absolute -top-20 z-0` inside an `overflow-hidden` container — they will be clipped by the table surface. Render them outside the felt element as siblings in the `React.Fragment` and use `z-40`.
 - Don't compare `seat.status` against `'sit-out'` — the correct value in `SeatStatus` is `'sitting-out'`.
-- Don't add `phase` or `allInNegotiation` fields to `RoomState` (in `rooms.ts`) without also updating the `RoomDoc` type and Firestore rules. These fields exist only on `NormalGameState` in `betting.ts`.
 - Don't add `Co-Authored-By: Claude` trailers to commit messages. Write commits as if the owner wrote them.
 - Don't pass an inline object literal (`{ roomCode, ownersMap }`) as a `useEffect` dependency — it creates a new reference on every render and re-fires the effect continuously. Memoize the object at the call site or depend only on the primitive fields (e.g. `sync?.roomCode`).
 - Don't use `el.volume = 0` to mute a remote audio element — the pipeline stays active. Use `el.muted = true` so the browser can suspend decoding and save battery.

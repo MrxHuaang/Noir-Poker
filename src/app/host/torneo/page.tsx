@@ -24,7 +24,7 @@ import {
   setHostHeartbeat,
 } from "@/lib/normalRooms";
 import { cashOutHost, seatHost } from "@/lib/hostSeat";
-import { formatChips, TOURNAMENT_LEVELS } from "@/lib/betting";
+import { TOURNAMENT_LEVELS } from "@/lib/betting";
 import type {
   BettingAction,
   BettingRound,
@@ -222,7 +222,6 @@ function HostTorneoPageInner() {
   const cardBack: CardBackId = (room?.cardBack as CardBackId) ?? "classic-blue";
   const roomBg = room?.roomBg ?? "onyx";
   const result = room?.result ?? null;
-  const isShowdown = gameState?.phase === "showdown";
   const canDeal = canStartHand;
 
   const joinUrl =

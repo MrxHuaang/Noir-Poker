@@ -76,7 +76,6 @@ export function TournamentPodium({ ranking, onClose }: Props) {
   const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
   const podiumHeights = [top3[1] ? "h-24" : "h-0", "h-36", top3[2] ? "h-16" : "h-0"];
   const podiumLabels = ["2", "1", "3"];
-  const podiumPositions = [1, 0, 2];
 
   return (
     <div
@@ -93,7 +92,6 @@ export function TournamentPodium({ ranking, onClose }: Props) {
         <div className="flex items-end justify-center gap-2 w-full">
           {podiumOrder.map((player, vi) => {
             if (!player) return null;
-            const pos = podiumPositions[vi];
             const label = podiumLabels[vi];
             const heights = [podiumHeights[0], podiumHeights[1], podiumHeights[2]];
             const barH = heights[vi];

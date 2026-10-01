@@ -156,46 +156,6 @@ export function getCardBack(id?: string | null): CardBack {
 
 export type CardFaceId = "classic" | "dark" | "neon" | "noir" | "balatro";
 
-export type CardFace = {
-  id: CardFaceId;
-  label: string;
-  description: string;
-};
-
-export const CARD_FACES: Record<CardFaceId, CardFace> = {
-  classic: {
-    id: "classic",
-    label: "Clásico",
-    description: "Fondo blanco tradicional",
-  },
-  dark: {
-    id: "dark",
-    label: "Oscuro",
-    description: "Fondo negro, palos iluminados",
-  },
-  neon: {
-    id: "neon",
-    label: "Neón",
-    description: "Brillo neón por palo",
-  },
-  noir: {
-    id: "noir",
-    label: "Noir",
-    description: "Estilo de marca blanco y negro",
-  },
-  balatro: {
-    id: "balatro",
-    label: "Balatro",
-    description: "Color por palo, estilo arcade oscuro",
-  },
-};
-
-export const CARD_FACE_LIST: CardFace[] = Object.values(CARD_FACES);
-
-export function getCardFace(id?: string | null): CardFace {
-  if (id && id in CARD_FACES) return CARD_FACES[id as CardFaceId];
-  return CARD_FACES.classic;
-}
 
 /* ── Room backgrounds ──────────────────────────────────────────────── */
 
