@@ -49,7 +49,7 @@ const pixelify = Pixelify_Sans({
 export const metadata: Metadata = {
   title: "Noir — Poker multi-dispositivo",
   description:
-    "Club de póker de 1929 para jugar entre amigos. Mesas abiertas y torneos, cada uno desde su teléfono.",
+    "Club de póker de 1929 para jugar entre amigos. Mesas abiertas y torneos, desde cualquier dispositivo.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

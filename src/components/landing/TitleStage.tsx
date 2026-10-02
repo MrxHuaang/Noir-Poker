@@ -172,7 +172,7 @@ export function TitleStage({
             CLUB DE PÓKER · 1929
           </p>
           <p className="title-in mt-3 max-w-[36ch] text-[clamp(17px,1.4vw,21px)] text-paper-dim" style={delay(0.45)}>
-            Nadie aquí enseña la cara. Póker entre amigos, cada uno desde su teléfono.
+            Nadie aquí enseña la cara. Póker entre amigos, desde cualquier dispositivo.
           </p>
 
           <ul className="mt-[clamp(22px,4vh,40px)] grid w-fit list-none gap-1 p-0" data-menu>
