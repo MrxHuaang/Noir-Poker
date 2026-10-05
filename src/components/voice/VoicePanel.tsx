@@ -62,8 +62,9 @@ export default function VoicePanel({
     statusRef.current = onStatus;
   }, [onStatus]);
   useEffect(() => {
-    statusRef.current?.({ on: enabled, talking: enabled && !isMuted });
-  }, [enabled, isMuted]);
+    // on the air only with a live mic track (a denied mic leaves no stream)
+    statusRef.current?.({ on: enabled, talking: enabled && !!localStream && !isMuted });
+  }, [enabled, isMuted, localStream]);
 
   // Atajo M para mute (solo cuando ya estamos unidos).
   useEffect(() => {
