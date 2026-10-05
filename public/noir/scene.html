@@ -363,10 +363,14 @@ function makeRT(w, h, nearest) {
 }
 function resize() {
   const r = view.getBoundingClientRect(); W = Math.max(2, Math.round(r.width)); H = Math.max(2, Math.round(r.height));
+  // the room stays chunky (low-res cells), but the card layer and the final pass
+  // run at the screen's real pixels: at 1 px per CSS px a 125-150% Windows scale
+  // stretches the cards and blurs them
+  const D = Math.min(2, window.devicePixelRatio || 1); renderer.setPixelRatio(D);
   renderer.setSize(W, H, false);
   const px = Number(OPT.px) || 2, w = Math.max(2, Math.floor(W / px)), h = Math.max(2, Math.floor(H / px));
   if (rt) rt.dispose(); if (cardRT) cardRT.dispose(); if (gradeRT) gradeRT.dispose();
-  rt = makeRT(w, h, true); cardRT = makeRT(W, H, true);
+  rt = makeRT(w, h, true); cardRT = makeRT(Math.round(W * D), Math.round(H * D), true);
   gradeRT = new THREE.WebGLRenderTarget(w, h, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, type: THREE.HalfFloatType, depthBuffer: false }); post.uniforms.tGrade.value = gradeRT.texture;
   Object.assign(post.uniforms, {}); post.uniforms.tColor.value = rt.texture; post.uniforms.tDepth.value = rt.depthTexture; post.uniforms.tCard.value = cardRT.texture; post.uniforms.tCardDepth.value = cardRT.depthTexture;
   post.uniforms.res.value.set(w, h); post.uniforms.full.value.set(W, H);
@@ -391,6 +395,7 @@ function canvasTex(w, h, draw, nearest = true) {
   const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d"); g.imageSmoothingEnabled = false; draw(g, w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   if (nearest) { t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; }
+  else t.anisotropy = renderer.capabilities.getMaxAnisotropy(); // smooth faces stay sharp on a tilted card
   return t;
 }
 function add(parent, geo, mat, x, y, z, o = {}) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry; if (o.rx) m.rotation.x = o.rx; if (o.rz) m.rotation.z = o.rz; m.castShadow = o.cast !== false; m.receiveShadow = true; parent.add(m); return m; }
