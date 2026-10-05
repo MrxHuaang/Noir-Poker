@@ -76,6 +76,24 @@ body{font-size:15px;line-height:1.5}
 .tag.away .name::after{content:" (ausente)";font:600 10px var(--f-ui);text-transform:none;letter-spacing:0;color:#7a6a55}
 .tag.folded{opacity:.5;filter:grayscale(.8) brightness(.7) drop-shadow(0 4px 6px rgba(0,0,0,.5))}
 .tag.win{filter:sepia(.4) saturate(1.5) brightness(1.1) drop-shadow(0 10px 14px rgba(0,0,0,.6))}
+/* phones and narrow frames (the landing hero on a phone): the seat cards shrink to
+   name + stack size so they fit the smaller table; desktop keeps the full card */
+@media (max-width:640px){
+.tag{width:86px;padding:3px 7px 5px}
+.tag.hero{width:96px}
+.tag .row{gap:4px}
+.tag .name{font-size:10px;letter-spacing:.02em}
+.tag .stack{font-size:10px;line-height:1.15}
+.tag .act{font-size:8.5px;line-height:1.2}
+.tag .pos{font-size:7.5px;padding:1px 2px;border-width:1px}
+.tag .timer{left:6px;right:6px;bottom:2px;height:2px}
+.tag.away .name::after{font-size:8px}
+}
+@media (max-width:420px){
+.tag{width:72px;padding:2px 6px 4px}
+.tag.hero{width:82px}
+.tag .act{display:none}
+}
 /* Bets and pot: bare numbers chalked over the felt, no boxes. */
 .pill{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font:700 15px/1 var(--f-num);font-variant-numeric:tabular-nums;color:#f3e6c8;white-space:nowrap;z-index:4;
   text-shadow:0 1px 0 #0b0908,1px 0 0 #0b0908,-1px 0 0 #0b0908,0 -1px 0 #0b0908,0 2px 6px rgba(0,0,0,.8)}
