@@ -38,6 +38,8 @@ import { NoirTableLedger } from "@/components/noir/NoirTableLedger";
 import { NoirCase } from "@/components/noir/NoirCase";
 import { NoirBuyIn, defaultBuyIn } from "@/components/noir/NoirBuyIn";
 import { NoirShowCards } from "@/components/noir/NoirShowCards";
+import { Dial, Lever, PickRow, PickRows, Seg } from "@/components/noir/Pickers";
+import { CardArt, GradeChip, TableTray } from "@/components/noir/Previews";
 import { NoirRuns } from "@/components/noir/NoirRuns";
 
 const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
@@ -122,22 +124,6 @@ function freshnessKey(
 
 function Plate({ children }: { children: ReactNode }) {
   return <div className="plate legible pointer-events-auto grid max-w-[420px] justify-items-center gap-3 px-8 pt-8 pb-7 text-center">{children}</div>;
-}
-
-/** One option in the case's settings tab, one row: the question, then stamps. */
-function Setting<T extends string | boolean>({ label, value, options, onChange }: { label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void }) {
-  return (
-    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-2">
-      <span className="pt-1.5 text-[13px] font-semibold leading-tight text-brass-200">{label}</span>
-      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={label}>
-        {options.map((o) => (
-          <button key={String(o.v)} type="button" role="radio" aria-checked={value === o.v} className="stamp" onClick={() => onChange(o.v)}>
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 /** Current blinds and, when they climb, the countdown to the next level. */
@@ -711,21 +697,45 @@ function PlayOnlinePageInner() {
           lifted={isMyTurn}
           settings={
             <>
-              <Setting
-                label="Sonido"
-                value={!prefs.sound ? "off" : prefs.music ? "all" : "fx"}
-                onChange={(v) => setPref({ sound: v !== "off", music: v === "all" })}
-                options={[
-                  { v: "all", label: "Con radio" },
-                  { v: "fx", label: "Sin radio" },
-                  { v: "off", label: "Silencio" },
-                ]}
+              <TableTray
+                felt={look.felt}
+                rail={look.rail}
+                face={prefs.face}
+                four={prefs.four}
+                back={prefs.back}
+                grade={prefs.grade}
+                cam={prefs.cam}
+                label={`Así se ve tu sitio: caras ${FACES.find((f) => f.v === prefs.face)?.label ?? ""}, reverso ${BACKS.find((f) => f.v === prefs.back)?.label ?? ""}, escena ${GRADES.find((f) => f.v === prefs.grade)?.label ?? ""}`}
               />
-              <Setting label="Vista" value={prefs.cam} onChange={(cam) => setPref({ cam })} options={[{ v: "front", label: "Frontal" }, { v: "iso", label: "Isométrica" }]} />
-              <Setting label="Caras" value={prefs.face} onChange={(face) => setPref({ face })} options={FACES} />
-              <Setting label="Baraja" value={prefs.four} onChange={(four) => setPref({ four })} options={[{ v: false, label: "2 colores" }, { v: true, label: "4 colores" }]} />
-              <Setting label="Reverso" value={prefs.back} onChange={(back) => setPref({ back })} options={BACKS} />
-              <Setting label="Escena" value={prefs.grade} onChange={(grade) => setPref({ grade })} options={GRADES} />
+              <PickRows className="pk-tight">
+                <PickRow label="Sonido" labelWidth="4.5rem">
+                  <Seg
+                    label="Sonido"
+                    value={!prefs.sound ? "off" : prefs.music ? "all" : "fx"}
+                    onChange={(v) => setPref({ sound: v !== "off", music: v === "all" })}
+                    options={[
+                      { v: "all", label: "Radio" },
+                      { v: "fx", label: "Efectos" },
+                      { v: "off", label: "Silencio" },
+                    ]}
+                  />
+                </PickRow>
+                <PickRow label="Vista" labelWidth="4.5rem">
+                  <Lever label="Vista" value={prefs.cam} onChange={(cam) => setPref({ cam })} options={[{ v: "front" as SceneCam, label: "Frontal" }, { v: "iso" as SceneCam, label: "Isométrica" }]} />
+                </PickRow>
+                <PickRow label="Caras" labelWidth="4.5rem">
+                  <Dial label="Caras" value={prefs.face} onChange={(face) => setPref({ face })} options={FACES} thumb={(v) => <CardArt card={{ r: 12, s: 0 }} face={v} four={prefs.four} back={prefs.back} height={24} />} />
+                </PickRow>
+                <PickRow label="Baraja" labelWidth="4.5rem">
+                  <Lever label="Baraja" value={prefs.four} onChange={(four) => setPref({ four })} options={[{ v: false, label: "2 colores" }, { v: true, label: "4 colores" }]} />
+                </PickRow>
+                <PickRow label="Reverso" labelWidth="4.5rem">
+                  <Dial label="Reverso" value={prefs.back} onChange={(back) => setPref({ back })} options={BACKS} thumb={(v) => <CardArt card={null} face={prefs.face} four={prefs.four} back={v} height={24} />} />
+                </PickRow>
+                <PickRow label="Escena" labelWidth="4.5rem">
+                  <Dial label="Escena" value={prefs.grade} onChange={(grade) => setPref({ grade })} options={GRADES} thumb={(v) => <GradeChip grade={v} />} />
+                </PickRow>
+              </PickRows>
             </>
           }
         />

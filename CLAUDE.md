@@ -29,6 +29,20 @@ a time. Done: the landing (`/`), the club panel (`/jugar`) and the online table
 
   A new control is designed as a thing (ticket, chip, stamp, matchbook, brass,
   paper), never as a rounded rectangle with a border.
+- **Option pickers are one straight object, never a wall of stamps**
+  (`src/components/noir/Pickers.tsx`, `.pk-*` in `noir.css`): `Seg` (brass
+  switch of equal segments), `Lever` (two-way), `Dial` (long lists: value,
+  arrows, notches), `Tiles` (choices you look at), `AutoPick` (picks one from
+  the options), inside `PickRows`/`PickRow`, which stack against their own
+  width (container queries). Visual choices show previews (`Previews.tsx`):
+  real cards via `CardArt`, the `TableTray` miniature, felt samples, and the
+  room/dealer pictures in `public/noir/art/` (pixel-art PNGs, a few KB each).
+- **Card art lives in `public/noir/art.js`** (plain canvas module): the scene
+  imports it and the app loads it at runtime (`src/lib/noirArt.ts`), so both
+  draw the same cards.
+- **Generated art**: `node scripts/xai-image.mjs --out ... --size WxH --pixel
+  WxH --prompt "..."` (xAI/Grok, key `XAI_API_KEY` in `.env.local`). `--pixel`
+  snaps the result to a low-res grid and small palette so it reads as pixel art.
 - **One font per surface.** A menu, modal, plate or settings panel uses ONE
   family throughout: never mix pixel (`font-pix`) and plain text in the same
   place. Anything that is read rather than admired (menus, house rules,

@@ -5,6 +5,7 @@
 // Pure presentation: the server checks that the hand is over and the cards
 // are yours.
 import { useEffect, useEffectEvent } from "react";
+import { ActSeg } from "@/components/noir/Pickers";
 
 const SUIT: Record<string, { glyph: string; red: boolean; name: string }> = {
   S: { glyph: "♠", red: false, name: "picas" },
@@ -76,21 +77,16 @@ export function NoirShowCards({
           );
         })}
       </div>
-      <div className="flex flex-wrap justify-end gap-1.5">
-        {!shown[0] && (
-          <button type="button" className="stamp" disabled={busy} onClick={() => onShow(0)}>
-            Mostrar izquierda <kbd className="ml-1 opacity-60">1</kbd>
-          </button>
-        )}
-        {!shown[1] && (
-          <button type="button" className="stamp" disabled={busy} onClick={() => onShow(1)}>
-            Mostrar derecha <kbd className="ml-1 opacity-60">2</kbd>
-          </button>
-        )}
+      <div className="w-[276px]">
+        <ActSeg
+          label="Qué enseñar"
+          actions={[
+            { key: "l", label: <>Izquierda <kbd className="opacity-60">1</kbd></>, onClick: () => onShow(0), disabled: busy || shown[0] },
+            { key: "r", label: <>Derecha <kbd className="opacity-60">2</kbd></>, onClick: () => onShow(1), disabled: busy || shown[1] },
+            { key: "a", label: <>Las dos <kbd className="opacity-60">A</kbd></>, onClick: () => onShow(), disabled: busy },
+          ]}
+        />
       </div>
-      <button type="button" className="btn-brass btn-sm" disabled={busy} onClick={() => onShow()}>
-        Mostrar las dos <kbd className="text-[11px] opacity-60">A</kbd>
-      </button>
     </div>
   );
 }

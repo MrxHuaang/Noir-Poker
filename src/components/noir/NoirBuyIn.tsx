@@ -1,9 +1,10 @@
 "use client";
 // How much you bring to the table: a chip on the brass rail, a ledger slot for
-// the exact number and stamps for the minimum, the usual 100 big blinds and the
-// maximum. Your wallet is written next to it, so a short wallet reads before
+// the exact number and a brass switch for the minimum, the usual 100 big blinds
+// and the maximum (always the same three slots, so the row never changes width). Your wallet is written next to it, so a short wallet reads before
 // you press. Pure input: the server clamps and escrows again.
 import { useId, useState } from "react";
+import { Seg } from "@/components/noir/Pickers";
 
 const fmt = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
@@ -36,10 +37,11 @@ export function NoirBuyIn({
   const v = Math.max(min, Math.min(top, Math.round(value)));
   const short = wallet !== undefined && wallet < min;
   const presets = [
-    { label: "Mínimo", n: min },
-    { label: "100 grandes", n: Math.max(min, Math.min(top, bb * 100)) },
-    { label: wallet !== undefined && wallet < max ? "Todo lo que tengo" : "Máximo", n: top },
-  ].filter((p, i, a) => a.findIndex((q) => q.n === p.n) === i);
+    { v: "min", label: "Mínimo", n: min },
+    { v: "bb100", label: "100 grandes", n: Math.max(min, Math.min(top, bb * 100)) },
+    { v: "max", label: wallet !== undefined && wallet < max ? "Todo lo que tengo" : "Máximo", n: top },
+  ];
+  const picked = presets.find((p) => p.n === v)?.v ?? "";
 
   return (
     <div className="grid w-full gap-2 text-left">
@@ -76,13 +78,13 @@ export function NoirBuyIn({
           aria-label="Fichas que traes a la mesa"
         />
       )}
-      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Atajos de compra">
-        {presets.map((p) => (
-          <button key={p.label} type="button" role="radio" aria-checked={v === p.n} disabled={short} className="stamp" onClick={() => onChange(p.n)}>
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <Seg
+        label="Atajos de compra"
+        value={picked}
+        disabled={short}
+        onChange={(k) => onChange(presets.find((p) => p.v === k)?.n ?? v)}
+        options={presets.map((p) => ({ v: p.v, label: p.label }))}
+      />
       <p className="m-0 text-[13px] text-paper-mute">
         Mesa de {fmt(min)} a {fmt(max)}
         {wallet !== undefined && (

@@ -351,13 +351,11 @@
     letter-spacing: .08em;
     text-transform: uppercase;
     cursor: pointer;
-    rotate: -2deg;
     opacity: .85;
     transition: opacity .15s, rotate .15s, color .15s;
   }
-  .stamp:nth-child(even) { rotate: 1.5deg; }
   .stamp:hover { opacity: 1; color: #e06a5a; }
-  .stamp[aria-pressed="true"], .stamp[aria-checked="true"] { color: var(--color-tungsten-400); opacity: 1; rotate: 0deg; }
+  .stamp[aria-pressed="true"], .stamp[aria-checked="true"] { color: var(--color-tungsten-400); opacity: 1; }
   .chip-range { appearance: none; -webkit-appearance: none; height: 28px; background: transparent; cursor: pointer; }
   .chip-range::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(var(--color-brass-400), var(--color-brass-700)); box-shadow: 0 1px 0 #050404; }
   .chip-range::-moz-range-track { height: 4px; background: linear-gradient(var(--color-brass-400), var(--color-brass-700)); }
@@ -386,7 +384,8 @@
 .legible :is(.kick, .font-pix) { letter-spacing: .02em; }
 .legible .kick { font-size: 13px; font-weight: 600; text-transform: none; }
 .legible .stencil { font-weight: 800; letter-spacing: -.01em; line-height: 1.05; text-transform: none; }
-.legible .stamp { font-weight: 600; font-size: 13.5px; letter-spacing: 0; text-transform: none; height: 32px; padding: 0 11px; }
+.legible .stamp { font-weight: 600; letter-spacing: 0; text-transform: none; }
+@layer components { .legible .stamp { font-size: 13.5px; height: 32px; padding: 0 11px; } }
 .legible :is(.btn-brass, .tk) { font-weight: 700; letter-spacing: .01em; text-transform: none; }
 .legible .tk { font-size: 17px; }
 .legible .btn-brass { font-size: 15px; }
@@ -497,3 +496,73 @@
 @media (max-width: 639px) {
   .rank-step:not([data-state="on"]) .rank-label { visibility: hidden; }
 }
+
+/* ── Pickers (Noir 1929) ───────────────────────────────────────────────
+   Options are set with objects that stay in one straight line: a brass
+   switch of equal segments, a lever for two-way choices, a dial (value in a
+   sunk slot, arrows, notches) for long lists, and framed samples where the
+   choice is something you look at (cards, rooms, dealers, felts). Rows are
+   laid out against their own width (container queries), so a narrow drawer
+   stacks the label above the control instead of squeezing it. */
+@layer components {
+  .pk-rows { display: grid; container-type: inline-size; }
+  .pk-rows > * + * { border-top: 1px dashed rgb(185 138 60 / .18); }
+  .pk-rows > * { padding: 9px 0; }
+  .pk-tight > * { padding: 6px 0; }
+  .pk-rows > *:first-child { padding-top: 0; }
+  .pk-row { display: grid; grid-template-columns: var(--pk-lw, 6rem) minmax(0, 1fr); align-items: center; gap: 6px 12px; }
+  .pk-lbl { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.25; color: var(--color-brass-200); }
+  .pk-hint { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.3; color: var(--color-paper-mute); }
+  .pk-ctl { display: grid; gap: 6px; min-width: 0; }
+  /* narrow panels stack the label over the control; forms with a wide label column stack sooner */
+  @container (max-width: 280px) { .pk-row { grid-template-columns: minmax(0, 1fr); } }
+  @container (max-width: 460px) { .pk-wide > .pk-row, .pk-wide > * > .pk-row { grid-template-columns: minmax(0, 1fr); } }
+
+  .pk-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); min-height: 34px; min-width: 0; background: linear-gradient(#0d0a07, #080605); border: 1px solid var(--color-brass-700); box-shadow: inset 0 2px 0 rgb(0 0 0 / .65), 0 1px 0 rgb(185 138 60 / .3); }
+  .pk-seg > button { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; padding: 4px 6px; color: var(--color-paper-dim); font-size: 13px; font-weight: 600; line-height: 1.15; text-align: center; cursor: pointer; border-left: 1px solid rgb(185 138 60 / .22); transition: color .12s, background .12s; }
+  .pk-seg > button:first-child { border-left: 0; }
+  .pk-seg > button:hover:not(:disabled) { color: var(--color-paper); background: rgb(255 220 150 / .045); }
+  .pk-seg > button[aria-checked="true"] { background: linear-gradient(#4a3818, #271c0c); color: var(--color-tungsten-300); box-shadow: inset 0 1px 0 rgb(255 220 150 / .3), inset 0 -2px 0 var(--color-tungsten-400); }
+  .pk-seg > button:disabled { opacity: .35; cursor: not-allowed; }
+  .pk-seg > button:focus-visible { outline: 2px solid var(--color-tungsten-400); outline-offset: -3px; z-index: 1; }
+  .pk-seg > button > span { overflow-wrap: anywhere; }
+  .pk-seg.pk-act > button:active:not(:disabled) { background: linear-gradient(#4a3818, #271c0c); color: var(--color-tungsten-300); }
+  .pk-sw { width: 12px; height: 12px; flex: none; box-shadow: 0 0 0 1px rgb(0 0 0 / .6), inset 0 1px 0 rgb(255 255 255 / .15); }
+
+  .pk-lv { display: flex; align-items: center; gap: 10px; min-height: 34px; min-width: 0; }
+  .pk-lv > button { font-size: 13px; font-weight: 600; line-height: 1.2; color: var(--color-paper-mute); padding: 6px 2px; cursor: pointer; text-align: left; }
+  .pk-lv > button:hover { color: var(--color-paper); }
+  .pk-lv > button[aria-checked="true"] { color: var(--color-tungsten-300); }
+  .pk-lv > button:focus-visible { outline: 2px solid var(--color-tungsten-400); outline-offset: 2px; }
+  .pk-lever { position: relative; flex: none; width: 46px; height: 14px; cursor: pointer; background: #080605; border: 1px solid var(--color-brass-700); box-shadow: inset 0 2px 0 rgb(0 0 0 / .7), 0 1px 0 rgb(185 138 60 / .3); }
+  .pk-lever i { position: absolute; top: -6px; left: 2px; width: 16px; height: 24px; background: linear-gradient(90deg, #f0d59a, #b98a3c 45%, #6b5024); box-shadow: 0 2px 0 #050404, inset 0 1px 0 rgb(255 240 200 / .6); clip-path: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px); transition: left .18s cubic-bezier(.22, 1, .36, 1); }
+  .pk-lever[data-on="true"] i { left: 26px; }
+  .pk-lever i::after { content: ""; position: absolute; left: 7px; top: 4px; bottom: 4px; width: 2px; background: rgb(60 40 15 / .5); }
+
+  .pk-dial { display: grid; grid-template-columns: 30px minmax(0, 1fr) 30px; height: 36px; min-width: 0; }
+  .pk-dial:focus-visible { outline: 2px solid var(--color-tungsten-400); outline-offset: 2px; }
+  .pk-dial-a { display: grid; place-items: center; cursor: pointer; background: linear-gradient(#2c2115, #19120a); color: var(--color-brass-200); border: 1px solid var(--color-brass-700); box-shadow: inset 0 1px 0 rgb(255 220 150 / .18); }
+  .pk-dial-a:first-child { clip-path: polygon(5px 0, 100% 0, 100% 100%, 5px 100%, 0 calc(100% - 5px), 0 5px); }
+  .pk-dial-a:last-child { clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%); }
+  .pk-dial-a:hover:not(:disabled) { filter: brightness(1.3); }
+  .pk-dial-a:disabled { opacity: .3; cursor: default; }
+  .pk-dial-v { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; padding: 0 8px 5px; background: rgb(11 9 8 / .92); border-block: 1px solid rgb(239 230 211 / .22); box-shadow: inset 0 2px 0 rgb(0 0 0 / .6); color: var(--color-tungsten-300); font-size: 13.5px; font-weight: 600; }
+  .pk-dial-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pk-ticks { position: absolute; left: 50%; bottom: 3px; translate: -50% 0; display: flex; gap: 3px; }
+  .pk-ticks i { display: block; width: 8px; height: 2px; background: rgb(239 230 211 / .22); cursor: pointer; }
+  .pk-ticks i[data-on="true"] { background: var(--color-tungsten-400); }
+
+  .pk-tiles { display: grid; grid-template-columns: repeat(var(--pk-n), minmax(0, 1fr)); gap: 6px; }
+  @container (max-width: 440px) { .pk-tiles[data-wrap="true"] { grid-template-columns: repeat(min(var(--pk-n), 3), minmax(0, 1fr)); } }
+  .pk-tile { position: relative; display: grid; justify-items: center; align-content: start; gap: 5px; padding: 5px 4px 6px; min-width: 0; background: #0a0806; border: 1px solid rgb(185 138 60 / .22); cursor: pointer; transition: border-color .12s, background .12s; }
+  .pk-tile:hover { border-color: rgb(185 138 60 / .65); }
+  .pk-tile[aria-checked="true"] { border-color: var(--color-brass-400); background: linear-gradient(#2a1f0e, #130d07); box-shadow: inset 0 0 0 1px #000, 0 0 0 1px var(--color-brass-700); }
+  .pk-tile[aria-checked="true"]::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -2px; height: 3px; background: var(--color-tungsten-400); box-shadow: 0 0 8px rgb(232 178 92 / .6); }
+  .pk-tile:focus-visible { outline: 2px solid var(--color-tungsten-400); outline-offset: 2px; }
+  .pk-tile img, .pk-tile canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+  .pk-cap { max-width: 100%; font-size: 12px; font-weight: 600; line-height: 1.15; color: var(--color-paper-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pk-tile[aria-checked="true"] .pk-cap { color: var(--color-tungsten-300); }
+
+  .pk-tray { position: relative; overflow: hidden; border: 1px solid var(--color-brass-700); box-shadow: inset 0 0 0 1px #000, 0 6px 14px rgb(0 0 0 / .5); background: radial-gradient(ellipse at 35% 10%, #3a2a18, #0d0a08 70%); }
+}
+@media (prefers-reduced-motion: reduce) { .pk-lever i { transition: none; } }

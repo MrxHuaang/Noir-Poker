@@ -155,9 +155,9 @@ export function NoirCase({
         )}
         {seated && (
           <div role="tabpanel" id="case-panel-gestos" aria-labelledby="case-tab-gestos" hidden={current !== "gestos"} className="grid gap-2">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {gestures.map((g) => (
-                <button key={g.kind} type="button" disabled={cooling} onClick={() => gesture(g.kind)} className="stamp disabled:opacity-40">
+                <button key={g.kind} type="button" disabled={cooling} onClick={() => gesture(g.kind)} className="btn-brass btn-sm w-full justify-start disabled:opacity-40">
                   {g.label}
                 </button>
               ))}

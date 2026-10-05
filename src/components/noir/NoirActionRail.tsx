@@ -2,11 +2,12 @@
 // Your move, as objects on the table edge: a leather rail that slides up on
 // your turn with a brass "Retirarse" plate, a bone ticket to check or call and
 // a red ticket to bet or raise. The amount rides a chip along a brass rail;
-// rubber stamps jump to half pot, pot or everything. Keys: F, C, R.
+// a brass switch jumps to half pot, pot or everything. Keys: F, C, R.
 //
 // Pure presentation: the numbers come from the public state and the move goes
 // to the server, which validates it.
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActSeg } from "@/components/noir/Pickers";
 
 export type RailMove = { action: "fold" | "check" | "call" | "bet" | "raise" | "all-in"; amount: number };
 
@@ -96,16 +97,15 @@ export function NoirActionRail({
           <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-3">
             <div className="flex min-w-[220px] flex-1 flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex gap-1.5">
-                  <button type="button" className="stamp" onClick={() => preset("half")} tabIndex={active ? 0 : -1}>
-                    ½ bote
-                  </button>
-                  <button type="button" className="stamp" onClick={() => preset("pot")} tabIndex={active ? 0 : -1}>
-                    Bote
-                  </button>
-                  <button type="button" className="stamp" onClick={() => preset("all")} tabIndex={active ? 0 : -1}>
-                    Todo
-                  </button>
+                <div className="w-[220px] shrink-0">
+                  <ActSeg
+                    label="Cantidades rápidas"
+                    actions={[
+                      { key: "half", label: "½ bote", onClick: () => preset("half"), disabled: !active },
+                      { key: "pot", label: "Bote", onClick: () => preset("pot"), disabled: !active },
+                      { key: "all", label: "Todo", onClick: () => preset("all"), disabled: !active },
+                    ]}
+                  />
                 </div>
                 <label className="sr-only" htmlFor="rail-amount">
                   Cantidad

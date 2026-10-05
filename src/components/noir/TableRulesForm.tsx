@@ -1,13 +1,16 @@
 "use client";
 // The house rules of a table, set like a PokerNow room but written on the
 // club's paper. Short on purpose: a one-line summary of what is set, the
-// money choice, then four index tabs (blinds, time, dealing, chairs) so only
+// money choice, then index tabs (blinds, time, dealing, chairs, room) so only
 // one group is open at a time. Each option is one row: the question on the
-// left, rubber stamps on the right. The last tab is the room itself (place,
+// left, one straight control on the right (switch, lever or dial, see
+// Pickers.tsx); the rows stack when the panel is narrow. The last tab is the room itself (place,
 // felt, rail): cosmetic, everyone at the table sees the same one.
 // Pure form: the engine clamps and validates everything again.
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
+import { AutoPick, PickRow, PickRows, Seg, Tiles } from "@/components/noir/Pickers";
+import { DealerPicture, FeltSample, PlacePicture } from "@/components/noir/Previews";
 import { DEFAULT_AMBIENCE, type Ambience, type BlindLevel, type TableRules } from "@/lib/online/protocol";
 
 export type TableSetup = { sb: number; bb: number; stack: number; rules: TableRules; ambience?: Ambience };
@@ -80,19 +83,16 @@ export function rulesSummary(setup: TableSetup, tournament = false): string[] {
   ];
 }
 
-/** One question, one row: the label on the left, the stamps on the right. */
+/** One question, one row: the label on the left, free controls on the right. */
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="grid items-start gap-x-4 gap-y-1.5 min-[620px]:grid-cols-[minmax(0,13rem)_minmax(0,1fr)]">
-      <div className="pt-1.5">
-        <span className="block text-[14px] font-semibold leading-snug text-brass-200">{label}</span>
-        {hint && <span className="mt-0.5 block text-[12.5px] leading-snug text-paper-mute">{hint}</span>}
-      </div>
+    <PickRow label={label} hint={hint} labelWidth="12rem">
       <div className="flex flex-wrap items-center gap-2">{children}</div>
-    </div>
+    </PickRow>
   );
 }
 
+/** One question with a fixed set of answers: the control is picked from the options. */
 function Stamps<T extends string | number | boolean>({
   label,
   value,
@@ -109,23 +109,23 @@ function Stamps<T extends string | number | boolean>({
   locked?: boolean;
 }) {
   return (
-    <Row label={label} hint={hint}>
-      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={label}>
-        {options.map((o) => (
-          <button
-            key={String(o.v)}
-            type="button"
-            role="radio"
-            aria-checked={value === o.v}
-            disabled={locked || o.off}
-            onClick={() => onChange(o.v)}
-            className="stamp disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            {o.label}
-          </button>
-        ))}
+    <PickRow label={label} hint={hint} labelWidth="12rem">
+      <AutoPick label={label} value={value} options={options} onChange={onChange} disabled={locked} />
+    </PickRow>
+  );
+}
+
+/** A choice made by looking: the question and the current answer above, the samples below. */
+function TileRow<T extends string>({ label, hint, value, options, onChange }: { label: string; hint?: string; value: T; options: { v: T; label: string; art: React.ReactNode }[]; onChange: (v: T) => void }) {
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="pk-lbl">{label}</span>
+        <span className="truncate text-[12.5px] font-semibold text-tungsten-300">{options.find((o) => o.v === value)?.label}</span>
       </div>
-    </Row>
+      <Tiles label={label} value={value} options={options} onChange={onChange} wrap />
+      {hint && <span className="pk-hint min-h-[1.3em]">{hint}</span>}
+    </div>
   );
 }
 
@@ -225,7 +225,8 @@ export function TableRulesForm({
           })}
         </div>
 
-        <div role="tabpanel" className="grid gap-4">
+        <div role="tabpanel">
+          <PickRows className="pk-wide">
           {tab === "ciegas" && (
             <>
               <Stamps
@@ -248,13 +249,14 @@ export function TableRulesForm({
                 </Row>
               ) : (
                 <>
-                  <Row label="Subir cada" hint="Rehace la tabla desde el primer nivel.">
-                    {[5, 10, 15, 20].map((m) => (
-                      <button key={m} type="button" role="radio" aria-checked={levels[0]?.mins === m} className="stamp" onClick={() => set({ levels: schedule(value.sb, value.bb, m) })}>
-                        {m} min
-                      </button>
-                    ))}
-                  </Row>
+                  <PickRow label="Subir cada" hint="Rehace la tabla desde el primer nivel." labelWidth="12rem">
+                    <Seg
+                      label="Subir cada"
+                      value={levels[0]?.mins ?? 0}
+                      onChange={(m) => set({ levels: schedule(value.sb, value.bb, m) })}
+                      options={[5, 10, 15, 20].map((m) => ({ v: m, label: `${m} min` }))}
+                    />
+                  </PickRow>
                   <div className="max-h-[232px] overflow-y-auto border border-brass-700/50 bg-[rgb(0_0_0/.18)]">
                     <div className="sticky top-0 z-[1] grid grid-cols-[28px_repeat(4,minmax(0,1fr))_28px] items-center gap-2 bg-[#21180d] px-2 py-1.5 text-[12.5px] font-medium text-paper-mute">
                       <span>Nº</span>
@@ -345,28 +347,20 @@ export function TableRulesForm({
                 />
               )}
               {ranged && (
-                <Row label="Compra" hint={`En grandes: ${Math.round(r.buyInMin / bb)} a ${Math.round(r.buyInMax / bb)}.`}>
-                  <span className="text-[13px] text-paper-mute">de</span>
-                  <Num label="Compra mínima" w="w-24" value={r.buyInMin} onChange={(buyInMin) => set({ buyInMin })} />
-                  <span className="text-[13px] text-paper-mute">a</span>
-                  <Num label="Compra máxima" w="w-24" value={r.buyInMax} onChange={(buyInMax) => set({ buyInMax })} />
-                  {[
-                    [20, 100],
-                    [40, 200],
-                    [100, 300],
-                  ].map(([lo, hi]) => (
-                    <button
-                      key={lo}
-                      type="button"
-                      role="radio"
-                      aria-checked={r.buyInMin === lo * bb && r.buyInMax === hi * bb}
-                      className="stamp"
-                      onClick={() => setRange(lo, hi)}
-                    >
-                      {lo}-{hi} BB
-                    </button>
-                  ))}
-                </Row>
+                <PickRow label="Compra" hint={`En grandes: ${Math.round(r.buyInMin / bb)} a ${Math.round(r.buyInMax / bb)}.`} labelWidth="12rem">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] text-paper-mute">de</span>
+                    <Num label="Compra mínima" w="w-24" value={r.buyInMin} onChange={(buyInMin) => set({ buyInMin })} />
+                    <span className="text-[13px] text-paper-mute">a</span>
+                    <Num label="Compra máxima" w="w-24" value={r.buyInMax} onChange={(buyInMax) => set({ buyInMax })} />
+                  </div>
+                  <Seg
+                    label="Atajos de compra"
+                    value={`${r.buyInMin / bb}-${r.buyInMax / bb}`}
+                    onChange={(k) => { const [lo, hi] = k.split("-").map(Number); setRange(lo, hi); }}
+                    options={[[20, 100], [40, 200], [100, 300]].map(([lo, hi]) => ({ v: `${lo}-${hi}`, label: `${lo}-${hi} BB` }))}
+                  />
+                </PickRow>
               )}
               <Stamps
                 label={tournament ? "Fichas de salida" : ranged ? "Compra sugerida" : "Fichas al sentarse"}
@@ -493,34 +487,35 @@ export function TableRulesForm({
 
           {tab === "ambiente" && (
             <>
-              <Stamps
+              <TileRow
                 label="Dónde se juega"
                 hint="Todos en la mesa ven la misma sala."
                 value={amb.place}
                 onChange={(place) => setAmb({ place })}
-                options={(Object.keys(PLACE_LABEL) as Ambience["place"][]).map((v) => ({ v, label: PLACE_LABEL[v] }))}
+                options={(Object.keys(PLACE_LABEL) as Ambience["place"][]).map((v) => ({ v, label: PLACE_LABEL[v], art: <PlacePicture place={v} /> }))}
               />
-              <Stamps
+              <TileRow
                 label="El crupier"
                 hint={DEALER_LABEL[amb.dealer].hint}
                 value={amb.dealer}
                 onChange={(dealer) => setAmb({ dealer })}
-                options={(Object.keys(DEALER_LABEL) as Ambience["dealer"][]).map((v) => ({ v, label: DEALER_LABEL[v].name }))}
+                options={(Object.keys(DEALER_LABEL) as Ambience["dealer"][]).map((v) => ({ v, label: DEALER_LABEL[v].name, art: <DealerPicture dealer={v} /> }))}
               />
-              <Stamps
+              <TileRow
                 label="El paño"
                 value={amb.felt}
                 onChange={(felt) => setAmb({ felt })}
-                options={(Object.keys(FELT_LABEL) as Ambience["felt"][]).map((v) => ({ v, label: FELT_LABEL[v] }))}
+                options={(Object.keys(FELT_LABEL) as Ambience["felt"][]).map((v) => ({ v, label: FELT_LABEL[v], art: <FeltSample felt={v} rail={amb.rail} /> }))}
               />
-              <Stamps
+              <TileRow
                 label="El borde"
                 value={amb.rail}
                 onChange={(rail) => setAmb({ rail })}
-                options={(Object.keys(RAIL_LABEL) as Ambience["rail"][]).map((v) => ({ v, label: RAIL_LABEL[v] }))}
+                options={(Object.keys(RAIL_LABEL) as Ambience["rail"][]).map((v) => ({ v, label: RAIL_LABEL[v], art: <FeltSample felt={amb.felt} rail={v} /> }))}
               />
             </>
           )}
+          </PickRows>
         </div>
       </div>
     </div>
