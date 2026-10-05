@@ -59,7 +59,8 @@ const GESTURES: { kind: string; label: string }[] = [
 ];
 
 // v2: the table has a sound for every move, so sound starts on (older saved
-// prefs had it off by default, not by choice).
+// prefs had it off by default, not by choice). v3: the big-index pixel faces
+// are the default (older saved prefs carried the old default, not a choice).
 type Prefs = { cam: SceneCam; sound: boolean; music: boolean; four: boolean; back: string; grade: string; face: string; v?: number };
 
 // Your own view of the room (the place, felt and rail are the owner's).
@@ -69,6 +70,14 @@ const BACKS = [
   { v: "deco", label: "Déco dorado" },
   { v: "pica", label: "Pica de hueso" },
 ];
+const FACES = [
+  { v: "gordo", label: "Pixel grueso" },
+  { v: "pix", label: "Pixel fino" },
+  { v: "clasica", label: "Clásica 1929" },
+  { v: "bicycle", label: "Bicycle" },
+  { v: "jumbo", label: "Índice gigante" },
+  { v: "mitad", label: "Mitad y mitad" },
+];
 const GRADES = [
   { v: "humo", label: "Humo" },
   { v: "noche", label: "Medianoche" },
@@ -77,11 +86,12 @@ const GRADES = [
 ];
 
 function readPrefs(): Prefs {
-  const base: Prefs = { cam: "front", sound: true, music: true, four: false, back: "carmesi", grade: "humo", face: "pix", v: 2 };
+  const base: Prefs = { cam: "front", sound: true, music: true, four: false, back: "carmesi", grade: "humo", face: "gordo", v: 3 };
   if (typeof window === "undefined") return base;
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") as Partial<Prefs>;
-    return { ...base, ...saved, ...(saved.v === 2 ? {} : { sound: true, v: 2 }) };
+    const v = saved.v ?? 0;
+    return { ...base, ...saved, ...(v >= 2 ? {} : { sound: true }), ...(v >= 3 ? {} : { face: "gordo" }), v: 3 };
   } catch {
     return base;
   }
@@ -712,7 +722,7 @@ function PlayOnlinePageInner() {
                 ]}
               />
               <Setting label="Vista" value={prefs.cam} onChange={(cam) => setPref({ cam })} options={[{ v: "front", label: "Frontal" }, { v: "iso", label: "Isométrica" }]} />
-              <Setting label="Caras" value={prefs.face} onChange={(face) => setPref({ face })} options={[{ v: "pix", label: "Pixel" }, { v: "clasica", label: "Clásica 1929" }]} />
+              <Setting label="Caras" value={prefs.face} onChange={(face) => setPref({ face })} options={FACES} />
               <Setting label="Baraja" value={prefs.four} onChange={(four) => setPref({ four })} options={[{ v: false, label: "2 colores" }, { v: true, label: "4 colores" }]} />
               <Setting label="Reverso" value={prefs.back} onChange={(back) => setPref({ back })} options={BACKS} />
               <Setting label="Escena" value={prefs.grade} onChange={(grade) => setPref({ grade })} options={GRADES} />

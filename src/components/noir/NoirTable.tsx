@@ -13,7 +13,7 @@ export type SceneCue = { kind: "level" | "paper" | "join"; n: number };
 
 /** How the room looks: place, felt, rail and dealer from the room; card back, faces and grade per viewer. */
 export type SceneLook = { place: string; felt: string; rail: string; dealer: string; back: string; grade: string; face: string };
-export const DEFAULT_LOOK: SceneLook = { place: "trastienda", felt: "verde", rail: "cuero", dealer: "horacio", back: "carmesi", grade: "humo", face: "pix" };
+export const DEFAULT_LOOK: SceneLook = { place: "trastienda", felt: "verde", rail: "cuero", dealer: "horacio", back: "carmesi", grade: "humo", face: "gordo" };
 const LOOK_FIELDS = ["place", "felt", "rail", "dealer", "back", "grade", "face"] as const;
 
 export function NoirTable({
