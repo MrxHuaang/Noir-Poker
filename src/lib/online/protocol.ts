@@ -61,12 +61,15 @@ export const DEFAULT_RULES: TableRules = {
 export const PLACES = ["trastienda", "jazz", "muelle"] as const;
 export const FELTS = ["verde", "vino", "noche", "carbon"] as const;
 export const RAILS = ["cuero", "nogal", "negro"] as const;
+// The house dealer (stable ids, the scene dresses and voices each one).
+export const DEALERS = ["horacio", "celestina", "conde", "lucha", "tito"] as const;
 export type Ambience = {
   place: (typeof PLACES)[number];
   felt: (typeof FELTS)[number];
   rail: (typeof RAILS)[number];
+  dealer: (typeof DEALERS)[number];
 };
-export const DEFAULT_AMBIENCE: Ambience = { place: "trastienda", felt: "verde", rail: "cuero" };
+export const DEFAULT_AMBIENCE: Ambience = { place: "trastienda", felt: "verde", rail: "cuero", dealer: "horacio" };
 
 export type RunVote = { voters: string[]; votes: Record<string, number>; deadline: number };
 

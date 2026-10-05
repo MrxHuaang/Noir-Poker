@@ -117,7 +117,9 @@ describe("ambience", () => {
   it("keeps known ids and ignores the rest", () => {
     const st = room();
     sit(st, "p1", "P1", "s1", false);
-    configure(st, "p1", { ambience: { place: "jazz", felt: "rojo" as never, rail: "nogal" } }, NOW);
-    expect(publicView(st).ambience).toEqual({ place: "jazz", felt: "verde", rail: "nogal" });
+    configure(st, "p1", { ambience: { place: "jazz", felt: "rojo" as never, rail: "nogal", dealer: "conde" } }, NOW);
+    expect(publicView(st).ambience).toEqual({ place: "jazz", felt: "verde", rail: "nogal", dealer: "conde" });
+    configure(st, "p1", { ambience: { dealer: "nadie" as never } }, NOW);
+    expect(publicView(st).ambience?.dealer).toBe("conde");
   });
 });

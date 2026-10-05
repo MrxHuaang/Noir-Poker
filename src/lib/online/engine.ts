@@ -17,6 +17,7 @@
 import { bestHand, compareScore, type Score } from "../handEval";
 import { cardFromId, makeDeck, shuffle, type Card } from "../poker";
 import {
+  DEALERS,
   DEFAULT_AMBIENCE,
   DEFAULT_RULES,
   FELTS,
@@ -312,13 +313,14 @@ function applyConfig(st: EngineState, cfg: OnlineConfigInput, now: number): void
   }
   if (cfg.ambience && typeof cfg.ambience === "object") {
     const a = cfg.ambience;
-    const prev = st.ambience ?? DEFAULT_AMBIENCE;
+    const prev = { ...DEFAULT_AMBIENCE, ...st.ambience };
     const pick = <T extends string>(v: unknown, list: readonly T[], fb: T): T =>
       (list as readonly unknown[]).includes(v) ? (v as T) : fb;
     st.ambience = {
       place: pick(a.place, PLACES, prev.place),
       felt: pick(a.felt, FELTS, prev.felt),
       rail: pick(a.rail, RAILS, prev.rail),
+      dealer: pick(a.dealer, DEALERS, prev.dealer),
     };
   }
   if (cfg.blindLevelSecs !== undefined) {

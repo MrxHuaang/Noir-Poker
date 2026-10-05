@@ -60,7 +60,7 @@ const GESTURES: { kind: string; label: string }[] = [
 
 // v2: the table has a sound for every move, so sound starts on (older saved
 // prefs had it off by default, not by choice).
-type Prefs = { cam: SceneCam; sound: boolean; music: boolean; four: boolean; back: string; grade: string; v?: number };
+type Prefs = { cam: SceneCam; sound: boolean; music: boolean; four: boolean; back: string; grade: string; face: string; v?: number };
 
 // Your own view of the room (the place, felt and rail are the owner's).
 const BACKS = [
@@ -77,7 +77,7 @@ const GRADES = [
 ];
 
 function readPrefs(): Prefs {
-  const base: Prefs = { cam: "front", sound: true, music: true, four: false, back: "carmesi", grade: "humo", v: 2 };
+  const base: Prefs = { cam: "front", sound: true, music: true, four: false, back: "carmesi", grade: "humo", face: "pix", v: 2 };
   if (typeof window === "undefined") return base;
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") as Partial<Prefs>;
@@ -369,7 +369,7 @@ function PlayOnlinePageInner() {
   // After the hand, a player still holding unshown cards may turn them up.
   const canShow = !!(showdown && me && me.hasCards && me.status !== "folded" && hole && !state?.reveals?.[uid ?? ""]);
   const shownMine = (uid && state?.shown?.[uid]) || ["", ""];
-  const look = { ...DEFAULT_LOOK, ...state?.ambience, back: prefs.back, grade: prefs.grade };
+  const look = { ...DEFAULT_LOOK, ...state?.ambience, back: prefs.back, grade: prefs.grade, face: prefs.face };
 
   const joinUrl = typeof window !== "undefined" && code ? `${window.location.origin}/m/${code}` : "";
 
@@ -712,6 +712,7 @@ function PlayOnlinePageInner() {
                 ]}
               />
               <Setting label="Vista" value={prefs.cam} onChange={(cam) => setPref({ cam })} options={[{ v: "front", label: "Frontal" }, { v: "iso", label: "Isométrica" }]} />
+              <Setting label="Caras" value={prefs.face} onChange={(face) => setPref({ face })} options={[{ v: "pix", label: "Pixel" }, { v: "clasica", label: "Clásica 1929" }]} />
               <Setting label="Baraja" value={prefs.four} onChange={(four) => setPref({ four })} options={[{ v: false, label: "2 colores" }, { v: true, label: "4 colores" }]} />
               <Setting label="Reverso" value={prefs.back} onChange={(back) => setPref({ back })} options={BACKS} />
               <Setting label="Escena" value={prefs.grade} onChange={(grade) => setPref({ grade })} options={GRADES} />

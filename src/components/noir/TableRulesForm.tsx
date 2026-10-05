@@ -15,6 +15,13 @@ export type TableSetup = { sb: number; bb: number; stack: number; rules: TableRu
 export const PLACE_LABEL: Record<Ambience["place"], string> = { trastienda: "La trastienda", jazz: "Club de jazz", muelle: "Almacén del muelle" };
 const FELT_LABEL: Record<Ambience["felt"], string> = { verde: "Verde billar", vino: "Vino", noche: "Azul noche", carbon: "Carbón" };
 const RAIL_LABEL: Record<Ambience["rail"], string> = { cuero: "Cuero granate", nogal: "Nogal", negro: "Laca negra" };
+export const DEALER_LABEL: Record<Ambience["dealer"], { name: string; hint: string }> = {
+  horacio: { name: "Horacio", hint: "Visera verde. Sobrio, de pocas palabras." },
+  celestina: { name: "Celestina", hint: "Corte bob y boquilla. Seca, con ironía." },
+  conde: { name: "El Conde", hint: "Chistera y monóculo. Ceremonioso." },
+  lucha: { name: "Mamá Lucha", hint: "Chal y peineta. Cálida, regaña." },
+  tito: { name: "Tito el Mudo", hint: "Gorra y tirantes. Dos palabras, como mucho." },
+};
 
 export const CLUB_RULES: TableRules = {
   ante: 0,
@@ -69,6 +76,7 @@ export function rulesSummary(setup: TableSetup, tournament = false): string[] {
     ...(r.bombEvery ? [`bote bomba cada ${r.bombEvery} manos`] : []),
     `${r.maxSeats} sillas`,
     PLACE_LABEL[(setup.ambience ?? DEFAULT_AMBIENCE).place],
+    `reparte ${DEALER_LABEL[{ ...DEFAULT_AMBIENCE, ...setup.ambience }.dealer].name}`,
   ];
 }
 
@@ -164,7 +172,7 @@ export function TableRulesForm({
   const rising = r.levels.length > 0;
   const levels = r.levels;
   const setLevel = (i: number, p: Partial<BlindLevel>) => set({ levels: levels.map((l, k) => (k === i ? { ...l, ...p } : l)) });
-  const amb = value.ambience ?? DEFAULT_AMBIENCE;
+  const amb = { ...DEFAULT_AMBIENCE, ...value.ambience };
   const setAmb = (p: Partial<Ambience>) => onChange({ ...value, ambience: { ...amb, ...p } });
   const bb = levels[0]?.bb ?? value.bb;
   const ranged = !tournament && (r.buyInMin > 0 || r.buyInMax > 0);
@@ -491,6 +499,13 @@ export function TableRulesForm({
                 value={amb.place}
                 onChange={(place) => setAmb({ place })}
                 options={(Object.keys(PLACE_LABEL) as Ambience["place"][]).map((v) => ({ v, label: PLACE_LABEL[v] }))}
+              />
+              <Stamps
+                label="El crupier"
+                hint={DEALER_LABEL[amb.dealer].hint}
+                value={amb.dealer}
+                onChange={(dealer) => setAmb({ dealer })}
+                options={(Object.keys(DEALER_LABEL) as Ambience["dealer"][]).map((v) => ({ v, label: DEALER_LABEL[v].name }))}
               />
               <Stamps
                 label="El paño"

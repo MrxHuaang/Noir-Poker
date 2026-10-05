@@ -11,9 +11,10 @@ export type SceneCam = "front" | "iso";
 /** A one-off sound for something the scene cannot see (a new blind level, a note). */
 export type SceneCue = { kind: "level" | "paper" | "join"; n: number };
 
-/** How the room looks: place, felt and rail from the room; card back and grade per viewer. */
-export type SceneLook = { place: string; felt: string; rail: string; back: string; grade: string };
-export const DEFAULT_LOOK: SceneLook = { place: "trastienda", felt: "verde", rail: "cuero", back: "carmesi", grade: "humo" };
+/** How the room looks: place, felt, rail and dealer from the room; card back, faces and grade per viewer. */
+export type SceneLook = { place: string; felt: string; rail: string; dealer: string; back: string; grade: string; face: string };
+export const DEFAULT_LOOK: SceneLook = { place: "trastienda", felt: "verde", rail: "cuero", dealer: "horacio", back: "carmesi", grade: "humo", face: "pix" };
+const LOOK_FIELDS = ["place", "felt", "rail", "dealer", "back", "grade", "face"] as const;
 
 export function NoirTable({
   snapshot,
@@ -49,7 +50,7 @@ export function NoirTable({
     return `/noir/scene.html?${q}`;
   });
   // A stable key: the parent may build `look` fresh on every render.
-  const lookKey = `${look.place}|${look.felt}|${look.rail}|${look.back}|${look.grade}`;
+  const lookKey = LOOK_FIELDS.map((k) => look[k]).join("|");
 
   const shownRef = useRef(onShown);
   useEffect(() => {
@@ -91,8 +92,8 @@ export function NoirTable({
   }, [ready, say?.n]);
   useEffect(() => {
     if (!ready) return;
-    const [place, felt, rail, back, grade] = lookKey.split("|");
-    post({ look: { place, felt, rail, back, grade } });
+    const v = lookKey.split("|");
+    post({ look: Object.fromEntries(LOOK_FIELDS.map((k, i) => [k, v[i]])) });
   }, [ready, lookKey]);
 
   return (
@@ -100,7 +101,7 @@ export function NoirTable({
       <iframe
         ref={frame}
         src={src}
-        title="Mesa de póker en la trastienda"
+        title="Mesa de póker del club"
         // The table's sounds play inside the scene: let the page's clicks unlock its audio.
         allow="autoplay"
         className="absolute inset-0 h-full w-full border-0"
