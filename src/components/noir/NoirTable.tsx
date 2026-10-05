@@ -11,6 +11,10 @@ export type SceneCam = "front" | "iso";
 /** A one-off sound for something the scene cannot see (a new blind level, a note). */
 export type SceneCue = { kind: "level" | "paper" | "join"; n: number };
 
+/** How the room looks: place, felt and rail from the room; card back and grade per viewer. */
+export type SceneLook = { place: string; felt: string; rail: string; back: string; grade: string };
+export const DEFAULT_LOOK: SceneLook = { place: "trastienda", felt: "verde", rail: "cuero", back: "carmesi", grade: "humo" };
+
 export function NoirTable({
   snapshot,
   cam,
@@ -18,6 +22,8 @@ export function NoirTable({
   music = true,
   cue,
   fourColor,
+  look = DEFAULT_LOOK,
+  say,
   onShown,
   children,
 }: {
@@ -28,6 +34,9 @@ export function NoirTable({
   music?: boolean;
   cue?: SceneCue | null;
   fourColor: boolean;
+  look?: SceneLook;
+  /** A line for Horacio to say on a scrap (n changes for each new line). */
+  say?: { text: string; n: number } | null;
   /** The scene finished laying out a hand's result (runout, winners lit). */
   onShown?: (hand: number) => void;
   children?: ReactNode;
@@ -35,9 +44,12 @@ export function NoirTable({
   const frame = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   // The iframe URL is fixed at mount; later changes travel as messages.
-  const [src] = useState(
-    () => `/noir/scene.html?mode=remote&lift=0.13&cam=${cam}&place=trastienda&grade=humo&felt=verde&four=${fourColor ? "on" : "off"}`,
-  );
+  const [src] = useState(() => {
+    const q = new URLSearchParams({ mode: "remote", lift: "0.13", cam, four: fourColor ? "on" : "off", ...look });
+    return `/noir/scene.html?${q}`;
+  });
+  // A stable key: the parent may build `look` fresh on every render.
+  const lookKey = `${look.place}|${look.felt}|${look.rail}|${look.back}|${look.grade}`;
 
   const shownRef = useRef(onShown);
   useEffect(() => {
@@ -73,6 +85,15 @@ export function NoirTable({
   useEffect(() => {
     if (ready && cue) post({ cue: cue.kind });
   }, [ready, cue]);
+  useEffect(() => {
+    if (ready && say) post({ say: say.text });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, say?.n]);
+  useEffect(() => {
+    if (!ready) return;
+    const [place, felt, rail, back, grade] = lookKey.split("|");
+    post({ look: { place, felt, rail, back, grade } });
+  }, [ready, lookKey]);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#07060a] text-paper">

@@ -362,7 +362,7 @@ export async function createRoom(uid: string, cfg: OnlineConfigInput): Promise<s
   throw new OnlineError("No se pudo crear la sala", 500);
 }
 
-export async function sit(uid: string, code: string): Promise<E.SitResult> {
+export async function sit(uid: string, code: string, amount?: number): Promise<E.SitResult> {
   // Guest check outside the transaction (Auth lookup, not a Firestore read).
   const real = await isRealAccount(uid);
   const { result } = await runRoom(code, async (st, { tx, wallets }) => {
@@ -373,8 +373,9 @@ export async function sit(uid: string, code: string): Promise<E.SitResult> {
     if (!st.casual) {
       if (!real) throw new OnlineError("Cuenta de invitado");
       if (!w) throw new OnlineError("Perfil inexistente");
-      if (w.coins < st.startStack) throw new OnlineError("Saldo insuficiente");
-      debit = { uid, amount: st.startStack };
+      const buyIn = E.buyInFor(st, amount);
+      if (w.coins < buyIn) throw new OnlineError("Saldo insuficiente");
+      debit = { uid, amount: buyIn };
     }
     const seed = w?.avatarSeed || uid;
     // Nameless guests (profiles start as "Jugador") sit under their
@@ -385,7 +386,7 @@ export async function sit(uid: string, code: string): Promise<E.SitResult> {
     const taken = new Set(Object.entries(st.players).filter(([id]) => id !== uid).map(([, p]) => p.name));
     let name = base;
     for (let k = 2; taken.has(name); k++) name = `${base} ${k}`;
-    const res = E.sit(st, uid, name, seed, !st.casual);
+    const res = E.sit(st, uid, name, seed, !st.casual, amount);
     if (res === "requested") debit = undefined;
     return { result: res, changed: true, debit, presenceFor: uid };
   });
@@ -471,9 +472,9 @@ export async function vote(uid: string, code: string, n: number): Promise<void> 
 }
 
 // Turns your cards face up after the hand.
-export async function show(uid: string, code: string): Promise<void> {
+export async function show(uid: string, code: string, which?: number): Promise<void> {
   await runRoom(code, async (st) => {
-    E.show(st, uid);
+    E.show(st, uid, which);
     return { result: null, changed: true };
   });
 }
@@ -510,11 +511,12 @@ export async function approve(uid: string, code: string, target: string): Promis
     if (req.coins) {
       await readWallets(tx, [target], wallets);
       const w = wallets.get(target) ?? null;
-      if (!w || w.coins < st.startStack) {
+      const buyIn = E.buyInFor(st, req.amount);
+      if (!w || w.coins < buyIn) {
         E.deny(st, uid, target);
         throw new OnlineError("No le alcanzan las fichas para sentarse");
       }
-      debit = { uid: target, amount: st.startStack };
+      debit = { uid: target, amount: buyIn };
     }
     const res = E.approve(st, uid, target);
     return { result: res, changed: true, debit, presenceFor: target };
@@ -552,11 +554,11 @@ export async function setPaused(uid: string, code: string, paused: boolean): Pro
   });
 }
 
-export async function rebuy(uid: string, code: string): Promise<void> {
+export async function rebuy(uid: string, code: string, want?: number): Promise<void> {
   await runRoom(code, async (st, { tx, wallets }) => {
     const p = st.players[uid];
     if (!p) throw new OnlineError("No estas sentado");
-    const amount = E.rebuy(st, uid);
+    const amount = E.rebuy(st, uid, want);
     let debit: Debit | undefined;
     if (p.coins) {
       await readWallets(tx, [uid], wallets);

@@ -12,7 +12,8 @@
 // sienta si hay sitio o te pone en fila si la mesa está llena. Los invitados
 // pueden observar; sentarse en una mesa con fichas pide cuenta.
 //
-// Economía: el buy-in (startStack) se descuenta del monedero en la MISMA
+// Economía: el buy-in (lo que elijas dentro del rango de la mesa, o el stack
+// fijo si no hay rango) se descuenta del monedero en la MISMA
 // transacción que te sienta, y al levantarte el stack final vuelve al monedero
 // también de forma atómica. Si cierras la pestaña, tu heartbeat caduca y el
 // servidor te levanta y liquida solo.
@@ -29,12 +30,14 @@ import { useOnlineHistory } from "@/hooks/useOnlineHistory";
 import { adaptOnlineRuns } from "@/lib/onlineTable";
 import { toSceneSnapshot } from "@/lib/noirScene";
 import { MAX_SEATED, PRESENCE_STALE_MS } from "@/lib/online/protocol";
-import { NoirTable, type SceneCam, type SceneCue } from "@/components/noir/NoirTable";
+import { DEFAULT_LOOK, NoirTable, type SceneCam, type SceneCue } from "@/components/noir/NoirTable";
 import { NoirActionRail, type RailMove } from "@/components/noir/NoirActionRail";
 import { KeyholeMark } from "@/components/landing/KeyholeLogo";
 import { NoirMenu } from "@/components/noir/NoirMenu";
 import { NoirTableLedger } from "@/components/noir/NoirTableLedger";
-import { NoirChat } from "@/components/noir/NoirChat";
+import { NoirCase } from "@/components/noir/NoirCase";
+import { NoirBuyIn, defaultBuyIn } from "@/components/noir/NoirBuyIn";
+import { NoirShowCards } from "@/components/noir/NoirShowCards";
 import { NoirRuns } from "@/components/noir/NoirRuns";
 
 const VoicePanel = dynamic(() => import("@/components/voice/VoicePanel"), {
@@ -57,10 +60,24 @@ const GESTURES: { kind: string; label: string }[] = [
 
 // v2: the table has a sound for every move, so sound starts on (older saved
 // prefs had it off by default, not by choice).
-type Prefs = { cam: SceneCam; sound: boolean; music: boolean; four: boolean; v?: number };
+type Prefs = { cam: SceneCam; sound: boolean; music: boolean; four: boolean; back: string; grade: string; v?: number };
+
+// Your own view of the room (the place, felt and rail are the owner's).
+const BACKS = [
+  { v: "carmesi", label: "Rejilla carmesí" },
+  { v: "azul", label: "Rejilla azul" },
+  { v: "deco", label: "Déco dorado" },
+  { v: "pica", label: "Pica de hueso" },
+];
+const GRADES = [
+  { v: "humo", label: "Humo" },
+  { v: "noche", label: "Medianoche" },
+  { v: "sangre", label: "Tinta y sangre" },
+  { v: "libre", label: "Sin paleta" },
+];
 
 function readPrefs(): Prefs {
-  const base: Prefs = { cam: "front", sound: true, music: true, four: false, v: 2 };
+  const base: Prefs = { cam: "front", sound: true, music: true, four: false, back: "carmesi", grade: "humo", v: 2 };
   if (typeof window === "undefined") return base;
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") as Partial<Prefs>;
@@ -95,6 +112,22 @@ function freshnessKey(
 
 function Plate({ children }: { children: ReactNode }) {
   return <div className="plate legible pointer-events-auto grid max-w-[420px] justify-items-center gap-3 px-8 pt-8 pb-7 text-center">{children}</div>;
+}
+
+/** One option in the case's settings tab, one row: the question, then stamps. */
+function Setting<T extends string | boolean>({ label, value, options, onChange }: { label: string; value: T; options: { v: T; label: string }[]; onChange: (v: T) => void }) {
+  return (
+    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-2">
+      <span className="pt-1.5 text-[13px] font-semibold leading-tight text-brass-200">{label}</span>
+      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={label}>
+        {options.map((o) => (
+          <button key={String(o.v)} type="button" role="radio" aria-checked={value === o.v} className="stamp" onClick={() => onChange(o.v)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /** Current blinds and, when they climb, the countdown to the next level. */
@@ -161,13 +194,15 @@ function PlayOnlinePageInner() {
       return next;
     });
 
-  const [phrasesOpen, setPhrasesOpen] = useState(false);
+  const [onAir, setOnAir] = useState(false);
+  const [bring, setBring] = useState<number | null>(null);
+  // Horacio's line when you sit down (the scene shows it on a scrap).
+  const [line, setLine] = useState<{ text: string; n: number } | null>(null);
   // One-off sounds for what the scene cannot see: a new blind level, a note
   // from someone else, someone at the door.
   const [cue, setCue] = useState<SceneCue | null>(null);
   const ring = (kind: SceneCue["kind"]) => setCue((c) => ({ kind, n: (c?.n ?? 0) + 1 }));
   const seen = useRef({ level: 0, chat: 0, phrases: "", door: 0 });
-  const [gesturesOpen, setGesturesOpen] = useState(false);
   const [closedRunsHand, setClosedRunsHand] = useState(0);
   // The result notes wait until the scene has finished the runout on the felt
   // (it reports the hand), so a slow all-in is not spoiled by a note on top.
@@ -233,16 +268,35 @@ function PlayOnlinePageInner() {
     setNotice(err);
   };
 
+  // What you bring: the range of the table, capped by your wallet on coin tables.
+  const range = state?.buyIn ?? { min: state?.startStack ?? 0, max: state?.startStack ?? 0 };
+  const wallet = isCasual || !profile ? undefined : Math.max(0, Math.floor(profile.coins ?? 0));
+  const ranged = !state?.tournament && range.min < range.max;
+  const amount = bring ?? defaultBuyIn(range.min, range.max, state?.startStack ?? range.min, wallet);
+  const welcome = (n: number, left?: number) => {
+    const text = isCasual
+      ? `Te sentaste con ${fmt(n)} fichas.`
+      : `Entraste a la sala con ${fmt(n)} fichas del monedero.${left !== undefined ? ` Te quedan ${fmt(left)}.` : ""}`;
+    setLine((l) => ({ text, n: (l?.n ?? 0) + 1 }));
+  };
+
   async function handleSit() {
     if (isGuest && !isCasual) {
       setShowLoginCta(true);
       return;
     }
     setNotice(null);
-    report(await game.sit());
+    const n = state?.tournament ? range.min : amount;
+    const err = await game.sit(ranged ? n : undefined);
+    if (err) report(err);
+    else if (!tableFull && !state?.rules?.approveSeats) welcome(n, wallet === undefined ? undefined : wallet - n);
   }
   const standUp = async () => report(await game.leave());
-  const rebuy = async () => report(await game.rebuy());
+  const rebuy = async () => {
+    const err = await game.rebuy(ranged ? amount : undefined);
+    if (err) report(err);
+    else welcome(ranged ? amount : range.min, wallet === undefined ? undefined : wallet - (ranged ? amount : range.min));
+  };
   const deal = async () => report(await game.start());
 
   function handleMove(m: RailMove) {
@@ -314,6 +368,8 @@ function PlayOnlinePageInner() {
   const iWon = !!(uid && state?.winners?.length && state.winners.every((w) => w.id === uid));
   // After the hand, a player still holding unshown cards may turn them up.
   const canShow = !!(showdown && me && me.hasCards && me.status !== "folded" && hole && !state?.reveals?.[uid ?? ""]);
+  const shownMine = (uid && state?.shown?.[uid]) || ["", ""];
+  const look = { ...DEFAULT_LOOK, ...state?.ambience, back: prefs.back, grade: prefs.grade };
 
   const joinUrl = typeof window !== "undefined" && code ? `${window.location.origin}/m/${code}` : "";
 
@@ -393,19 +449,34 @@ function PlayOnlinePageInner() {
       ) : (
         <Plate>
           <p className="kick">
-            {seatedCount}/{maxSeats} en la mesa
+            {tourney ? "Torneo" : "Mesa"} {code} · {seatedCount}/{maxSeats} en la mesa · ciegas {fmt(state.sb)}/{fmt(state.bb)}
           </p>
-          <button type="button" onClick={handleSit} disabled={busy === "sit"} className="tk tk-red">
-            {busy === "sit" ? "Sentando…" : tableFull ? "Hacer fila" : "Sentarme"}
+          {ranged ? (
+            <NoirBuyIn min={range.min} max={range.max} bb={state.bb} value={amount} onChange={setBring} wallet={wallet} />
+          ) : (
+            <p className="m-0 text-[15px] text-paper-dim">
+              {tourney
+                ? `Todos salen con ${fmt(range.min)} fichas${isCasual ? "" : " de tu monedero"}. Sin recompras.`
+                : isCasual
+                  ? `Te sientas con ${fmt(range.min)} fichas. Mesa sin fichas: recompras libres.`
+                  : `Te sientas con ${fmt(range.min)} fichas de tu monedero.`}
+              {wallet !== undefined && (
+                <>
+                  {" "}
+                  En tu monedero hay <b className={wallet < range.min ? "text-blood-400" : "text-paper"}>{fmt(wallet)}</b>.
+                </>
+              )}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleSit}
+            disabled={busy === "sit" || (wallet !== undefined && wallet < range.min)}
+            className="tk tk-red disabled:opacity-50"
+          >
+            {busy === "sit" ? "Sentando…" : tableFull ? "Hacer fila" : `Sentarme con ${fmt(tourney ? range.min : amount)}`}
           </button>
-          <p className="m-0 text-[13px] text-paper-mute">
-            {tourney
-              ? `Torneo: todos salen con ${fmt(state.startStack)} fichas${isCasual ? "" : " de tu monedero"}. Sin recompras.`
-              : isCasual
-                ? "Mesa sin fichas: recompras libres."
-                : `Entras con ${fmt(state.startStack)} fichas de tu monedero.`}
-            {tableFull ? " Está llena: te sientas en cuanto haya silla." : ""}
-          </p>
+          {tableFull && <p className="m-0 text-[13px] text-paper-mute">Está llena: te sientas en cuanto haya silla.</p>}
           <button type="button" onClick={() => setSeatOverlayDismissed(true)} className="text-[13px] text-paper-dim underline underline-offset-4">
             Solo mirar
           </button>
@@ -438,8 +509,14 @@ function PlayOnlinePageInner() {
     prompt = busted && !tourney ? (
       <Plate>
         <p className="kick">Te quedaste sin fichas</p>
-        <button type="button" onClick={rebuy} disabled={busy === "rebuy"} className="tk tk-red">
-          Recomprar {fmt(state.startStack)}
+        {ranged && <NoirBuyIn min={range.min} max={range.max} bb={state.bb} value={amount} onChange={setBring} wallet={wallet} />}
+        <button
+          type="button"
+          onClick={rebuy}
+          disabled={busy === "rebuy" || (wallet !== undefined && wallet < range.min)}
+          className="tk tk-red disabled:opacity-50"
+        >
+          Recomprar {fmt(ranged ? amount : range.min)}
         </button>
       </Plate>
     ) : seatedCount < 2 ? (
@@ -499,7 +576,17 @@ function PlayOnlinePageInner() {
 
   return (
     <>
-      <NoirTable snapshot={snapshot} cam={prefs.cam} sound={prefs.sound} music={prefs.music} cue={cue} fourColor={prefs.four} onShown={setShownHand}>
+      <NoirTable
+        snapshot={snapshot}
+        cam={prefs.cam}
+        sound={prefs.sound}
+        music={prefs.music}
+        cue={cue}
+        fourColor={prefs.four}
+        look={look}
+        say={line}
+        onShown={setShownHand}
+      >
         {/* Top edge: the way out, the password, the room controls */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-4">
           <div className="legible pointer-events-auto flex items-center gap-3">
@@ -558,10 +645,6 @@ function PlayOnlinePageInner() {
                 ...(isOwner && state && state.phase !== "idle"
                   ? [{ label: state.paused ? "Reanudar" : "Pausar", onSelect: () => (state.paused ? game.resume() : game.pause()).then(report) }]
                   : []),
-                { label: prefs.cam === "iso" ? "Vista frontal" : "Vista isométrica", onSelect: () => setPref({ cam: prefs.cam === "iso" ? "front" : "iso" }) },
-                { label: prefs.sound ? "Quitar sonido" : "Poner sonido", hint: prefs.sound ? "todo, también la música" : undefined, onSelect: () => setPref({ sound: !prefs.sound }) },
-                ...(prefs.sound ? [{ label: prefs.music ? "Apagar la radio" : "Encender la radio", hint: prefs.music ? "la música, no los efectos" : "jazz de fondo", onSelect: () => setPref({ music: !prefs.music }) }] : []),
-                { label: prefs.four ? "Baraja de 2 colores" : "Baraja de 4 colores", hint: prefs.four ? undefined : "un color por palo", onSelect: () => setPref({ four: !prefs.four }) },
                 { label: "Copiar el enlace", hint: "para invitar", onSelect: () => void navigator.clipboard?.writeText(joinUrl).then(() => setNotice("Enlace copiado. Pásalo a quien quieras sentar.")).catch(() => {}) },
                 { label: "La mesa", hint: "reglas y jugadores", onSelect: () => setOptionsOpen(true) },
                 ...(amSeated ? [{ label: amAway ? "Volver a la mesa" : "Ausentarme", hint: amAway ? undefined : "no te reparten", onSelect: () => void game.away(!amAway).then(report) }] : []),
@@ -590,14 +673,9 @@ function PlayOnlinePageInner() {
                 ? "Te llevas el bote"
                 : (state.winners ?? []).map((w) => `${w.id === uid ? "Tú" : seatName(w.id)} +${fmt(w.amount)}`).join("   ")}
             </p>
-            {canShow && (
-              <button type="button" onClick={() => void game.show().then(report)} disabled={busy === "show"} className="btn-brass btn-sm pointer-events-auto">
-                Enseñar mis cartas
-              </button>
-            )}
             {busted && !tourney ? (
               <button type="button" onClick={rebuy} disabled={busy === "rebuy"} className="tk tk-sm tk-red pointer-events-auto">
-                Recomprar
+                Recomprar {fmt(ranged ? amount : range.min)}
               </button>
             ) : canDeal && !state.deadline ? (
               <button type="button" onClick={deal} disabled={busy === "start"} className="tk tk-sm tk-red pointer-events-auto">
@@ -609,75 +687,47 @@ function PlayOnlinePageInner() {
           </div>
         )}
 
-        {/* Bottom-left: voice, chat, quick lines */}
-        <div className={`absolute left-4 z-20 flex items-end gap-2 transition-[bottom] duration-500 ${isMyTurn ? "bottom-[128px]" : "bottom-4"}`}>
-          {amSeated && <VoicePanel code={code ?? ""} uid={uid} displayName={name} seed={seed} canLeave />}
-          <NoirChat code={code} uid={uid} name={name} seed={seed} messages={chat} />
-          {amSeated && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setPhrasesOpen((v) => !v);
-                  setGesturesOpen(false);
-                }}
-                className="btn-brass btn-sm"
-                aria-expanded={phrasesOpen}
-              >
-                Decir
-              </button>
-              {phrasesOpen && (
-                <div className="absolute bottom-12 left-0 flex w-64 flex-col items-start gap-1.5">
-                  {CANNED_PHRASES.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => {
-                        sendPhrase(p);
-                        setPhrasesOpen(false);
-                      }}
-                      className="scrap px-3 py-1 text-left text-sm hover:brightness-110"
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          {amSeated && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setGesturesOpen((v) => !v);
-                  setPhrasesOpen(false);
-                }}
-                className="btn-brass btn-sm"
-                aria-expanded={gesturesOpen}
-              >
-                Gesto
-              </button>
-              {gesturesOpen && (
-                <div className="absolute bottom-12 left-0 flex w-56 flex-col items-start gap-1.5">
-                  {GESTURES.map((g) => (
-                    <button
-                      key={g.kind}
-                      type="button"
-                      onClick={() => {
-                        void game.react(g.kind).then(report);
-                        setGesturesOpen(false);
-                      }}
-                      className="scrap px-3 py-1 text-left text-sm hover:brightness-110"
-                    >
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Bottom-left: the case (voice, talk, quick lines, gestures, sound and look) */}
+        <NoirCase
+          seated={amSeated}
+          voice={amSeated ? <VoicePanel code={code ?? ""} uid={uid} displayName={name} seed={seed} canLeave bare onStatus={(v) => setOnAir(v.talking)} /> : null}
+          onAir={amSeated && onAir}
+          chat={{ code, uid, name, seed, messages: chat }}
+          phrases={CANNED_PHRASES}
+          onPhrase={sendPhrase}
+          gestures={GESTURES}
+          onGesture={(kind) => void game.react(kind).then(report)}
+          shut={isMyTurn}
+          lifted={isMyTurn}
+          settings={
+            <>
+              <Setting
+                label="Sonido"
+                value={!prefs.sound ? "off" : prefs.music ? "all" : "fx"}
+                onChange={(v) => setPref({ sound: v !== "off", music: v === "all" })}
+                options={[
+                  { v: "all", label: "Con radio" },
+                  { v: "fx", label: "Sin radio" },
+                  { v: "off", label: "Silencio" },
+                ]}
+              />
+              <Setting label="Vista" value={prefs.cam} onChange={(cam) => setPref({ cam })} options={[{ v: "front", label: "Frontal" }, { v: "iso", label: "Isométrica" }]} />
+              <Setting label="Baraja" value={prefs.four} onChange={(four) => setPref({ four })} options={[{ v: false, label: "2 colores" }, { v: true, label: "4 colores" }]} />
+              <Setting label="Reverso" value={prefs.back} onChange={(back) => setPref({ back })} options={BACKS} />
+              <Setting label="Escena" value={prefs.grade} onChange={(grade) => setPref({ grade })} options={GRADES} />
+            </>
+          }
+        />
+
+        {/* Bottom-right: your cards after the hand, to show one or both */}
+        {canShow && hole && resultReady && (
+          <NoirShowCards
+            cards={hole}
+            shown={[!!shownMine[0], !!shownMine[1]]}
+            busy={busy === "show"}
+            onShow={(which) => void game.show(which).then(report)}
+          />
+        )}
 
         {amSeated && me && state && (
           <NoirActionRail

@@ -27,6 +27,10 @@ export type TableRules = {
   straddle: boolean; // the player after the big blind posts a blind straddle (2 BB), 3+ players
   bombEvery: number; // every N hands everyone antes and the hand starts on the flop; 0 = never
   bombBB: number; // what each player puts in a bomb pot, in big blinds
+  // Cash tables: each player brings any amount in this range (chips, 0 = the
+  // table stack). min = max = 0 keeps the old fixed buy-in.
+  buyInMin: number;
+  buyInMax: number;
 };
 
 // Engine defaults keep the behaviour of rooms created before the rules existed;
@@ -48,7 +52,21 @@ export const DEFAULT_RULES: TableRules = {
   straddle: false,
   bombEvery: 0,
   bombBB: 2,
+  buyInMin: 0,
+  buyInMax: 0,
 };
+
+// Where the table is and how it looks (the owner picks it, everyone sees the
+// same room). Cosmetic only: ids match the scene's options.
+export const PLACES = ["trastienda", "jazz", "muelle"] as const;
+export const FELTS = ["verde", "vino", "noche", "carbon"] as const;
+export const RAILS = ["cuero", "nogal", "negro"] as const;
+export type Ambience = {
+  place: (typeof PLACES)[number];
+  felt: (typeof FELTS)[number];
+  rail: (typeof RAILS)[number];
+};
+export const DEFAULT_AMBIENCE: Ambience = { place: "trastienda", felt: "verde", rail: "cuero" };
 
 export type RunVote = { voters: string[]; votes: Record<string, number>; deadline: number };
 
@@ -95,10 +113,15 @@ export type PublicState = {
   seats: PublicSeat[];
   winners?: GameWinner[];
   reveals?: Record<string, string[]>; // seatId -> 2 card ids, at showdown
+  // Shown after the hand one at a time: seatId -> [left, right], "" = still down.
+  // Moves to reveals once both are up.
+  shown?: Record<string, string[]>;
   runs?: RunResult[]; // run-it-N all-in outcomes (N > 1)
   sb: number;
   bb: number;
-  startStack: number; // stack (and coin buy-in) granted to new players
+  startStack: number; // suggested buy-in (and the fixed one when there is no range)
+  buyIn?: { min: number; max: number }; // what a player may bring (cash tables)
+  ambience?: Ambience;
   currentBet?: number;
   minRaise?: number;
   dealer?: string; // seat id holding the button this hand
@@ -198,6 +221,7 @@ export type OnlineConfigInput = {
   casual?: boolean;
   tournament?: boolean;
   rules?: Partial<TableRules>;
+  ambience?: Partial<Ambience>;
 };
 
 export type OnlineAction =

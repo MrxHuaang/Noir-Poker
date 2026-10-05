@@ -17,7 +17,12 @@
 import { bestHand, compareScore, type Score } from "../handEval";
 import { cardFromId, makeDeck, shuffle, type Card } from "../poker";
 import {
+  DEFAULT_AMBIENCE,
   DEFAULT_RULES,
+  FELTS,
+  PLACES,
+  RAILS,
+  type Ambience,
   MAX_SEATED,
   REACTIONS,
   REACTION_GAP_MS,
@@ -116,6 +121,7 @@ export type EngineState = {
   holes: Record<string, string[]>;
   winners: GameWinner[];
   reveals: Record<string, string[]>;
+  shown?: Record<string, string[]>; // one card at a time after the hand ("" = down)
   runs: RunResult[];
   handCategories: Record<string, number>;
   lastAction: LastAction | null;
@@ -142,7 +148,7 @@ export type EngineState = {
   bankCount?: Record<string, number>; // hands since the bank was refilled
   usingBank?: string; // player on the clock running on their time bank
   away?: Record<string, boolean>; // stepped away from the table
-  requests?: Record<string, { name: string; seed: string; coins: boolean; ts: number }>;
+  requests?: Record<string, { name: string; seed: string; coins: boolean; ts: number; amount?: number }>;
   runVote?: { voters: string[]; votes: Record<string, number>; needed: number };
   rabbit?: string[];
   ledger?: { id: string; name: string; buyIn: number; out: number }[]; // players who left
@@ -154,6 +160,7 @@ export type EngineState = {
   hs?: { vpip: string[]; pfr: string[]; sawFlop: string[] };
   reaction?: Reaction;
   reactAt?: Record<string, number>;
+  ambience?: Ambience;
 };
 
 /** Effective rules of a room (old rooms predate them). */
@@ -192,6 +199,9 @@ export function normalizeRules(input: Partial<TableRules> | undefined, prev: Tab
   if (input.straddle !== undefined) r.straddle = input.straddle === true;
   if (input.bombEvery !== undefined) r.bombEvery = num(input.bombEvery, 0, 50, r.bombEvery ?? 0);
   if (input.bombBB !== undefined) r.bombBB = num(input.bombBB, 1, 20, r.bombBB ?? 2);
+  if (input.buyInMin !== undefined) r.buyInMin = num(input.buyInMin, 0, MAX_STACK, r.buyInMin ?? 0);
+  if (input.buyInMax !== undefined) r.buyInMax = num(input.buyInMax, 0, MAX_STACK, r.buyInMax ?? 0);
+  if (r.buyInMin && r.buyInMax && r.buyInMax < r.buyInMin) r.buyInMax = r.buyInMin;
   return r;
 }
 
@@ -300,6 +310,17 @@ function applyConfig(st: EngineState, cfg: OnlineConfigInput, now: number): void
     }
     st.rules = next;
   }
+  if (cfg.ambience && typeof cfg.ambience === "object") {
+    const a = cfg.ambience;
+    const prev = st.ambience ?? DEFAULT_AMBIENCE;
+    const pick = <T extends string>(v: unknown, list: readonly T[], fb: T): T =>
+      (list as readonly unknown[]).includes(v) ? (v as T) : fb;
+    st.ambience = {
+      place: pick(a.place, PLACES, prev.place),
+      felt: pick(a.felt, FELTS, prev.felt),
+      rail: pick(a.rail, RAILS, prev.rail),
+    };
+  }
   if (cfg.blindLevelSecs !== undefined) {
     const s = int(cfg.blindLevelSecs);
     const secs = s <= 0 ? 0 : Math.min(3600, Math.max(60, s));
@@ -359,14 +380,38 @@ function syncSeats(st: EngineState): void {
 
 export type SitResult = "seated" | "queued" | "joining" | "already" | "requested";
 
+/**
+ * What a player may bring to the table. Tournaments and tables without a
+ * range keep the fixed stack; otherwise [min, max] around the table stack.
+ */
+export function buyInRange(st: EngineState): { min: number; max: number } {
+  const fixed = { min: st.startStack, max: st.startStack };
+  if (st.tournament) return fixed;
+  const r = rulesOf(st);
+  if (!r.buyInMin && !r.buyInMax) return fixed;
+  const floor = st.bb * 2;
+  const min = Math.min(MAX_STACK, Math.max(floor, r.buyInMin || Math.min(st.startStack, r.buyInMax || st.startStack)));
+  const max = Math.min(MAX_STACK, Math.max(min, r.buyInMax || Math.max(st.startStack, min)));
+  return { min, max };
+}
+
+/** The buy-in for a requested amount: clamped to the range, the table stack when absent. */
+export function buyInFor(st: EngineState, amount?: number): number {
+  const { min, max } = buyInRange(st);
+  const want = amount !== undefined && Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : st.startStack;
+  return Math.min(max, Math.max(min, want));
+}
+
 export function sit(
   st: EngineState,
   uid: string,
   name: string,
   seed: string,
   coins: boolean,
+  amount?: number,
 ): SitResult {
   if (st.players[uid]) return "already";
+  const buyIn = buyInFor(st, amount);
   if (st.tournament && st.tStarted) throw new OnlineError("El torneo ya empezó. Puedes mirar desde la barra.");
   if (st.betting && !betweenHands(st) && st.betting.seats.some((s) => s.id === uid)) {
     // Left mid-hand and came straight back: the old seat is still settling.
@@ -377,25 +422,25 @@ export function sit(
   const owner = ownerOf(st);
   if (rulesOf(st).approveSeats && uid !== st.creator && owner && owner !== uid) {
     st.requests = st.requests ?? {};
-    st.requests[uid] = { name: name.slice(0, 40) || "Jugador", seed: seed.slice(0, 80) || uid, coins, ts: st.nextSeq++ };
+    st.requests[uid] = { name: name.slice(0, 40) || "Jugador", seed: seed.slice(0, 80) || uid, coins, ts: st.nextSeq++, amount: buyIn };
     return "requested";
   }
-  return seatPlayer(st, uid, name, seed, coins);
+  return seatPlayer(st, uid, name, seed, coins, buyIn);
 }
 
-function seatPlayer(st: EngineState, uid: string, name: string, seed: string, coins: boolean): SitResult {
+function seatPlayer(st: EngineState, uid: string, name: string, seed: string, coins: boolean, buyIn: number): SitResult {
   if (st.requests) delete st.requests[uid];
   st.players[uid] = {
     id: uid,
     name: name.slice(0, 40) || "Jugador",
     seed: seed.slice(0, 80) || uid,
     joinSeq: st.nextSeq++,
-    buyIn: st.startStack,
+    buyIn,
     coins,
   };
   st.names[uid] = st.players[uid].name;
   st.seeds[uid] = st.players[uid].seed;
-  st.chips[uid] = st.startStack;
+  st.chips[uid] = buyIn;
   st.bank = st.bank ?? {};
   st.bank[uid] = rulesOf(st).bankSecs;
   st.bustedOrder = st.bustedOrder.filter((id) => id !== uid);
@@ -441,16 +486,17 @@ export function leave(st: EngineState, uid: string, now: number): void {
   if (betweenHands(st)) syncSeats(st);
 }
 
-export function rebuy(st: EngineState, uid: string): number {
+export function rebuy(st: EngineState, uid: string, amount?: number): number {
   const p = st.players[uid];
   if (!p) throw new OnlineError("No estas sentado");
   if (st.tournament) throw new OnlineError("En el torneo no hay recompras");
   if (!betweenHands(st)) throw new OnlineError("Espera a que termine la mano");
   if ((st.chips[uid] ?? 0) > 0) throw new OnlineError("Todavia tienes fichas");
-  st.chips[uid] = st.startStack;
-  p.buyIn += st.startStack;
+  const add = buyInFor(st, amount);
+  st.chips[uid] = add;
+  p.buyIn += add;
   st.bustedOrder = st.bustedOrder.filter((id) => id !== uid);
-  return st.startStack;
+  return add;
 }
 
 export function setPaused(st: EngineState, uid: string, paused: boolean, now: number): void {
@@ -576,6 +622,7 @@ function dealHand(st: EngineState, now: number, deck: string[]): void {
   st.board = [];
   st.winners = [];
   st.reveals = {};
+  st.shown = undefined;
   st.runs = [];
   st.handCategories = {};
   st.lastAction = null;
@@ -794,14 +841,23 @@ export function back(st: EngineState, uid: string): boolean {
 }
 
 // After a hand, a player still holding cards may turn them face up (the
-// winner of a pot nobody called, or a hand that was not shown).
-export function show(st: EngineState, uid: string): void {
+// winner of a pot nobody called, or a hand that was not shown): one of them
+// (0 = left, 1 = right) or both. Once both are up they count as revealed.
+export function show(st: EngineState, uid: string, which?: number): void {
   if (st.phase !== "showdown") throw new OnlineError("Solo al terminar la mano");
   const h = st.holes[uid];
   const seat = st.betting?.seats.find((s) => s.id === uid);
   if (!h || h.length !== 2 || !seat || seat.status === "folded") throw new OnlineError("No tienes cartas en esta mano");
   if (st.reveals[uid]) return;
-  st.reveals = { ...st.reveals, [uid]: h.slice() };
+  const up = (st.shown?.[uid] ?? ["", ""]).slice();
+  if (which === 0 || which === 1) up[which] = h[which];
+  else up.splice(0, 2, h[0], h[1]);
+  if (up[0] && up[1]) {
+    st.reveals = { ...st.reveals, [uid]: h.slice() };
+    if (st.shown) delete st.shown[uid];
+  } else {
+    st.shown = { ...st.shown, [uid]: up };
+  }
 }
 
 // A gesture at the table: seated players only, one every REACTION_GAP_MS.
@@ -823,7 +879,7 @@ export function approve(st: EngineState, owner: string, target: string): SitResu
   ownerOnly(st, owner);
   const req = st.requests?.[target];
   if (!req) throw new OnlineError("Esa persona ya no está esperando");
-  return seatPlayer(st, target, req.name, req.seed, req.coins);
+  return seatPlayer(st, target, req.name, req.seed, req.coins, buyInFor(st, req.amount));
 }
 
 export function deny(st: EngineState, owner: string, target: string): void {
@@ -1424,6 +1480,8 @@ export function publicView(st: EngineState): PublicState {
   };
   if (st.nextBlindsAt) out.nextBlindsAt = st.nextBlindsAt;
   out.rules = rulesOf(st);
+  if (!st.tournament) out.buyIn = buyInRange(st);
+  if (st.ambience) out.ambience = { ...st.ambience };
   if (st.ante) out.ante = st.ante;
   if (st.level) out.level = st.level;
   if (st.runVote) out.runVote = { voters: st.runVote.voters.slice(), votes: { ...st.runVote.votes }, deadline: st.deadline || 0 };
@@ -1444,6 +1502,7 @@ export function publicView(st: EngineState): PublicState {
   }
   if (st.winners.length) out.winners = st.winners.map((w) => ({ ...w }));
   if (Object.keys(st.reveals).length) out.reveals = { ...st.reveals };
+  if (showdown && st.shown && Object.keys(st.shown).length) out.shown = { ...st.shown };
   if (st.runs.length) out.runs = st.runs.map((r) => ({ ...r }));
   if (st.lastAction) out.lastAction = { ...st.lastAction };
   if (st.bustedOrder.length) out.bustedOrder = st.bustedOrder.slice();

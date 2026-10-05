@@ -124,6 +124,7 @@ export default function ClubPage() {
           casual: tableCasual,
           tournament,
           rules: { ...cfg.rules, levels },
+          ambience: cfg.ambience,
         },
         sit: true,
       });

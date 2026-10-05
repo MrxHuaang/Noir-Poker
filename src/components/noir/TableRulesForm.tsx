@@ -3,13 +3,18 @@
 // club's paper. Short on purpose: a one-line summary of what is set, the
 // money choice, then four index tabs (blinds, time, dealing, chairs) so only
 // one group is open at a time. Each option is one row: the question on the
-// left, rubber stamps on the right.
+// left, rubber stamps on the right. The last tab is the room itself (place,
+// felt, rail): cosmetic, everyone at the table sees the same one.
 // Pure form: the engine clamps and validates everything again.
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import type { BlindLevel, TableRules } from "@/lib/online/protocol";
+import { DEFAULT_AMBIENCE, type Ambience, type BlindLevel, type TableRules } from "@/lib/online/protocol";
 
-export type TableSetup = { sb: number; bb: number; stack: number; rules: TableRules };
+export type TableSetup = { sb: number; bb: number; stack: number; rules: TableRules; ambience?: Ambience };
+
+export const PLACE_LABEL: Record<Ambience["place"], string> = { trastienda: "La trastienda", jazz: "Club de jazz", muelle: "Almacén del muelle" };
+const FELT_LABEL: Record<Ambience["felt"], string> = { verde: "Verde billar", vino: "Vino", noche: "Azul noche", carbon: "Carbón" };
+const RAIL_LABEL: Record<Ambience["rail"], string> = { cuero: "Cuero granate", nogal: "Nogal", negro: "Laca negra" };
 
 export const CLUB_RULES: TableRules = {
   ante: 0,
@@ -28,6 +33,8 @@ export const CLUB_RULES: TableRules = {
   straddle: false,
   bombEvery: 0,
   bombBB: 2,
+  buyInMin: 0,
+  buyInMax: 0,
 };
 
 const fmt = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -53,12 +60,15 @@ export function rulesSummary(setup: TableSetup, tournament = false): string[] {
     r.levels.length
       ? `Ciegas desde ${fmt(first.sb)}/${fmt(first.bb)}, suben cada ${first.mins || "∞"} min`
       : `Ciegas ${fmt(setup.sb)}/${fmt(setup.bb)}${r.ante ? ` + ante ${fmt(r.ante)}` : ""}`,
-    `${fmt(setup.stack)} fichas`,
+    !tournament && (r.buyInMin || r.buyInMax)
+      ? `compra ${fmt(r.buyInMin || setup.stack)} a ${fmt(r.buyInMax || setup.stack)}`
+      : `${fmt(setup.stack)} fichas`,
     r.turnSecs ? `${r.turnSecs} s por turno` : "sin reloj",
     tournament ? "un tablero" : r.runItMode === "ask" ? "all-in: se pregunta" : r.runItMode === "twice" ? "all-in: dos tableros" : "all-in: un tablero",
     ...(r.straddle ? ["straddle"] : []),
     ...(r.bombEvery ? [`bote bomba cada ${r.bombEvery} manos`] : []),
     `${r.maxSeats} sillas`,
+    PLACE_LABEL[(setup.ambience ?? DEFAULT_AMBIENCE).place],
   ];
 }
 
@@ -123,12 +133,13 @@ function Num({ value, onChange, label, w = "w-20" }: { value: number; onChange: 
   );
 }
 
-type Tab = "ciegas" | "tiempo" | "reparto" | "sillas";
+type Tab = "ciegas" | "tiempo" | "reparto" | "sillas" | "ambiente";
 const TABS: { key: Tab; label: string }[] = [
   { key: "ciegas", label: "Ciegas" },
   { key: "tiempo", label: "Tiempo" },
   { key: "reparto", label: "Reparto" },
   { key: "sillas", label: "Sillas" },
+  { key: "ambiente", label: "Ambiente" },
 ];
 
 export function TableRulesForm({
@@ -153,6 +164,11 @@ export function TableRulesForm({
   const rising = r.levels.length > 0;
   const levels = r.levels;
   const setLevel = (i: number, p: Partial<BlindLevel>) => set({ levels: levels.map((l, k) => (k === i ? { ...l, ...p } : l)) });
+  const amb = value.ambience ?? DEFAULT_AMBIENCE;
+  const setAmb = (p: Partial<Ambience>) => onChange({ ...value, ambience: { ...amb, ...p } });
+  const bb = levels[0]?.bb ?? value.bb;
+  const ranged = !tournament && (r.buyInMin > 0 || r.buyInMax > 0);
+  const setRange = (minBB: number, maxBB: number) => set({ buyInMin: minBB * bb, buyInMax: maxBB * bb });
 
   return (
     <div className="legible grid gap-4">
@@ -308,8 +324,45 @@ export function TableRulesForm({
                   options={[1, 2, 3, 5].map((v) => ({ v, label: `${v} ${v === 1 ? "grande" : "grandes"}` }))}
                 />
               )}
+              {!tournament && (
+                <Stamps
+                  label="Cuánto trae cada uno"
+                  hint={ranged ? "Cada jugador elige al sentarse, dentro del rango." : undefined}
+                  value={ranged}
+                  onChange={(v) => (v ? setRange(40, 200) : set({ buyInMin: 0, buyInMax: 0 }))}
+                  options={[
+                    { v: false, label: "Lo mismo todos" },
+                    { v: true, label: "Lo que quiera" },
+                  ]}
+                />
+              )}
+              {ranged && (
+                <Row label="Compra" hint={`En grandes: ${Math.round(r.buyInMin / bb)} a ${Math.round(r.buyInMax / bb)}.`}>
+                  <span className="text-[13px] text-paper-mute">de</span>
+                  <Num label="Compra mínima" w="w-24" value={r.buyInMin} onChange={(buyInMin) => set({ buyInMin })} />
+                  <span className="text-[13px] text-paper-mute">a</span>
+                  <Num label="Compra máxima" w="w-24" value={r.buyInMax} onChange={(buyInMax) => set({ buyInMax })} />
+                  {[
+                    [20, 100],
+                    [40, 200],
+                    [100, 300],
+                  ].map(([lo, hi]) => (
+                    <button
+                      key={lo}
+                      type="button"
+                      role="radio"
+                      aria-checked={r.buyInMin === lo * bb && r.buyInMax === hi * bb}
+                      className="stamp"
+                      onClick={() => setRange(lo, hi)}
+                    >
+                      {lo}-{hi} BB
+                    </button>
+                  ))}
+                </Row>
+              )}
               <Stamps
-                label={tournament ? "Fichas de salida" : "Fichas al sentarse"}
+                label={tournament ? "Fichas de salida" : ranged ? "Compra sugerida" : "Fichas al sentarse"}
+                hint={ranged ? "La que aparece marcada al sentarse." : undefined}
                 value={value.stack}
                 onChange={(stack) => onChange({ ...value, stack })}
                 options={[500, 1000, 2000, 5000, 10000].map((v) => ({ v, label: fmt(v), off: v < value.bb * 20 }))}
@@ -426,6 +479,30 @@ export function TableRulesForm({
                   { v: false, label: "No se le reparte" },
                   { v: true, label: "Se le reparte igual" },
                 ]}
+              />
+            </>
+          )}
+
+          {tab === "ambiente" && (
+            <>
+              <Stamps
+                label="Dónde se juega"
+                hint="Todos en la mesa ven la misma sala."
+                value={amb.place}
+                onChange={(place) => setAmb({ place })}
+                options={(Object.keys(PLACE_LABEL) as Ambience["place"][]).map((v) => ({ v, label: PLACE_LABEL[v] }))}
+              />
+              <Stamps
+                label="El paño"
+                value={amb.felt}
+                onChange={(felt) => setAmb({ felt })}
+                options={(Object.keys(FELT_LABEL) as Ambience["felt"][]).map((v) => ({ v, label: FELT_LABEL[v] }))}
+              />
+              <Stamps
+                label="El borde"
+                value={amb.rail}
+                onChange={(rail) => setAmb({ rail })}
+                options={(Object.keys(RAIL_LABEL) as Ambience["rail"][]).map((v) => ({ v, label: RAIL_LABEL[v] }))}
               />
             </>
           )}

@@ -12,6 +12,8 @@ export default function VoicePanel({
   displayName,
   seed,
   canLeave = true,
+  bare = false,
+  onStatus,
 }: {
   code: string;
   uid: string | null;
@@ -20,6 +22,10 @@ export default function VoicePanel({
   // En salas online/torneo no se permite terminar la llamada: solo silenciarse
   // y mutear a otros participantes. Pasar false oculta el boton de salir.
   canLeave?: boolean;
+  /** Drawn inside another surface (the table's case): no plate of its own. */
+  bare?: boolean;
+  /** Reports whether you are on the line and with the mic open (UI only). */
+  onStatus?: (s: { on: boolean; talking: boolean }) => void;
 }) {
   const [enabled, setEnabled] = useState(false);
   // Whether the user joined in listen-only mode (starts with mic muted).
@@ -50,6 +56,14 @@ export default function VoicePanel({
       if (!isMuted) toggleMute();
     }
   }, [enabled, listenOnly, localStream, isMuted, toggleMute]);
+
+  const statusRef = useRef(onStatus);
+  useEffect(() => {
+    statusRef.current = onStatus;
+  }, [onStatus]);
+  useEffect(() => {
+    statusRef.current?.({ on: enabled, talking: enabled && !isMuted });
+  }, [enabled, isMuted]);
 
   // Atajo M para mute (solo cuando ya estamos unidos).
   useEffect(() => {
@@ -153,7 +167,7 @@ export default function VoicePanel({
     : null;
 
   return (
-    <section aria-label="Canal de voz" className="plate grid w-64 gap-3 px-4 pt-7 pb-4">
+    <section aria-label="Canal de voz" className={bare ? "grid gap-3" : "plate grid w-64 gap-3 px-4 pt-7 pb-4"}>
       <header className="flex items-center justify-between gap-2">
         <p className="kick m-0 text-[12px]">
           Radio · {Object.keys(participants).length} en la línea{listenOnly ? " · escuchas" : ""}

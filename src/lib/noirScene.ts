@@ -22,7 +22,7 @@ export type SceneSeat = {
   stack: number;
   bet: number;
   status: "active" | "folded" | "all-in" | "out";
-  /** Card ids when known (own hand, showdown), "backs" when dealt face down. */
+  /** Card ids when known (own hand, showdown; "" = that one still face down), "backs" when dealt face down. */
   cards: string[] | "backs" | null;
   pos: string;
   me: boolean;
@@ -154,6 +154,8 @@ export function toSceneSnapshot(
     if (live && s.hasCards) {
       if (me && hole && hole.length === 2) cards = hole.slice();
       else if (reveal && reveal.length === 2) cards = reveal.slice();
+      // one card turned up after the hand: "" keeps the other face down
+      else if (state.shown?.[s.id]?.some(Boolean)) cards = state.shown[s.id].slice(0, 2);
       else cards = "backs";
     }
     const status = (["active", "folded", "all-in", "out"].includes(s.status) ? s.status : "active") as SceneSeat["status"];

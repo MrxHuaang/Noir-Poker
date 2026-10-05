@@ -81,6 +81,17 @@ describe("toSceneSnapshot", () => {
     expect(snap.turn).toBe(-1);
   });
 
+  it("turns up a single shown card and keeps the other down, without a hand label", () => {
+    const snap = toSceneSnapshot(
+      base({ phase: "showdown", toAct: "", board: ["AH", "AD", "7C", "2S", "9H"], shown: { b: ["", "KS"] } }),
+      null,
+      null,
+    );
+    const b = snap.seats.find((s) => s?.id === "b")!;
+    expect(b.cards).toEqual(["", "KS"]);
+    expect(b.hand).toBeUndefined();
+  });
+
   it("flags an all-in runout", () => {
     const snap = toSceneSnapshot(
       base({ seats: [seat("a", { status: "all-in", chips: 0 }), seat("b", { status: "all-in", chips: 0 }), seat("c", { status: "folded", hasCards: false })] }),

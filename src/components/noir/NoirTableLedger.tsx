@@ -63,6 +63,7 @@ export function NoirTableLedger({
     bb: state?.bb ?? 10,
     stack: state?.startStack ?? 1000,
     rules: state?.rules ?? CLUB_RULES,
+    ambience: state?.ambience,
   }));
   const [note, setNote] = useState<string | null>(null);
   const locked = !!state?.tournament && !!state?.tStarted;
@@ -91,6 +92,7 @@ export function NoirTableLedger({
         bb: state?.bb ?? 0,
         stack: state?.startStack ?? 0,
         rules: state?.rules ?? CLUB_RULES,
+        ambience: state?.ambience,
       },
       !!state?.tournament,
     ),

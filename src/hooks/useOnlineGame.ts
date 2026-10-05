@@ -37,20 +37,20 @@ export type OnlineGame = {
   online: boolean;
   busy: OnlineAction | null;
   // Every action resolves to an error message (Spanish, from the server) or null.
-  sit: () => Promise<string | null>;
+  sit: (amount?: number) => Promise<string | null>;
   leave: () => Promise<string | null>;
   start: () => Promise<string | null>;
   act: (move: string, amount?: number) => Promise<string | null>;
   config: (cfg: OnlineConfigInput) => Promise<string | null>;
   pause: () => Promise<string | null>;
   resume: () => Promise<string | null>;
-  rebuy: () => Promise<string | null>;
+  rebuy: (amount?: number) => Promise<string | null>;
   vote: (n: number) => Promise<string | null>;
   away: (on: boolean) => Promise<string | null>;
   approve: (target: string) => Promise<string | null>;
   deny: (target: string) => Promise<string | null>;
   kick: (target: string) => Promise<string | null>;
-  show: () => Promise<string | null>;
+  show: (which?: 0 | 1) => Promise<string | null>;
   react: (kind: string) => Promise<string | null>;
 };
 
@@ -266,20 +266,20 @@ export function useOnlineGame(code: string | null): OnlineGame {
 
   const actions = useMemo(
     () => ({
-      sit: () => call("sit"),
+      sit: (amount?: number) => call("sit", amount ? { amount } : {}),
       leave: () => call("leave"),
       start: () => call("start"),
       act: (move: string, amount = 0) => call("act", { move, amount }),
       config: (cfg: OnlineConfigInput) => call("config", { config: cfg }),
       pause: () => call("pause"),
       resume: () => call("resume"),
-      rebuy: () => call("rebuy"),
+      rebuy: (amount?: number) => call("rebuy", amount ? { amount } : {}),
       vote: (n: number) => call("vote", { n }),
       away: (on: boolean) => call("away", { away: on }),
       approve: (target: string) => call("approve", { target }),
       deny: (target: string) => call("deny", { target }),
       kick: (target: string) => call("kick", { target }),
-      show: () => call("show"),
+      show: (which?: 0 | 1) => call("show", which === undefined ? {} : { which }),
       react: (kind: string) => call("react", { kind }),
     }),
     [call],

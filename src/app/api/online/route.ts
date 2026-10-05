@@ -14,6 +14,8 @@ import type { OnlineConfigInput } from "@/lib/online/protocol";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const numOr = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+
 function configFrom(raw: unknown): OnlineConfigInput {
   const c = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
@@ -27,6 +29,8 @@ function configFrom(raw: unknown): OnlineConfigInput {
     tournament: c.tournament === true,
     // Rules are clamped by the engine (normalizeRules); only the shape is checked here.
     rules: c.rules && typeof c.rules === "object" ? (c.rules as OnlineConfigInput["rules"]) : undefined,
+    // Ambience ids are checked against the known lists by the engine.
+    ambience: c.ambience && typeof c.ambience === "object" ? (c.ambience as OnlineConfigInput["ambience"]) : undefined,
   };
 }
 
@@ -48,7 +52,7 @@ export async function POST(req: Request) {
       let sitError: string | null = null;
       if (body.sit === true) {
         try {
-          await online.sit(uid, code);
+          await online.sit(uid, code, numOr(body.amount));
         } catch (err) {
           sitError = err instanceof Error ? err.message : "No se pudo sentar";
         }
@@ -59,7 +63,7 @@ export async function POST(req: Request) {
     const code = online.normalizeCode(body.code);
     switch (action) {
       case "sit":
-        return NextResponse.json({ result: await online.sit(uid, code) });
+        return NextResponse.json({ result: await online.sit(uid, code, numOr(body.amount)) });
       case "leave":
         await online.leave(uid, code);
         return NextResponse.json({ ok: true });
@@ -81,7 +85,7 @@ export async function POST(req: Request) {
         await online.setPaused(uid, code, action === "pause");
         return NextResponse.json({ ok: true });
       case "rebuy":
-        await online.rebuy(uid, code);
+        await online.rebuy(uid, code, numOr(body.amount));
         return NextResponse.json({ ok: true });
       case "vote":
         await online.vote(uid, code, typeof body.n === "number" ? body.n : 1);
@@ -98,7 +102,7 @@ export async function POST(req: Request) {
         await online.kick(uid, code, String(body.target ?? ""));
         return NextResponse.json({ ok: true });
       case "show":
-        await online.show(uid, code);
+        await online.show(uid, code, body.which === 0 || body.which === 1 ? body.which : undefined);
         return NextResponse.json({ ok: true });
       case "react":
         await online.react(uid, code, String(body.kind ?? ""));

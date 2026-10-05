@@ -234,7 +234,7 @@ details li{font-size:13.5px;color:var(--text-2)} details li+li{margin-top:6px} d
       <h2>Mesa</h2>
       <div class="opt"><span>Paño</span><div class="seg" data-opt="felt"><button class="sw" data-v="verde" style="background:#1f4a33" aria-label="Verde"></button><button class="sw" data-v="vino" style="background:#5a1c24" aria-label="Vino"></button><button class="sw" data-v="noche" style="background:#1c2c4a" aria-label="Azul noche"></button><button class="sw" data-v="carbon" style="background:#2c2b29" aria-label="Carbón"></button></div></div>
       <div class="opt"><span>Borde</span><div class="seg" data-opt="rail"><button data-v="cuero">Cuero granate</button><button data-v="nogal">Nogal</button><button data-v="negro">Laca negra</button></div></div>
-      <div class="opt"><span>Reverso de las cartas</span><div class="seg" data-opt="back"><button data-v="carmesi">Rejilla carmesí</button><button data-v="deco">Déco dorado</button><button data-v="pica">Pica de hueso</button></div></div>
+      <div class="opt"><span>Reverso de las cartas</span><div class="seg" data-opt="back"><button data-v="carmesi">Rejilla carmesí</button><button data-v="deco">Déco dorado</button><button data-v="pica">Pica de hueso</button><button data-v="azul">Rejilla azul</button></div></div>
       <div class="opt"><span>Palos</span><div class="seg" data-opt="four"><button data-v="off">Dos colores</button><button data-v="on">Cuatro colores</button></div></div>
     </div>
     <div class="panel">
@@ -822,9 +822,9 @@ function cardTex(c) {
     px(1, 0, 30, 44, INK); px(0, 1, 32, 42, INK);
     if (!c) {
       const B = OPT.back;
-      const bg = B === "deco" ? "#10201a" : B === "pica" ? "#15171a" : "#1a1210"; px(1, 1, 30, 42, bg);
+      const bg = B === "deco" ? "#10201a" : B === "pica" ? "#15171a" : B === "azul" ? "#0f141c" : "#1a1210"; px(1, 1, 30, 42, bg);
       for (let y = 2; y < 42; y++) for (let x = 2; x < 30; x++) {
-        if (B === "carmesi" && ((x + y) % 4 === 0 || (x - y + 64) % 4 === 0)) px(x, y, 1, 1, "#8e2a22");
+        if ((B === "carmesi" || B === "azul") && ((x + y) % 4 === 0 || (x - y + 64) % 4 === 0)) px(x, y, 1, 1, B === "azul" ? "#2c4a78" : "#8e2a22");
         if (B === "deco" && (Math.abs(((x - 16) % 8 + 8) % 8 - 4) === (y % 8) - 2 || y % 8 === 0)) px(x, y, 1, 1, "#9a7030");
       }
       const edge = B === "deco" ? "#c98f3c" : "#cdbd98"; px(2, 2, 28, 1, edge); px(2, 41, 28, 1, edge); px(2, 2, 1, 40, edge); px(29, 2, 1, 40, edge);
@@ -1309,6 +1309,12 @@ function pressAll() {
   document.querySelectorAll(".seg[data-opt]").forEach(seg => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === OPT[seg.dataset.opt]))));
   document.querySelectorAll("#chars button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === OPT.me)));
 }
+// the online table: the room the owner picked (place, felt, rail) and the
+// viewer's own card back and colour grade, changed live
+const LOOK_KEYS = { place: ["trastienda", "jazz", "muelle"], felt: ["verde", "vino", "noche", "carbon"], rail: ["cuero", "nogal", "negro"], back: ["carmesi", "azul", "deco", "pica"], grade: ["humo", "noche", "sangre", "libre"] };
+function applyLook(l) { let place = false, back = false; for (const [k, ok] of Object.entries(LOOK_KEYS)) { const v = l[k]; if (typeof v !== "string" || !ok.includes(v) || OPT[k] === v) continue; OPT[k] = v; if (k === "place") place = true; if (k === "back") back = true; }
+  applyAll(); if (place) mixScene();
+  if (back) [...(RS.boardObjs || []), ...(RS.cards || []).flat()].forEach(o => { if (!o.userData.mats) return; o.userData.mats[1].map = cardTex(null); o.userData.mats.forEach(x => x.needsUpdate = true); }); }
 function applyAll() { post.uniforms.quant.value = OPT.grade === "libre" ? 0 : 1; if (GRADES[OPT.grade]) post.uniforms.pal.value = GRADES[OPT.grade]; setFelt(); railMat.color.setHex(RAILS[OPT.rail] || RAILS.cuero); applyPlace(); pressAll(); save(); }
 document.querySelectorAll(".seg[data-opt]").forEach(seg => seg.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; const k = seg.dataset.opt; OPT[k] = b.dataset.v; applyAll();
   if (k === "sound") applySound(); if (k === "place") mixScene(); if (k === "px") resize(); if (k === "cam") setCamera(); if (k === "four" || k === "back") refreshCards(); if (k === "hero" && OPT.hero === "auto" && G.heroResolve) heroPick(decide(0)); }));
@@ -1452,7 +1458,7 @@ function remoteBoot() {
   for (let i = 0; i < 9; i++) { if (figs[i]) { scene.remove(figs[i]); figs[i] = null; } tagEls[i].hidden = true; pillEls[i].hidden = true; }
   G.players = Array.from({ length: 9 }, (_, i) => ({ name: "", hero: false, i, stack: 0, hole: [], cards: [], bet: 0, contrib: 0, folded: false, allin: false, acted: false, actText: "", actKind: "" }));
   G.pos = {}; G.toAct = -1; G.pot = 0; setPot(); dealerBtn.visible = false; potPill.hidden = true; sidePill.hidden = true;
-  addEventListener("message", e => { if (e.origin !== location.origin) return; const m = e.data || {}; if (m.snap) { rsPending = m.snap; pump(); } if (m.cam) { OPT.cam = m.cam; setCamera(); } if (m.four !== undefined) { OPT.four = m.four ? "on" : "off"; [...RS.boardObjs, ...RS.cards.flat()].forEach(o => { if (!o.userData.mats) return; o.userData.mats[0].map = cardTex(o.userData.card); o.userData.mats.forEach(x => x.needsUpdate = true); }); } if (m.say) say(m.say, 2600); if (m.music !== undefined) { SND.musicOn = !!m.music; mixScene(); } if (m.cue) sfx2(m.cue); });
+  addEventListener("message", e => { if (e.origin !== location.origin) return; const m = e.data || {}; if (m.snap) { rsPending = m.snap; pump(); } if (m.cam) { OPT.cam = m.cam; setCamera(); } if (m.four !== undefined) { OPT.four = m.four ? "on" : "off"; [...RS.boardObjs, ...RS.cards.flat()].forEach(o => { if (!o.userData.mats) return; o.userData.mats[0].map = cardTex(o.userData.card); o.userData.mats.forEach(x => x.needsUpdate = true); }); } if (m.look) applyLook(m.look); if (m.say) say(m.say, 2600); if (m.music !== undefined) { SND.musicOn = !!m.music; mixScene(); } if (m.cue) sfx2(m.cue); });
   if (parent !== window) parent.postMessage({ sceneReady: "remote" }, location.origin);
 }
 async function pump() { if (rsBusy) return; rsBusy = true; try { while (rsPending) { const s = rsPending; rsPending = null; try { await Promise.race([applySnap(s), sleep(s.allin ? (s.runs && s.runs.length > 1 ? 60000 : 30000) : 9000)]); } catch (err) { console.error("snapshot", err); } } } finally { rsBusy = false; } }
@@ -1464,8 +1470,9 @@ function oneCard(i, r, animate) {
   return o;
 }
 function showFaces(i, ids, slow) {
-  const S = SEATS[i];
-  RS.cards[i] = RS.cards[i].map((o, k) => { const n = makeCard3D(cardOf(ids[k]), false, i === 0 ? 1 : .74); n.position.copy(o.position); n.rotation.copy(o.rotation);
+  const S = SEATS[i], before = (RS.ids[i] || "").split(",");
+  // a card shown on its own after the hand: "" stays face down, one already up stays put
+  RS.cards[i] = RS.cards[i].map((o, k) => { if (!ids[k] || before[k] === ids[k]) return o; const n = makeCard3D(cardOf(ids[k]), false, i === 0 ? 1 : .74); n.position.copy(o.position); n.rotation.copy(o.rotation);
     // the face-down card may still be flying in from the dealer (a slow or hidden tab lags the deal
     // tween): stop it and send the face-up one to the card's real place, or it stays wherever the deal was
     gsap.killTweensOf(o.position); gsap.killTweensOf(o.rotation); scene.remove(o); const home = holePlace(i, k); n.position.y = home.y;
