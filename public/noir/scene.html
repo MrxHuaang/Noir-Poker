@@ -78,6 +78,7 @@ body{font-size:15px;line-height:1.5}
 .tag.win{filter:sepia(.4) saturate(1.5) brightness(1.1) drop-shadow(0 10px 14px rgba(0,0,0,.6))}
 /* phones and narrow frames (the landing hero on a phone): the seat cards shrink to
    name + stack size so they fit the smaller table; desktop keeps the full card */
+.tag.behind{opacity:.22}
 @media (max-width:640px){
 .tag{width:86px;padding:3px 7px 5px}
 .tag.hero{width:96px}
@@ -918,7 +919,12 @@ const LINES = {
 };
 function line(k, ...a) { const L = LINES[DEALER_ID] || LINES.horacio, v = L[k] ?? LINES.horacio[k]; return typeof v === "function" ? v(...a) : Array.isArray(v) ? v[Math.floor(Math.random() * v.length)] : v; }
 // written only when a label actually moves: an unchanged write still dirties style every frame
-function projectHud() { for (const [el, v] of anchors) { if (el.hidden) continue; const [x, y] = toScreen(v); if (el._hx !== x) { el._hx = x; el.style.left = x + "px"; } if (el._hy !== y) { el._hy = y; el.style.top = y + "px"; } } }
+// on the landing hero on a phone the title sits over the lower half of the frame:
+// seat cards that land there step back so the title reads
+const narrowEmbed = MODE === "embed" ? matchMedia("(max-width: 640px)") : null;
+function projectHud() { const dimBelow = narrowEmbed && narrowEmbed.matches ? innerHeight * .42 : Infinity;
+  for (const [el, v] of anchors) { if (el.hidden) continue; const [x, y] = toScreen(v); if (el._hx !== x) { el._hx = x; el.style.left = x + "px"; } if (el._hy !== y) { el._hy = y; el.style.top = y + "px"; }
+    if (el.classList.contains("tag")) { const d = y > dimBelow; if (el._dim !== d) { el._dim = d; el.classList.toggle("behind", d); } } } }
 
 /* ================================================================== poker */
 function newDeck() { const d = []; for (let s = 0; s < 4; s++) for (let r = 0; r < 13; r++) d.push({ r, s }); return shuffle(d); }
