@@ -1351,8 +1351,12 @@ function buildLineup() {
   chart.wrapS = chart.wrapT = THREE.RepeatWrapping; chart.repeat.set(10, 1.5);
   LINE.wall = add(stageG, new THREE.PlaneGeometry(40, 4.5), M(0xffffff, { map: chart }), 0, 2.25, -1.1, { cast: false });
   LINE.floor = add(stageG, new THREE.PlaneGeometry(40, 8), M(0xffffff, { map: FLOORS.planks }), 0, 0, 1, { rx: -Math.PI / 2, cast: false });
-  stageG.add(new THREE.HemisphereLight(0x4a5266, 0x160f0b, .7));
-  lineSpot = new THREE.SpotLight(0xffd9a8, 36, 9, .34, .5, 1.2); lineSpot.position.set(0, 4.6, 1.6); lineSpot.castShadow = true; stageG.add(lineSpot, lineSpot.target);
+  // lit like the cameos so the one you are choosing reads at a glance: a warm key that follows
+  // the camera, a cold fill and a tungsten rim from behind to lift the silhouette off the wall
+  stageG.add(new THREE.HemisphereLight(0x5a6478, 0x1c130d, 1.15));
+  lineSpot = new THREE.SpotLight(0xffd9a8, 48, 10, .4, .55, 1.1); lineSpot.position.set(0, 4.6, 2); lineSpot.castShadow = true; stageG.add(lineSpot, lineSpot.target);
+  const rimL = new THREE.DirectionalLight(0xe8b25c, 2.2); rimL.position.set(-2.5, 3, -4); stageG.add(rimL);
+  const fillL = new THREE.DirectionalLight(0x8fa3c4, .8); fillL.position.set(3, 2, 5); stageG.add(fillL);
   ARCH.forEach((a, k) => { const f = makeFigure(a, .2, a.pose); f.position.set(k * LINE.SP, 0, 0); f.rotation.y = rnd(-.25, .25); stageG.add(f); lineFigs.push(f); });
   LINE.target = -1; if (parent !== window) parent.postMessage({ roster: ARCH.map(a => ({ id: a.id, name: a.name, alias: a.alias, d: a.d, vice: a.vice, tic: a.tic })) }, location.origin);
 }
